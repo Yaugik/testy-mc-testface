@@ -8,10 +8,14 @@ It uses only RFC documentation-range IP addresses and `.test` domains.
 - Bearer-token authentication with a synthetic credential.
 - Healthy, degraded, unavailable, and quota-exhausted system states.
 - Corporate, residential, unknown, and timeout lookup cases.
+- Timeout → unavailable → recovered ordered sequence.
+- Explicit transition into `unavailable`, followed by request-count recovery.
+- Namespaced stores recording recovery attempts, outcomes, and trigger state.
 - Privacy-safe capture rules that redact authorization and cookie headers.
 
-Validate it from the repository root with:
+Validate and compile it from the repository root with:
 
 ```bash
 pnpm vendor:validate
+pnpm vendor:compile
 ```
