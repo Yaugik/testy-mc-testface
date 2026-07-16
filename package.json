@@ -30,6 +30,9 @@
     "vendor:isolation:apollo": "pnpm vendor:contract:prepare && pnpm --filter @testy/vendor-contract exec node dist/isolation-cli.js ../../vendors/apollo ../../generated/isolation",
     "vendor:isolation:hunter": "pnpm vendor:contract:prepare && pnpm --filter @testy/vendor-contract exec node dist/isolation-cli.js ../../vendors/hunter ../../generated/isolation",
     "vendor:isolations": "pnpm vendor:isolation:ipinfo && pnpm vendor:isolation:apollo && pnpm vendor:isolation:hunter",
+    "browser:prepare": "pnpm --filter @testy/browser-config build",
+    "browser:validate": "pnpm browser:prepare && pnpm --filter @testy/browser-config exec node dist/cli.js ../../customers/customer-alpha",
+    "site:serve": "pnpm --filter @testy/synthetic-site-host build && pnpm --filter @testy/synthetic-site-host exec node dist/cli.js ../../customers/customer-alpha",
     "ci": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build"
   },
   "devDependencies": {
