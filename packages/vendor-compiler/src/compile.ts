@@ -6,6 +6,7 @@ import type {
   OperationCaseDefinition,
   ResponseDefinition,
   SystemStateDefinition,
+  TransportFaultDefinition,
 } from "@testy/vendor-schema";
 
 import { canonicalJson } from "./canonical-json.js";
@@ -13,10 +14,18 @@ import { VendorCompilationError, type CompilationIssue } from "./errors.js";
 import { createBundleId, sha256 } from "./hash.js";
 import { compileRequestMatchers } from "./matchers.js";
 import {
+  createStatefulStoreLayout,
+  createStorePreloadData,
+  renderStatefulCaseScript,
+  requiresStatefulExecution,
+  type StatefulStoreLayout,
+} from "./stateful-script.js";
+import {
   DEFAULT_IMPOSTER_IMAGE,
   IMPOSTER_CONFIG_DIRECTORY,
   IMPOSTER_CONTAINER_PORT,
   IMPOSTER_STATUS_PATH,
+  IMPOSTER_STORE_PATH,
   TESTY_CORRELATION_HEADER,
   VENDOR_COMPILER_VERSION,
   type BundleFileDescriptor,
@@ -34,6 +43,11 @@ interface ImposterResource extends Record<string, unknown> {
   readonly response?: Readonly<Record<string, unknown>>;
 }
 
+interface CompiledResource {
+  readonly resource: ImposterResource;
+  readonly scriptFile?: GeneratedBundleFile;
+}
+
 export function compileVendorBundle(
   loaded: LoadedVendorPackage,
   options: CompileVendorBundleOptions = {},
@@ -43,23 +57,22 @@ export function compileVendorBundle(
   const warnings: CompilerWarning[] = [];
 
   validateRuntimeImage(runtimeImage, issues, warnings);
+  validateTransportFaults(loaded, issues, warnings);
+  validateStateTargets(loaded, issues);
 
   const sourceMapEntries: SourceMapEntry[] = [];
   const resources: ImposterResource[] = [];
-  const initialState = loaded.systemCasesFile.value.states[
+  const generatedScripts: GeneratedBundleFile[] = [];
+  const initialStateDefinition = loaded.systemCasesFile.value.states[
     loaded.systemCasesFile.value.initialState
   ] as SystemStateDefinition;
-
-  if ((loaded.systemCasesFile.value.transitions?.length ?? 0) > 0) {
-    warnings.push({
-      code: "state-transitions-deferred",
-      message:
-        "System-state transitions are preserved in the manifest but are not activated by compiler v0.1.",
-    });
-  }
+  const stateful = requiresStatefulExecution(loaded.executionModel);
+  const stores = stateful
+    ? createStatefulStoreLayout(loaded.executionModel, options.runNamespace)
+    : undefined;
 
   if (loaded.executionModel.authentication.length > 0) {
-    resources.push(createStatusResource());
+    resources.push(createPermittedSystemResource("GET", IMPOSTER_STATUS_PATH));
     sourceMapEntries.push({
       resourceIndex: resources.length - 1,
       vendorId: loaded.executionModel.vendor.id,
@@ -67,6 +80,10 @@ export function compileVendorBundle(
       sourcePointer: "/authentication",
       generatedPointer: `/resources/${resources.length - 1}`,
     });
+
+    if (stateful) {
+      resources.push(createPermittedSystemResource(undefined, `${IMPOSTER_STORE_PATH}/*`));
+    }
   }
 
   for (const operation of loaded.executionModel.operations) {
@@ -78,17 +95,22 @@ export function compileVendorBundle(
     }
 
     for (const operationCase of operation.cases) {
-      const resource = compileCaseResource(
+      const compiled = compileCaseResource(
         loaded,
         operation.id,
         operation.method,
         operation.path,
         operationCase,
-        initialState,
+        initialStateDefinition,
+        stateful,
+        stores,
         issues,
-        warnings,
       );
-      resources.push(resource);
+      resources.push(compiled.resource);
+      if (compiled.scriptFile) {
+        generatedScripts.push(compiled.scriptFile);
+      }
+
       const caseIndex = operationFile.value.cases.findIndex(
         (candidate) => candidate.id === operationCase.id,
       );
@@ -100,15 +122,30 @@ export function compileVendorBundle(
         sourceFile: normalizePath(relative(loaded.rootDir, operationFile.filePath)),
         sourcePointer: `/cases/${caseIndex}`,
         generatedPointer: `/resources/${resources.length - 1}`,
+        ...(compiled.scriptFile
+          ? { generatedScript: compiled.scriptFile.relativePath }
+          : {}),
       });
     }
+  }
+
+  const fallbackScript = stateful
+    ? createFallbackScript(loaded, stores as StatefulStoreLayout)
+    : undefined;
+  if (fallbackScript) {
+    generatedScripts.push(fallbackScript);
   }
 
   for (const fallbackPath of fallbackPaths(loaded.executionModel.server.basePath)) {
     resources.push({
       path: fallbackPath,
-      response: compileResponse(loaded.executionModel.routing.unmatchedRequest, initialState),
       log: `TESTY_UNMATCHED vendor=${loaded.executionModel.vendor.id} correlation=\${context.request.headers.${TESTY_CORRELATION_HEADER}}`,
+      response: fallbackScript
+        ? { scriptFile: stripImposterPrefix(fallbackScript.relativePath) }
+        : compileStaticResponse(
+            loaded.executionModel.routing.unmatchedRequest,
+            initialStateDefinition,
+          ),
     });
     sourceMapEntries.push({
       resourceIndex: resources.length - 1,
@@ -116,6 +153,9 @@ export function compileVendorBundle(
       sourceFile: normalizePath(relative(loaded.rootDir, loaded.vendorFile.filePath)),
       sourcePointer: "/routing/unmatchedRequest",
       generatedPointer: `/resources/${resources.length - 1}`,
+      ...(fallbackScript
+        ? { generatedScript: fallbackScript.relativePath }
+        : {}),
     });
   }
 
@@ -128,6 +168,13 @@ export function compileVendorBundle(
   const imposterConfig: Readonly<Record<string, unknown>> = {
     plugin: "rest",
     contentType: loaded.executionModel.server.defaultContentType,
+    ...(stateful && stores
+      ? {
+          system: {
+            stores: createStorePreloadData(loaded.executionModel, stores),
+          },
+        }
+      : {}),
     ...(loaded.executionModel.authentication.length > 0
       ? { security: compileSecurity(loaded.executionModel.authentication) }
       : {}),
@@ -142,9 +189,11 @@ export function compileVendorBundle(
     byteLength: asset.byteLength,
   }));
   const configFile = makeFile("imposter/vendor-config.json", configContent);
-  const preliminaryFiles = [configFile, ...assetFiles].sort((a, b) =>
-    a.relativePath.localeCompare(b.relativePath),
-  );
+  const preliminaryFiles = [
+    configFile,
+    ...assetFiles,
+    ...generatedScripts,
+  ].sort((a, b) => a.relativePath.localeCompare(b.relativePath));
 
   const bundleId = createBundleId([
     VENDOR_COMPILER_VERSION,
@@ -171,6 +220,20 @@ export function compileVendorBundle(
     }))
     .sort((a, b) => a.relativePath.localeCompare(b.relativePath));
 
+  const sequenceDeclared = loaded.executionModel.operations.some((operation) =>
+    operation.cases.some((operationCase) => operationCase.sequence !== undefined),
+  );
+  const mutationDeclared = loaded.executionModel.operations.some((operation) =>
+    operation.cases.some(
+      (operationCase) =>
+        (operationCase.effects?.stores?.length ?? 0) > 0 ||
+        (operationCase.sequence?.steps.some(
+          (step) => (step.effects?.stores?.length ?? 0) > 0,
+        ) ??
+          false),
+    ),
+  );
+
   const manifest: VendorBundleManifest = {
     schemaVersion: "1.0",
     bundleId,
@@ -186,8 +249,14 @@ export function compileVendorBundle(
       containerPort: IMPOSTER_CONTAINER_PORT,
       configMountPath: IMPOSTER_CONFIG_DIRECTORY,
       statusPath: IMPOSTER_STATUS_PATH,
+      storePath: IMPOSTER_STORE_PATH,
     },
     endpoint: { basePath: loaded.executionModel.server.basePath },
+    state: {
+      execution: stateful ? "scripted-stores" : "static",
+      initialState: loaded.executionModel.system.initialState,
+      ...(stores ? { stores } : {}),
+    },
     capabilities: {
       authentication:
         loaded.executionModel.authentication.length > 0
@@ -206,12 +275,25 @@ export function compileVendorBundle(
         "contains",
         "regex",
       ],
-      responseFeatures: ["status", "headers", "content-type", "file-body", "exact-delay"],
+      responseFeatures: [
+        "status",
+        "headers",
+        "content-type",
+        "file-body",
+        "exact-delay",
+        ...(stateful ? ["generated-javascript"] : []),
+      ],
       transportFaults: ["close-connection", "timeout-via-delayed-close"],
       stateTransitions:
-        (loaded.systemCasesFile.value.transitions?.length ?? 0) > 0
-          ? "declared-not-active"
+        loaded.executionModel.system.transitions.length > 0
+          ? "scripted-store"
           : "none-declared",
+      responseSequences: sequenceDeclared
+        ? "scripted-store"
+        : "none-declared",
+      storeMutations: mutationDeclared
+        ? "scripted-store"
+        : "none-declared",
       callLedger: "structured-log-correlation",
     },
     files: descriptors,
@@ -240,52 +322,114 @@ function compileCaseResource(
   operationPath: string,
   operationCase: OperationCaseDefinition,
   initialState: SystemStateDefinition,
+  stateful: boolean,
+  stores: StatefulStoreLayout | undefined,
   issues: CompilationIssue[],
-  warnings: CompilerWarning[],
-): ImposterResource {
+): CompiledResource {
   const context = { operationId, caseId: operationCase.id };
   const matchers = compileRequestMatchers(operationCase.when, context, issues);
-  const response = operationCase.respond
-    ? compileResponse(operationCase.respond, initialState)
-    : compileTransportFault(operationCase, initialState, issues, warnings, context);
-
-  return {
+  const resourceBase = {
     path: joinHttpPath(loaded.executionModel.server.basePath, operationPath),
     method,
     ...matchers,
-    ...((initialState.override?.contentType ?? operationCase.respond?.contentType)
-      ? {
-          contentType:
-            initialState.override?.contentType ?? operationCase.respond?.contentType,
-        }
-      : {}),
     log: `TESTY_MATCH vendor=${loaded.executionModel.vendor.id} operation=${operationId} case=${operationCase.id} correlation=\${context.request.headers.${TESTY_CORRELATION_HEADER}}`,
-    response,
+  };
+
+  if (stateful && stores) {
+    const scriptRelativePath = `imposter/generated/${safeFilePart(operationId)}--${safeFilePart(operationCase.id)}.js`;
+    const scriptContent = Buffer.from(
+      renderStatefulCaseScript({
+        vendorId: loaded.executionModel.vendor.id,
+        operationId,
+        caseId: operationCase.id,
+        initialState: loaded.systemCasesFile.value.initialState,
+        states: loaded.systemCasesFile.value.states,
+        transitions: loaded.systemCasesFile.value.transitions ?? [],
+        operationCase,
+        stores,
+      }),
+      "utf8",
+    );
+
+    return {
+      resource: {
+        ...resourceBase,
+        response: {
+          scriptFile: stripImposterPrefix(scriptRelativePath),
+        },
+      },
+      scriptFile: makeFile(scriptRelativePath, scriptContent),
+    };
+  }
+
+  const response = operationCase.respond
+    ? compileStaticResponse(operationCase.respond, initialState)
+    : compileStaticTransportFault(
+        operationCase.transport,
+        initialState,
+        issues,
+        context,
+      );
+
+  return {
+    resource: {
+      ...resourceBase,
+      ...((initialState.override?.contentType ?? operationCase.respond?.contentType)
+        ? {
+            contentType:
+              initialState.override?.contentType ?? operationCase.respond?.contentType,
+          }
+        : {}),
+      response,
+    },
   };
 }
 
-function compileTransportFault(
-  operationCase: OperationCaseDefinition,
+function createFallbackScript(
+  loaded: LoadedVendorPackage,
+  stores: StatefulStoreLayout,
+): GeneratedBundleFile {
+  const operationCase: OperationCaseDefinition = {
+    id: "unmatched-request",
+    priority: 0,
+    when: { "path.value": { present: true } },
+    respond: loaded.executionModel.routing.unmatchedRequest,
+  };
+  const relativePath = "imposter/generated/unmatched-request.js";
+  return makeFile(
+    relativePath,
+    Buffer.from(
+      renderStatefulCaseScript({
+        vendorId: loaded.executionModel.vendor.id,
+        operationId: "unmatched",
+        caseId: "unmatched-request",
+        initialState: loaded.systemCasesFile.value.initialState,
+        states: loaded.systemCasesFile.value.states,
+        transitions: loaded.systemCasesFile.value.transitions ?? [],
+        operationCase,
+        stores,
+      }),
+      "utf8",
+    ),
+  );
+}
+
+function compileStaticTransportFault(
+  transport: TransportFaultDefinition | undefined,
   initialState: SystemStateDefinition,
   issues: CompilationIssue[],
-  warnings: CompilerWarning[],
   context: { readonly operationId: string; readonly caseId: string },
 ): Readonly<Record<string, unknown>> {
-  const transport = operationCase.transport;
+  if (initialState.override) {
+    return compileStaticResponse(initialState.override, initialState);
+  }
   if (!transport) {
-    return compileResponse({ status: 204 }, initialState);
+    return compileStaticResponse({ status: 204 }, initialState);
   }
 
   switch (transport.type) {
     case "timeout": {
       const durationMs = parseDurationForCompiler(transport.duration ?? "30s");
-      warnings.push({
-        code: "timeout-approximated",
-        operationId: context.operationId,
-        caseId: context.caseId,
-        message:
-          "Timeout is implemented as an exact delay followed by CloseConnection; the client timeout should expire before the connection closes.",
-      });
       return {
         delay: { exact: durationMs },
         fail: "CloseConnection",
@@ -304,7 +448,7 @@ function compileTransportFault(
   }
 }
 
-function compileResponse(
+function compileStaticResponse(
   response: ResponseDefinition,
   initialState: SystemStateDefinition,
 ): Readonly<Record<string, unknown>> {
@@ -339,10 +483,13 @@ function compileSecurity(
   };
 }
 
-function createStatusResource(): ImposterResource {
+function createPermittedSystemResource(
+  method: string | undefined,
+  path: string,
+): ImposterResource {
   return {
-    method: "GET",
-    path: IMPOSTER_STATUS_PATH,
+    ...(method ? { method } : {}),
+    path,
     security: { default: "Permit" },
   };
 }
@@ -358,6 +505,110 @@ function addAuthenticationWarnings(
         message: `Authentication strategy '${strategy.id}' uses Imposter's native security policy, which returns HTTP 401 and does not use the configured failure body.`,
       });
     }
+  }
+}
+
+function validateTransportFaults(
+  loaded: LoadedVendorPackage,
+  issues: CompilationIssue[],
+  warnings: CompilerWarning[],
+): void {
+  for (const operation of loaded.executionModel.operations) {
+    for (const operationCase of operation.cases) {
+      validateFault(
+        operationCase.transport,
+        operation.id,
+        operationCase.id,
+        issues,
+        warnings,
+      );
+      for (const step of operationCase.sequence?.steps ?? []) {
+        validateFault(
+          step.transport,
+          operation.id,
+          operationCase.id,
+          issues,
+          warnings,
+        );
+      }
+    }
+  }
+}
+
+function validateFault(
+  transport: TransportFaultDefinition | undefined,
+  operationId: string,
+  caseId: string,
+  issues: CompilationIssue[],
+  warnings: CompilerWarning[],
+): void {
+  if (!transport) {
+    return;
+  }
+
+  if (transport.type === "connection-reset") {
+    issues.push({
+      code: "unsupported-fault",
+      operationId,
+      caseId,
+      message: `Cannot compile connection-reset fault in ${operationId}/${caseId}; Imposter documents CloseConnection but not a distinct reset primitive.`,
+    });
+  }
+
+  if (transport.type === "timeout") {
+    warnings.push({
+      code: "timeout-approximated",
+      operationId,
+      caseId,
+      message:
+        "Timeout is implemented as an exact delay followed by CloseConnection; the client timeout should expire before the connection closes.",
+    });
+  }
+}
+
+function validateStateTargets(
+  loaded: LoadedVendorPackage,
+  issues: CompilationIssue[],
+): void {
+  const stateIds = new Set(Object.keys(loaded.systemCasesFile.value.states));
+
+  for (const operation of loaded.executionModel.operations) {
+    for (const operationCase of operation.cases) {
+      validateEffectsState(
+        operationCase.effects,
+        stateIds,
+        operation.id,
+        operationCase.id,
+        issues,
+      );
+      for (const step of operationCase.sequence?.steps ?? []) {
+        validateEffectsState(
+          step.effects,
+          stateIds,
+          operation.id,
+          operationCase.id,
+          issues,
+        );
+      }
+    }
+  }
+}
+
+function validateEffectsState(
+  effects: OperationCaseDefinition["effects"] | undefined,
+  stateIds: ReadonlySet<string>,
+  operationId: string,
+  caseId: string,
+  issues: CompilationIssue[],
+): void {
+  if (effects?.setState && !stateIds.has(effects.setState)) {
+    issues.push({
+      code: "invalid-state-target",
+      operationId,
+      caseId,
+      field: "effects.setState",
+      message: `Cannot compile state target '${effects.setState}' in ${operationId}/${caseId}; the state is not defined in system-cases.yaml.`,
+    });
   }
 }
 
@@ -424,6 +675,14 @@ function makeFile(relativePath: string, content: Buffer): GeneratedBundleFile {
     sha256: sha256(content),
     byteLength: content.byteLength,
   };
+}
+
+function stripImposterPrefix(relativePath: string): string {
+  return relativePath.replace(/^imposter\//u, "");
+}
+
+function safeFilePart(value: string): string {
+  return value.replace(/[^a-zA-Z0-9_.-]+/gu, "-").slice(0, 100);
 }
 
 function normalizePath(value: string): string {
