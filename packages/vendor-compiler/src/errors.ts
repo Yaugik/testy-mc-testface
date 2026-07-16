@@ -1,5 +1,9 @@
 export interface CompilationIssue {
-  readonly code: "unsupported-matcher" | "unsupported-fault" | "invalid-runtime-image";
+  readonly code:
+    | "unsupported-matcher"
+    | "unsupported-fault"
+    | "invalid-runtime-image"
+    | "invalid-state-target";
   readonly message: string;
   readonly operationId?: string;
   readonly caseId?: string;
