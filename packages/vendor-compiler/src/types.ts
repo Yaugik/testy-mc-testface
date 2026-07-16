@@ -1,16 +1,16 @@
 import type { Buffer } from "node:buffer";
 
-export const VENDOR_COMPILER_VERSION = "0.1.0" as const;
+export const VENDOR_COMPILER_VERSION = "0.2.0" as const;
 export const DEFAULT_IMPOSTER_IMAGE = "outofcoffee/imposter:5" as const;
 export const IMPOSTER_CONFIG_DIRECTORY = "/opt/imposter/config" as const;
 export const IMPOSTER_CONTAINER_PORT = 8080 as const;
 export const IMPOSTER_STATUS_PATH = "/system/status" as const;
+export const IMPOSTER_STORE_PATH = "/system/store" as const;
 export const TESTY_CORRELATION_HEADER = "X-Testy-Correlation-ID" as const;
 
 export type CompilerWarningCode =
   | "authentication-response-body-ignored"
   | "runtime-image-not-digest-pinned"
-  | "state-transitions-deferred"
   | "timeout-approximated";
 
 export interface CompilerWarning {
@@ -18,6 +18,13 @@ export interface CompilerWarning {
   readonly message: string;
   readonly operationId?: string;
   readonly caseId?: string;
+}
+
+export interface RuntimeStoreManifest {
+  readonly state: string;
+  readonly counters: string;
+  readonly sequences: string;
+  readonly user: Readonly<Record<string, string>>;
 }
 
 export interface VendorBundleManifest {
@@ -35,16 +42,24 @@ export interface VendorBundleManifest {
     readonly containerPort: typeof IMPOSTER_CONTAINER_PORT;
     readonly configMountPath: typeof IMPOSTER_CONFIG_DIRECTORY;
     readonly statusPath: typeof IMPOSTER_STATUS_PATH;
+    readonly storePath: typeof IMPOSTER_STORE_PATH;
   };
   readonly endpoint: {
     readonly basePath: string;
+  };
+  readonly state: {
+    readonly execution: "scripted-stores" | "static";
+    readonly initialState: string;
+    readonly stores?: RuntimeStoreManifest;
   };
   readonly capabilities: {
     readonly authentication: "native-security-policy" | "none";
     readonly requestMatching: readonly string[];
     readonly responseFeatures: readonly string[];
     readonly transportFaults: readonly string[];
-    readonly stateTransitions: "declared-not-active" | "none-declared";
+    readonly stateTransitions: "scripted-store" | "none-declared";
+    readonly responseSequences: "scripted-store" | "none-declared";
+    readonly storeMutations: "scripted-store" | "none-declared";
     readonly callLedger: "structured-log-correlation";
   };
   readonly files: readonly BundleFileDescriptor[];
@@ -65,6 +80,7 @@ export interface SourceMapEntry {
   readonly sourceFile: string;
   readonly sourcePointer: string;
   readonly generatedPointer: string;
+  readonly generatedScript?: string;
 }
 
 export interface VendorBundleSourceMap {
