@@ -2,6 +2,7 @@
 import { resolve } from "node:path";
 
 import { loadVendorPackage } from "@testy/config-loader";
+import { validateVendorPackagePrivacy } from "@testy/privacy-validation";
 import {
   compileVendorBundle,
   writeVendorBundle,
@@ -17,6 +18,7 @@ import { runVendorContractSuite } from "./runner.js";
 const [vendorPath = "vendors/ipinfo", outputRoot = "generated/contracts"] =
   process.argv.slice(2);
 const packagePath = resolve(vendorPath);
+await validateVendorPackagePrivacy(packagePath);
 const loaded = await loadVendorPackage(packagePath);
 const suite = await loadVendorContractSuite(packagePath);
 const compiled = compileVendorBundle(loaded, {

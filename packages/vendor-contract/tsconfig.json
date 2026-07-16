@@ -6,8 +6,8 @@
     "composite": true
   },
   "references": [
-    { "path": "../vendor-schema" },
     { "path": "../config-loader" },
+    { "path": "../privacy-validation" },
     { "path": "../vendor-compiler" },
     { "path": "../vendor-runtime" }
   ],
