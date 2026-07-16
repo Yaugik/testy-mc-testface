@@ -37,6 +37,15 @@ const bundle = {
     vendor: { id: "ipinfo" },
     runtime: { image: "outofcoffee/imposter:5" },
     endpoint: { basePath: "/ipinfo" },
+    state: {
+      initialState: "healthy",
+      stores: {
+        state: "testy_state",
+        counters: "testy_counters",
+        sequences: "testy_sequences",
+        user: { recovery: "testy_recovery" },
+      },
+    },
   },
 } as unknown as WrittenVendorBundle;
 
@@ -67,6 +76,61 @@ describe("ImposterRuntimeManager", () => {
     await runtime.stop();
     await runtime.stop();
     expect(engine.removed).toEqual(["container-1"]);
+  });
+
+  it("reads and resets generated runtime stores", async () => {
+    const engine = new FakeContainerEngine();
+    const stores = new Map<string, Record<string, unknown>>([
+      ["testy_state", { currentState: "unavailable" }],
+      ["testy_counters", { unavailable: "3" }],
+      ["testy_sequences", { "lookup-ip.transient-recovery": "2" }],
+      ["testy_recovery", { attempts: "2" }],
+    ]);
+
+    const fetcher = (async (input: string | URL | Request, init?: RequestInit) => {
+      const url = new URL(String(input));
+      if (url.pathname === "/system/status") {
+        return Response.json({ status: "ok" });
+      }
+
+      const prefix = "/system/store/";
+      const storeName = decodeURIComponent(url.pathname.slice(prefix.length));
+      const method = init?.method ?? "GET";
+      if (method === "DELETE") {
+        stores.delete(storeName);
+        return new Response(null, { status: 204 });
+      }
+      if (method === "POST") {
+        stores.set(
+          storeName,
+          JSON.parse(String(init?.body ?? "{}")) as Record<string, unknown>,
+        );
+        return new Response(null, { status: 204 });
+      }
+
+      const data = stores.get(storeName);
+      return data
+        ? Response.json(data)
+        : new Response("missing", { status: 404 });
+    }) as typeof fetch;
+
+    const runtime = await new ImposterRuntimeManager(engine, fetcher).start(bundle);
+    await expect(runtime.stateSnapshot()).resolves.toEqual({
+      currentState: "unavailable",
+      state: { currentState: "unavailable" },
+      counters: { unavailable: "3" },
+      sequences: { "lookup-ip.transient-recovery": "2" },
+      user: { recovery: { attempts: "2" } },
+    });
+
+    await runtime.resetState();
+    await expect(runtime.stateSnapshot()).resolves.toEqual({
+      currentState: "healthy",
+      state: { currentState: "healthy" },
+      counters: {},
+      sequences: {},
+      user: { recovery: {} },
+    });
   });
 
   it("removes the container when readiness fails", async () => {
