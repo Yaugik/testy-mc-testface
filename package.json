@@ -16,6 +16,8 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "vendor:validate": "pnpm --filter @testy/vendor-schema build && pnpm --filter @testy/config-loader exec tsx src/cli.ts ../../vendors/ipinfo",
+    "vendor:compile": "pnpm --filter @testy/vendor-schema build && pnpm --filter @testy/config-loader build && pnpm --filter @testy/vendor-compiler exec tsx src/cli.ts ../../vendors/ipinfo ../../generated/vendors",
+    "vendor:runtime": "pnpm --filter @testy/vendor-schema build && pnpm --filter @testy/config-loader build && pnpm --filter @testy/vendor-compiler build && pnpm --filter @testy/vendor-runtime exec tsx src/cli.ts ../../vendors/ipinfo ../../generated/runtime",
     "ci": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build"
   },
   "devDependencies": {

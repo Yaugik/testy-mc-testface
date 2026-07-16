@@ -30,12 +30,25 @@ Validation has four layers:
 4. Response-asset confinement and existence checks.
 
 A successful load produces a deterministic SHA-256 content hash and a
-runtime-neutral `VendorExecutionModel`. The model is the input to the future
-Imposter compiler; Imposter-specific concepts do not appear in author files.
+runtime-neutral `VendorExecutionModel`. Imposter-specific concepts do not appear
+in author files.
+
+## Compilation
+
+`@testy/vendor-compiler` converts the execution model into a self-contained
+Imposter bundle containing:
+
+- `manifest.json` with source and output hashes, runtime metadata and warnings;
+- `source-map.json` linking generated resources to DSL cases;
+- `imposter/vendor-config.json`;
+- copied response assets.
+
+Compilation fails when a DSL primitive cannot be represented safely by the
+approved native Imposter subset. It does not silently inject arbitrary scripts.
 
 ## Current limits
 
-The first slice intentionally does not yet compile or launch Imposter. Ordered
-sequences, store mutation, scenario overrides, OpenAPI validation, and advanced
-state predicates will be added after the runtime capability spike confirms the
-supported primitives.
+System-state transitions and counters are preserved as declarations but are not
+yet active in the generated runtime. Ordered sequences, store mutation, OpenAPI
+validation and a distinct connection-reset primitive remain deferred until their
+runtime contracts are verified.
