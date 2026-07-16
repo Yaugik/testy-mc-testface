@@ -1,0 +1,33 @@
+{
+  "name": "@testy/vendor-runtime",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "bin": {
+    "testy-vendor-runtime": "./dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "pretypecheck": "pnpm --filter @testy/config-loader build && pnpm --filter @testy/vendor-compiler build",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json --noEmit",
+    "pretest": "pnpm --filter @testy/config-loader build && pnpm --filter @testy/vendor-compiler build",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@testy/config-loader": "workspace:*",
+    "@testy/vendor-compiler": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "typescript": "^5.0.0",
+    "vitest": "^3.0.0"
+  }
+}
