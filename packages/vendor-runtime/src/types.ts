@@ -43,6 +43,16 @@ export interface RuntimeStartOptions {
   readonly containerName?: string;
 }
 
+export type RuntimeStoreData = Readonly<Record<string, unknown>>;
+
+export interface RuntimeStateSnapshot {
+  readonly currentState?: string;
+  readonly state: RuntimeStoreData;
+  readonly counters: RuntimeStoreData;
+  readonly sequences: RuntimeStoreData;
+  readonly user: Readonly<Record<string, RuntimeStoreData>>;
+}
+
 export interface RunningVendorRuntime {
   readonly containerId: string;
   readonly containerName: string;
@@ -52,6 +62,9 @@ export interface RunningVendorRuntime {
   readonly bundle: WrittenVendorBundle;
   logs(): Promise<string>;
   collectLedger(): Promise<readonly ProviderCallLedgerEntry[]>;
+  readStore(storeName: string): Promise<RuntimeStoreData>;
+  stateSnapshot(): Promise<RuntimeStateSnapshot | undefined>;
+  resetState(): Promise<void>;
   stop(): Promise<void>;
 }
 
@@ -66,4 +79,8 @@ export interface ProviderCallLedgerEntry {
   readonly pathFingerprint?: string;
   readonly statusCode?: number;
   readonly durationMs?: number;
+  readonly stateBefore?: string;
+  readonly stateAfter?: string;
+  readonly stateRequestCount?: number;
+  readonly sequenceIndex?: number;
 }
