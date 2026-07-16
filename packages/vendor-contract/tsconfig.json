@@ -1,0 +1,15 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "dist",
+    "composite": true
+  },
+  "references": [
+    { "path": "../vendor-schema" },
+    { "path": "../config-loader" },
+    { "path": "../vendor-compiler" },
+    { "path": "../vendor-runtime" }
+  ],
+  "include": ["src/**/*.ts"]
+}

@@ -19,9 +19,11 @@ export function compileRequestMatchers(
   const queryParams: Record<string, unknown> = {};
   const requestHeaders: Record<string, unknown> = {};
   const formParams: Record<string, unknown> = {};
-  let requestBody: Readonly<Record<string, unknown>> | undefined;
+  const bodyMatchers: Readonly<Record<string, unknown>>[] = [];
 
-  for (const [field, expression] of Object.entries(values).sort(([a], [b]) => a.localeCompare(b))) {
+  for (const [field, expression] of Object.entries(values).sort(([a], [b]) =>
+    a.localeCompare(b),
+  )) {
     const compiled = compileMatchExpression(expression, field, context, issues);
     if (compiled === undefined) {
       continue;
@@ -46,13 +48,38 @@ export function compileRequestMatchers(
         break;
       case "body":
         if (name !== "raw") {
-          addUnsupported(field, context, issues, "Only body.raw is supported by compiler v0.1.");
+          addUnsupported(
+            field,
+            context,
+            issues,
+            "Only body.raw is supported by compiler v0.2.",
+          );
         } else {
-          requestBody = toLongForm(compiled);
+          bodyMatchers.push(toLongForm(compiled));
+        }
+        break;
+      case "json":
+        if (name.length === 0) {
+          addUnsupported(
+            field,
+            context,
+            issues,
+            "JSON matcher field must include a path.",
+          );
+        } else {
+          bodyMatchers.push({
+            jsonPath: toJsonPath(name),
+            ...toLongForm(compiled),
+          });
         }
         break;
       default:
-        addUnsupported(field, context, issues, `Unknown matcher location '${location}'.`);
+        addUnsupported(
+          field,
+          context,
+          issues,
+          `Unknown matcher location '${location}'.`,
+        );
     }
   }
 
@@ -61,7 +88,11 @@ export function compileRequestMatchers(
     ...(Object.keys(queryParams).length > 0 ? { queryParams } : {}),
     ...(Object.keys(requestHeaders).length > 0 ? { requestHeaders } : {}),
     ...(Object.keys(formParams).length > 0 ? { formParams } : {}),
-    ...(requestBody ? { requestBody } : {}),
+    ...(bodyMatchers.length === 1
+      ? { requestBody: bodyMatchers[0] }
+      : bodyMatchers.length > 1
+        ? { requestBody: { allOf: bodyMatchers } }
+        : {}),
   };
 }
 
@@ -74,7 +105,12 @@ function assignMatcher(
   issues: CompilationIssue[],
 ): void {
   if (name.length === 0) {
-    addUnsupported(field, context, issues, "Matcher field must include a name after the location prefix.");
+    addUnsupported(
+      field,
+      context,
+      issues,
+      "Matcher field must include a name after the location prefix.",
+    );
     return;
   }
   target[name] = value;
@@ -90,9 +126,16 @@ function compileMatchExpression(
     return expression;
   }
 
-  const entries = Object.entries(expression).filter(([, value]) => value !== undefined);
+  const entries = Object.entries(expression).filter(
+    ([, value]) => value !== undefined,
+  );
   if (entries.length !== 1) {
-    addUnsupported(field, context, issues, "Exactly one matcher operator must be specified per field.");
+    addUnsupported(
+      field,
+      context,
+      issues,
+      "Exactly one matcher operator must be specified per field.",
+    );
     return undefined;
   }
 
@@ -103,9 +146,13 @@ function compileMatchExpression(
     case "notEquals":
       return longForm("NotEqualTo", value);
     case "present":
-      return value === true ? longForm("Exists", null) : longForm("NotExists", null);
+      return value === true
+        ? longForm("Exists", null)
+        : longForm("NotExists", null);
     case "absent":
-      return value === true ? longForm("NotExists", null) : longForm("Exists", null);
+      return value === true
+        ? longForm("NotExists", null)
+        : longForm("Exists", null);
     case "matchesRegex":
       return longForm("Matches", value);
     case "startsWith":
@@ -125,19 +172,37 @@ function compileMatchExpression(
   }
 }
 
-function toLongForm(value: MatchScalar | Readonly<Record<string, unknown>>): Readonly<Record<string, unknown>> {
+function toLongForm(
+  value: MatchScalar | Readonly<Record<string, unknown>>,
+): Readonly<Record<string, unknown>> {
   if (isScalar(value)) {
     return { operator: "EqualTo", value };
   }
   return value;
 }
 
-function longForm(operator: string, value: unknown): Readonly<Record<string, unknown>> {
+function longForm(
+  operator: string,
+  value: unknown,
+): Readonly<Record<string, unknown>> {
   return { operator, value };
 }
 
 function isScalar(value: unknown): value is MatchScalar {
-  return value === null || ["string", "number", "boolean"].includes(typeof value);
+  return (
+    value === null || ["string", "number", "boolean"].includes(typeof value)
+  );
+}
+
+function toJsonPath(value: string): string {
+  return value.split(".").reduce((path, segment) => {
+    if (/^[A-Za-z_$][A-Za-z0-9_$]*$/u.test(segment)) {
+      return `${path}.${segment}`;
+    }
+    return `${path}['${segment
+      .replaceAll("\\", "\\\\")
+      .replaceAll("'", "\\'")}']`;
+  }, "$");
 }
 
 function escapeRegex(value: string): string {
