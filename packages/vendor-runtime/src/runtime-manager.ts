@@ -4,6 +4,7 @@ import {
   IMPOSTER_CONFIG_DIRECTORY,
   IMPOSTER_CONTAINER_PORT,
   IMPOSTER_STATUS_PATH,
+  IMPOSTER_STORE_PATH,
   TESTY_CORRELATION_HEADER,
   type WrittenVendorBundle,
 } from "@testy/vendor-compiler";
@@ -16,6 +17,8 @@ import type {
   ImposterStatus,
   RunningVendorRuntime,
   RuntimeStartOptions,
+  RuntimeStateSnapshot,
+  RuntimeStoreData,
 } from "./types.js";
 
 export class ImposterRuntimeManager {
@@ -71,6 +74,13 @@ export class ImposterRuntimeManager {
       const status = await this.waitForReady(baseUrl, options);
       let stopped = false;
 
+      const readStore = async (storeName: string): Promise<RuntimeStoreData> =>
+        this.readStore(baseUrl, storeName);
+      const stateSnapshot = async (): Promise<RuntimeStateSnapshot | undefined> =>
+        this.readStateSnapshot(baseUrl, bundle);
+      const resetState = async (): Promise<void> =>
+        this.resetRuntimeState(baseUrl, bundle);
+
       return {
         containerId,
         containerName,
@@ -82,6 +92,9 @@ export class ImposterRuntimeManager {
           sanitizeRuntimeLogs(await this.engine.logs(containerId as string)),
         collectLedger: async () =>
           parseProviderCallLedger(await this.engine.logs(containerId as string)),
+        readStore,
+        stateSnapshot,
+        resetState,
         stop: async () => {
           if (stopped) {
             return;
@@ -149,6 +162,111 @@ export class ImposterRuntimeManager {
       cause: lastError,
     });
   }
+
+  private async readStore(
+    baseUrl: string,
+    storeName: string,
+  ): Promise<RuntimeStoreData> {
+    const response = await this.fetcher(storeUrl(baseUrl, storeName));
+    if (response.status === 404) {
+      return {};
+    }
+    if (!response.ok) {
+      throw new Error(
+        `Unable to read Imposter store '${storeName}': HTTP ${response.status}.`,
+      );
+    }
+
+    const value = (await response.json()) as unknown;
+    if (!isRecord(value)) {
+      throw new Error(`Imposter store '${storeName}' did not return an object.`);
+    }
+    return value;
+  }
+
+  private async readStateSnapshot(
+    baseUrl: string,
+    bundle: WrittenVendorBundle,
+  ): Promise<RuntimeStateSnapshot | undefined> {
+    const stores = bundle.manifest.state.stores;
+    if (!stores) {
+      return undefined;
+    }
+
+    const [state, counters, sequences, userEntries] = await Promise.all([
+      this.readStore(baseUrl, stores.state),
+      this.readStore(baseUrl, stores.counters),
+      this.readStore(baseUrl, stores.sequences),
+      Promise.all(
+        Object.entries(stores.user).map(async ([logicalName, runtimeName]) => [
+          logicalName,
+          await this.readStore(baseUrl, runtimeName),
+        ] as const),
+      ),
+    ]);
+
+    return {
+      ...(typeof state.currentState === "string"
+        ? { currentState: state.currentState }
+        : {}),
+      state,
+      counters,
+      sequences,
+      user: Object.fromEntries(userEntries),
+    };
+  }
+
+  private async resetRuntimeState(
+    baseUrl: string,
+    bundle: WrittenVendorBundle,
+  ): Promise<void> {
+    const stores = bundle.manifest.state.stores;
+    if (!stores) {
+      return;
+    }
+
+    await this.replaceStore(baseUrl, stores.state, {
+      currentState: bundle.manifest.state.initialState,
+    });
+    await this.replaceStore(baseUrl, stores.counters, {});
+    await this.replaceStore(baseUrl, stores.sequences, {});
+    for (const runtimeName of Object.values(stores.user)) {
+      await this.replaceStore(baseUrl, runtimeName, {});
+    }
+  }
+
+  private async replaceStore(
+    baseUrl: string,
+    storeName: string,
+    data: RuntimeStoreData,
+  ): Promise<void> {
+    const url = storeUrl(baseUrl, storeName);
+    const deleteResponse = await this.fetcher(url, { method: "DELETE" });
+    if (!deleteResponse.ok && deleteResponse.status !== 404) {
+      throw new Error(
+        `Unable to clear Imposter store '${storeName}': HTTP ${deleteResponse.status}.`,
+      );
+    }
+
+    const createResponse = await this.fetcher(url, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(data),
+    });
+    if (!createResponse.ok) {
+      throw new Error(
+        `Unable to seed Imposter store '${storeName}': HTTP ${createResponse.status}.`,
+      );
+    }
+  }
+}
+
+function storeUrl(baseUrl: string, storeName: string): string {
+  return `${baseUrl}${IMPOSTER_STORE_PATH}/${encodeURIComponent(storeName)}`;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function makeContainerName(vendorId: string, bundleId: string): string {
