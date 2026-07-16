@@ -91,6 +91,10 @@ function collectAssetReferences(
   for (const operation of operations) {
     for (const operationCase of operation.cases) {
       addResponse(operationCase.respond);
+      addResponse(operationCase.sequence?.terminalResponse);
+      for (const step of operationCase.sequence?.steps ?? []) {
+        addResponse(step.respond);
+      }
     }
   }
 
