@@ -6,7 +6,7 @@ This project complements [Yaugik/gl-eye-spec-tacles](https://github.com/Yaugik/g
 
 ## Current implementation
 
-The repository now contains the TypeScript platform foundation and a reusable
+The repository now contains the TypeScript platform foundation and a hardened
 multi-vendor simulation layer:
 
 - Fastify Control Plane health and readiness endpoints.
@@ -23,6 +23,10 @@ multi-vendor simulation layer:
 - Runtime state inspection/reset through the isolated Imposter store API.
 - Privacy-safe provider-call ledger and runtime-log redaction.
 - Versioned `contract.yaml` suites and a shared Docker contract runner.
+- Pre-compilation fixture scanning for unsafe domains, non-documentation IPs,
+  real email domains, private keys, and live-looking credentials.
+- Provider call-count, ordering, absence, duration, and retry-interval assertions.
+- Two-runtime isolation probes for provider state, stores, and call ledgers.
 
 ## Local development
 
@@ -59,16 +63,31 @@ Run the focused stateful IPinfo capability smoke test:
 pnpm vendor:smoke
 ```
 
+Scan every vendor package for prohibited fixture data:
+
+```bash
+pnpm privacy:vendors
+```
+
 Run every declarative vendor contract suite:
 
 ```bash
 pnpm vendor:contracts
 ```
 
-The contract command validates, compiles, starts, exercises, and removes one
-isolated Imposter runtime for each vendor. It verifies HTTP and transport
-outcomes, matched cases, sequence positions, state transitions, and logical
-store values. Each suite prints a JSON report and exits non-zero on failure.
+Run the parallel isolation probe for every vendor:
+
+```bash
+pnpm vendor:isolations
+```
+
+Contract execution performs privacy validation before compilation, starts an
+isolated Imposter runtime, and verifies HTTP and transport outcomes, matched
+cases, sequence positions, state transitions, stores, call counts, ordering,
+absence, provider timing, and retry intervals. Isolation probes start two
+independently namespaced runtimes and prove that state, stores, and correlations
+do not cross runtime boundaries. Commands print JSON reports, exit non-zero on
+failure, and remove temporary containers.
 
 For release-oriented runtime testing, set `TESTY_IMPOSTER_IMAGE` to an exact
 `image@sha256:<digest>` reference. The development default uses the Imposter 5
@@ -88,4 +107,5 @@ Control Plane endpoints:
 - [Imposter compiler and runtime v0.1](docs/imposter-runtime-v0.1.md)
 - [Stateful Imposter runtime v0.2](docs/imposter-stateful-runtime-v0.2.md)
 - [Vendor contract suites v0.1](docs/vendor-contract-suites-v0.1.md)
+- [Provider hardening v0.1](docs/provider-hardening-v0.1.md)
 - [ADR 0001: Imposter runtime boundary](docs/adr-0001-imposter-runtime.md)
