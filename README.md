@@ -7,16 +7,19 @@ This project complements [Yaugik/gl-eye-spec-tacles](https://github.com/Yaugik/g
 ## Current implementation
 
 The repository now contains the initial TypeScript platform foundation and the
-first vendor simulation vertical slice:
+first stateful vendor simulation vertical slice:
 
 - Fastify Control Plane health and readiness endpoints.
 - PostgreSQL migration runner and initial `test_runs` model.
 - Shared platform identifiers and lifecycle types.
 - Vendor v1 JSON Schemas and runtime-neutral execution model.
 - YAML package loader with source-aware diagnostics and deterministic hashing.
-- Initial synthetic IPinfo package.
+- Synthetic IPinfo package with static, fault, sequence, and recovery cases.
 - Deterministic Imposter bundle compiler with manifests and source maps.
+- Generated Imposter scripts for request counters, system-state transitions,
+  ordered response sequences, and namespaced store mutations.
 - Docker-backed Imposter runtime lifecycle with readiness and idempotent cleanup.
+- Runtime state inspection/reset through the isolated Imposter store API.
 - Privacy-safe provider-call ledger and runtime-log redaction.
 
 ## Local development
@@ -64,4 +67,5 @@ Control Plane endpoints:
 - [Implementation Plan v0.1](Standalone_Testing_Platform_Implementation_Plan_v0.1.md)
 - [Vendor DSL v1](docs/vendor-dsl-v1.md)
 - [Imposter compiler and runtime v0.1](docs/imposter-runtime-v0.1.md)
+- [Stateful Imposter runtime v0.2](docs/imposter-stateful-runtime-v0.2.md)
 - [ADR 0001: Imposter runtime boundary](docs/adr-0001-imposter-runtime.md)
