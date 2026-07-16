@@ -86,6 +86,22 @@ cases:
         recovery:
           attempts: "4"
           last-outcome: recovered
+      calls:
+        total:
+          exact: 4
+        byCase:
+          transient-recovery:
+            exact: 4
+        orderedCases:
+          - transient-recovery
+          - transient-recovery
+          - transient-recovery
+          - transient-recovery
+        absentCases:
+          - timeout
+        retryIntervalMs:
+          min: 0
+          max: 10000
 
   - id: state-recovery
     steps:
@@ -135,3 +151,54 @@ cases:
       stores:
         scenario:
           last-trigger: enter-unavailable
+      calls:
+        total:
+          exact: 5
+        byCase:
+          enter-unavailable:
+            exact: 1
+          corporate-high-confidence:
+            exact: 4
+        orderedCases:
+          - enter-unavailable
+          - corporate-high-confidence
+          - corporate-high-confidence
+          - corporate-high-confidence
+          - corporate-high-confidence
+
+  - id: authentication-blocks-provider
+    steps:
+      - id: invalid-token
+        request:
+          method: GET
+          path: /198.51.100.10
+          headers:
+            Authorization: Bearer invalid-test-token
+        expect:
+          status: 401
+    expect:
+      calls:
+        total:
+          exact: 0
+        absentCases:
+          - corporate-high-confidence
+
+isolation:
+  id: unavailable-state-isolated
+  request:
+    method: GET
+    path: /198.51.100.70
+  expect:
+    status: 503
+    matchedCase: enter-unavailable
+    stateAfter: unavailable
+  mutated:
+    state: unavailable
+    stores:
+      scenario:
+        last-trigger: enter-unavailable
+  untouched:
+    state: healthy
+    absentStoreKeys:
+      scenario:
+        - last-trigger

@@ -4,10 +4,7 @@
   "private": true,
   "description": "Configuration-driven black-box testing platform for GL-EYE and compatible systems.",
   "packageManager": "pnpm@10.13.1",
-  "engines": {
-    "node": ">=24",
-    "pnpm": ">=10"
-  },
+  "engines": { "node": ">=24", "pnpm": ">=10" },
   "scripts": {
     "build": "pnpm -r --if-present build",
     "typecheck": "pnpm --filter @testy/shared-types build && pnpm --filter @testy/vendor-schema build && pnpm -r --if-present typecheck",
@@ -29,6 +26,10 @@
     "vendor:contract:apollo": "pnpm vendor:contract:prepare && pnpm --filter @testy/vendor-contract exec node dist/cli.js ../../vendors/apollo ../../generated/contracts",
     "vendor:contract:hunter": "pnpm vendor:contract:prepare && pnpm --filter @testy/vendor-contract exec node dist/cli.js ../../vendors/hunter ../../generated/contracts",
     "vendor:contracts": "pnpm vendor:contract:ipinfo && pnpm vendor:contract:apollo && pnpm vendor:contract:hunter",
+    "vendor:isolation:ipinfo": "pnpm vendor:contract:prepare && pnpm --filter @testy/vendor-contract exec node dist/isolation-cli.js ../../vendors/ipinfo ../../generated/isolation",
+    "vendor:isolation:apollo": "pnpm vendor:contract:prepare && pnpm --filter @testy/vendor-contract exec node dist/isolation-cli.js ../../vendors/apollo ../../generated/isolation",
+    "vendor:isolation:hunter": "pnpm vendor:contract:prepare && pnpm --filter @testy/vendor-contract exec node dist/isolation-cli.js ../../vendors/hunter ../../generated/isolation",
+    "vendor:isolations": "pnpm vendor:isolation:ipinfo && pnpm vendor:isolation:apollo && pnpm vendor:isolation:hunter",
     "ci": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build"
   },
   "devDependencies": {

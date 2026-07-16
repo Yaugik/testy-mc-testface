@@ -14,38 +14,44 @@
       "properties": {
         "headers": { "$ref": "#/$defs/stringMap" },
         "query": { "$ref": "#/$defs/stringMap" },
-        "requestTimeoutMs": {
-          "type": "integer",
-          "minimum": 1,
-          "maximum": 120000
-        }
+        "requestTimeoutMs": { "type": "integer", "minimum": 1, "maximum": 120000 }
       }
     },
-    "cases": {
-      "type": "array",
-      "minItems": 1,
-      "items": { "$ref": "#/$defs/case" }
-    }
+    "cases": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/case" } },
+    "isolation": { "$ref": "#/$defs/isolation" }
   },
   "$defs": {
-    "id": {
-      "type": "string",
-      "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
-    },
-    "stringMap": {
-      "type": "object",
-      "additionalProperties": { "type": "string" }
-    },
+    "id": { "type": "string", "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$" },
+    "stringMap": { "type": "object", "additionalProperties": { "type": "string" } },
     "jsonValue": {
       "oneOf": [
         { "type": ["string", "number", "boolean", "null"] },
+        { "type": "array", "items": { "$ref": "#/$defs/jsonValue" } },
+        { "type": "object", "additionalProperties": { "$ref": "#/$defs/jsonValue" } }
+      ]
+    },
+    "numericRange": {
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "properties": {
+        "min": { "type": "number", "minimum": 0 },
+        "max": { "type": "number", "minimum": 0 }
+      }
+    },
+    "countExpectation": {
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "properties": {
+        "exact": { "type": "integer", "minimum": 0 },
+        "min": { "type": "integer", "minimum": 0 },
+        "max": { "type": "integer", "minimum": 0 }
+      },
+      "allOf": [
         {
-          "type": "array",
-          "items": { "$ref": "#/$defs/jsonValue" }
-        },
-        {
-          "type": "object",
-          "additionalProperties": { "$ref": "#/$defs/jsonValue" }
+          "if": { "required": ["exact"] },
+          "then": { "not": { "anyOf": [{ "required": ["min"] }, { "required": ["max"] }] } }
         }
       ]
     },
@@ -54,18 +60,12 @@
       "additionalProperties": false,
       "required": ["method", "path"],
       "properties": {
-        "method": {
-          "enum": ["GET", "POST", "PUT", "PATCH", "DELETE"]
-        },
+        "method": { "enum": ["GET", "POST", "PUT", "PATCH", "DELETE"] },
         "path": { "type": "string", "pattern": "^/" },
         "headers": { "$ref": "#/$defs/stringMap" },
         "query": { "$ref": "#/$defs/stringMap" },
         "jsonBody": { "$ref": "#/$defs/jsonValue" },
-        "timeoutMs": {
-          "type": "integer",
-          "minimum": 1,
-          "maximum": 120000
-        }
+        "timeoutMs": { "type": "integer", "minimum": 1, "maximum": 120000 }
       }
     },
     "stepExpectation": {
@@ -73,16 +73,13 @@
       "additionalProperties": false,
       "minProperties": 1,
       "properties": {
-        "status": {
-          "type": "integer",
-          "minimum": 100,
-          "maximum": 599
-        },
+        "status": { "type": "integer", "minimum": 100, "maximum": 599 },
         "transportError": { "const": true },
         "matchedCase": { "$ref": "#/$defs/id" },
         "sequenceIndex": { "type": "integer", "minimum": 0 },
         "stateBefore": { "$ref": "#/$defs/id" },
-        "stateAfter": { "$ref": "#/$defs/id" }
+        "stateAfter": { "$ref": "#/$defs/id" },
+        "durationMs": { "$ref": "#/$defs/numericRange" }
       },
       "not": { "required": ["status", "transportError"] }
     },
@@ -96,6 +93,41 @@
         "expect": { "$ref": "#/$defs/stepExpectation" }
       }
     },
+    "callExpectation": {
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "properties": {
+        "total": { "$ref": "#/$defs/countExpectation" },
+        "byCase": {
+          "type": "object",
+          "propertyNames": { "$ref": "#/$defs/id" },
+          "additionalProperties": { "$ref": "#/$defs/countExpectation" }
+        },
+        "orderedCases": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/id" } },
+        "absentCases": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "$ref": "#/$defs/id" } },
+        "durationMs": { "$ref": "#/$defs/numericRange" },
+        "retryIntervalMs": { "$ref": "#/$defs/numericRange" }
+      }
+    },
+    "stateExpectation": {
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "properties": {
+        "state": { "$ref": "#/$defs/id" },
+        "stores": {
+          "type": "object",
+          "propertyNames": { "$ref": "#/$defs/id" },
+          "additionalProperties": { "type": "object", "additionalProperties": { "$ref": "#/$defs/jsonValue" } }
+        },
+        "absentStoreKeys": {
+          "type": "object",
+          "propertyNames": { "$ref": "#/$defs/id" },
+          "additionalProperties": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string", "minLength": 1 } }
+        }
+      }
+    },
     "caseExpectation": {
       "type": "object",
       "additionalProperties": false,
@@ -105,11 +137,14 @@
         "stores": {
           "type": "object",
           "propertyNames": { "$ref": "#/$defs/id" },
-          "additionalProperties": {
-            "type": "object",
-            "additionalProperties": { "$ref": "#/$defs/jsonValue" }
-          }
-        }
+          "additionalProperties": { "type": "object", "additionalProperties": { "$ref": "#/$defs/jsonValue" } }
+        },
+        "absentStoreKeys": {
+          "type": "object",
+          "propertyNames": { "$ref": "#/$defs/id" },
+          "additionalProperties": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string", "minLength": 1 } }
+        },
+        "calls": { "$ref": "#/$defs/callExpectation" }
       }
     },
     "case": {
@@ -119,12 +154,20 @@
       "properties": {
         "id": { "$ref": "#/$defs/id" },
         "resetBefore": { "type": "boolean" },
-        "steps": {
-          "type": "array",
-          "minItems": 1,
-          "items": { "$ref": "#/$defs/step" }
-        },
+        "steps": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/step" } },
         "expect": { "$ref": "#/$defs/caseExpectation" }
+      }
+    },
+    "isolation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "request", "expect", "mutated", "untouched"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "request": { "$ref": "#/$defs/request" },
+        "expect": { "$ref": "#/$defs/stepExpectation" },
+        "mutated": { "$ref": "#/$defs/stateExpectation" },
+        "untouched": { "$ref": "#/$defs/stateExpectation" }
       }
     }
   }

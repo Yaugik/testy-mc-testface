@@ -5,14 +5,10 @@
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
-  "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
-    }
-  },
+  "exports": { ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" } },
   "bin": {
-    "testy-vendor-contract": "./dist/cli.js"
+    "testy-vendor-contract": "./dist/cli.js",
+    "testy-vendor-isolation": "./dist/isolation-cli.js"
   },
   "scripts": {
     "prebuild": "pnpm --filter @testy/vendor-schema build && pnpm --filter @testy/config-loader build && pnpm --filter @testy/privacy-validation build && pnpm --filter @testy/vendor-compiler build && pnpm --filter @testy/vendor-runtime build",
