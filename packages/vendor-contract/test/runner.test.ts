@@ -87,7 +87,7 @@ describe("runVendorContractSuite", () => {
     });
 
     expect(report.passed).toBe(true);
-    expect(report.checks).toHaveLength(7);
+    expect(report.checks).toHaveLength(8);
     expect(correlations).toEqual([
       "contract-test-recovery-unavailable",
       "contract-test-recovery-success",

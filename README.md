@@ -6,23 +6,23 @@ This project complements [Yaugik/gl-eye-spec-tacles](https://github.com/Yaugik/g
 
 ## Current implementation
 
-The repository now contains the initial TypeScript platform foundation and the
-first stateful vendor simulation vertical slice:
+The repository now contains the TypeScript platform foundation and a reusable
+multi-vendor simulation layer:
 
 - Fastify Control Plane health and readiness endpoints.
 - PostgreSQL migration runner and initial `test_runs` model.
 - Shared platform identifiers and lifecycle types.
 - Vendor v1 JSON Schemas and runtime-neutral execution model.
 - YAML package loader with source-aware diagnostics and deterministic hashing.
-- Synthetic IPinfo package with static, fault, sequence, and recovery cases.
+- Synthetic IPinfo, Apollo, and Hunter packages.
+- Path, query, header, form, raw-body, and JSON/JsonPath request matching.
 - Deterministic Imposter bundle compiler with manifests and source maps.
 - Generated Imposter scripts for request counters, system-state transitions,
   ordered response sequences, and namespaced store mutations.
 - Docker-backed Imposter runtime lifecycle with readiness and idempotent cleanup.
 - Runtime state inspection/reset through the isolated Imposter store API.
 - Privacy-safe provider-call ledger and runtime-log redaction.
-- Local Docker smoke orchestration for sequence recovery, state transitions,
-  store inspection/reset, and ledger correlation.
+- Versioned `contract.yaml` suites and a shared Docker contract runner.
 
 ## Local development
 
@@ -30,7 +30,7 @@ Requirements:
 
 - Node.js 24 or newer.
 - pnpm 10 or newer.
-- Docker for PostgreSQL-backed development and Imposter runtime smoke tests.
+- Docker for PostgreSQL-backed development and Imposter runtime tests.
 
 ```bash
 corepack enable
@@ -53,17 +53,22 @@ Start a compiled IPinfo Imposter runtime and keep it active until `Ctrl+C`:
 pnpm vendor:runtime
 ```
 
-Run the stateful IPinfo capability smoke test against a temporary local
-Imposter container:
+Run the focused stateful IPinfo capability smoke test:
 
 ```bash
 pnpm vendor:smoke
 ```
 
-The smoke command verifies timeout → 503 → recovery sequencing, repeat-last
-behavior, explicit and request-count state transitions, namespaced stores,
-state reset, and provider-ledger correlations. It prints a JSON report, exits
-non-zero when any check fails, and always removes the temporary container.
+Run every declarative vendor contract suite:
+
+```bash
+pnpm vendor:contracts
+```
+
+The contract command validates, compiles, starts, exercises, and removes one
+isolated Imposter runtime for each vendor. It verifies HTTP and transport
+outcomes, matched cases, sequence positions, state transitions, and logical
+store values. Each suite prints a JSON report and exits non-zero on failure.
 
 For release-oriented runtime testing, set `TESTY_IMPOSTER_IMAGE` to an exact
 `image@sha256:<digest>` reference. The development default uses the Imposter 5
@@ -82,4 +87,5 @@ Control Plane endpoints:
 - [Vendor DSL v1](docs/vendor-dsl-v1.md)
 - [Imposter compiler and runtime v0.1](docs/imposter-runtime-v0.1.md)
 - [Stateful Imposter runtime v0.2](docs/imposter-stateful-runtime-v0.2.md)
+- [Vendor contract suites v0.1](docs/vendor-contract-suites-v0.1.md)
 - [ADR 0001: Imposter runtime boundary](docs/adr-0001-imposter-runtime.md)

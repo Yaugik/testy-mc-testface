@@ -1,0 +1,137 @@
+schemaVersion: "1.0"
+suiteId: ipinfo-contract
+defaults:
+  headers:
+    Authorization: Bearer test-token-valid
+  requestTimeoutMs: 7000
+cases:
+  - id: corporate
+    steps:
+      - id: request
+        request:
+          method: GET
+          path: /198.51.100.10
+        expect:
+          status: 200
+          matchedCase: corporate-high-confidence
+
+  - id: residential
+    steps:
+      - id: request
+        request:
+          method: GET
+          path: /198.51.100.20
+        expect:
+          status: 200
+          matchedCase: residential
+
+  - id: unknown
+    steps:
+      - id: request
+        request:
+          method: GET
+          path: /198.51.100.30
+        expect:
+          status: 200
+          matchedCase: unknown
+
+  - id: authentication
+    steps:
+      - id: invalid-token
+        request:
+          method: GET
+          path: /198.51.100.10
+          headers:
+            Authorization: Bearer invalid-test-token
+        expect:
+          status: 401
+
+  - id: recovery
+    steps:
+      - id: timeout
+        request:
+          method: GET
+          path: /198.51.100.61
+          timeoutMs: 3000
+        expect:
+          transportError: true
+          matchedCase: transient-recovery
+          sequenceIndex: 0
+      - id: unavailable
+        request:
+          method: GET
+          path: /198.51.100.61
+        expect:
+          status: 503
+          matchedCase: transient-recovery
+          sequenceIndex: 1
+      - id: recovered
+        request:
+          method: GET
+          path: /198.51.100.61
+        expect:
+          status: 200
+          matchedCase: transient-recovery
+          sequenceIndex: 2
+      - id: repeat-last
+        request:
+          method: GET
+          path: /198.51.100.61
+        expect:
+          status: 200
+          matchedCase: transient-recovery
+          sequenceIndex: 2
+    expect:
+      stores:
+        recovery:
+          attempts: "4"
+          last-outcome: recovered
+
+  - id: state-recovery
+    steps:
+      - id: enter-unavailable
+        request:
+          method: GET
+          path: /198.51.100.70
+        expect:
+          status: 503
+          matchedCase: enter-unavailable
+          stateAfter: unavailable
+      - id: unavailable-one
+        request:
+          method: GET
+          path: /198.51.100.10
+        expect:
+          status: 503
+          matchedCase: corporate-high-confidence
+          stateBefore: unavailable
+      - id: unavailable-two
+        request:
+          method: GET
+          path: /198.51.100.10
+        expect:
+          status: 503
+          matchedCase: corporate-high-confidence
+          stateBefore: unavailable
+      - id: unavailable-three
+        request:
+          method: GET
+          path: /198.51.100.10
+        expect:
+          status: 503
+          matchedCase: corporate-high-confidence
+          stateBefore: unavailable
+          stateAfter: healthy
+      - id: healthy
+        request:
+          method: GET
+          path: /198.51.100.10
+        expect:
+          status: 200
+          matchedCase: corporate-high-confidence
+          stateBefore: healthy
+    expect:
+      state: healthy
+      stores:
+        scenario:
+          last-trigger: enter-unavailable

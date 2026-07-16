@@ -15,6 +15,7 @@
     "testy-vendor-contract": "./dist/cli.js"
   },
   "scripts": {
+    "prebuild": "pnpm --filter @testy/vendor-schema build && pnpm --filter @testy/config-loader build && pnpm --filter @testy/vendor-compiler build && pnpm --filter @testy/vendor-runtime build",
     "build": "tsc -p tsconfig.json && node scripts/copy-schemas.mjs",
     "pretypecheck": "pnpm --filter @testy/vendor-schema build && pnpm --filter @testy/config-loader build && pnpm --filter @testy/vendor-compiler build && pnpm --filter @testy/vendor-runtime build",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json --noEmit",
