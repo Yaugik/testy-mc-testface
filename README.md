@@ -21,6 +21,8 @@ first stateful vendor simulation vertical slice:
 - Docker-backed Imposter runtime lifecycle with readiness and idempotent cleanup.
 - Runtime state inspection/reset through the isolated Imposter store API.
 - Privacy-safe provider-call ledger and runtime-log redaction.
+- Local Docker smoke orchestration for sequence recovery, state transitions,
+  store inspection/reset, and ledger correlation.
 
 ## Local development
 
@@ -50,6 +52,18 @@ Start a compiled IPinfo Imposter runtime and keep it active until `Ctrl+C`:
 ```bash
 pnpm vendor:runtime
 ```
+
+Run the stateful IPinfo capability smoke test against a temporary local
+Imposter container:
+
+```bash
+pnpm vendor:smoke
+```
+
+The smoke command verifies timeout → 503 → recovery sequencing, repeat-last
+behavior, explicit and request-count state transitions, namespaced stores,
+state reset, and provider-ledger correlations. It prints a JSON report, exits
+non-zero when any check fails, and always removes the temporary container.
 
 For release-oriented runtime testing, set `TESTY_IMPOSTER_IMAGE` to an exact
 `image@sha256:<digest>` reference. The development default uses the Imposter 5
