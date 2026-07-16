@@ -90,11 +90,33 @@ The synthetic IPinfo package now includes:
 - automatic recovery from `unavailable` to `healthy` after three requests;
 - logical stores recording attempts, last outcomes and state triggers.
 
-## Verification boundary
+## Verification
 
 Pure generated-script tests execute the emitted JavaScript with fake Imposter
 stores and response builders. They verify sequence advancement, repeat-last
 behavior, store mutation, explicit state changes and request-count recovery.
 
-A real Docker capability suite is still required to confirm concurrency and the
-final digest-pinned Imposter image.
+A local Docker capability smoke runner is available through:
+
+```bash
+pnpm vendor:smoke
+```
+
+The runner:
+
+1. compiles the IPinfo package into an isolated bundle;
+2. starts a temporary localhost-only Imposter container;
+3. resets all generated stores;
+4. verifies timeout → 503 → success → repeat-last behavior;
+5. verifies attempt counters and last-outcome store mutations;
+6. resets state and enters `unavailable` explicitly;
+7. verifies three unavailable responses followed by healthy recovery;
+8. verifies state and sequence diagnostics in the provider-call ledger;
+9. emits a machine-readable JSON report;
+10. resets state and removes the container.
+
+The command exits non-zero when any assertion fails. It is intentionally a local
+manual gate while repository CI is disabled.
+
+A release gate still needs an exact digest-pinned Imposter image and a real
+concurrency/load suite to confirm store behavior under overlapping requests.
