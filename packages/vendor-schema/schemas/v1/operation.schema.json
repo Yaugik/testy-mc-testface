@@ -1,0 +1,127 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://testy-mctestface.dev/schemas/vendor/v1/operation.schema.json",
+  "title": "Testy McTestface vendor operation",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "operationId", "request", "cases"],
+  "properties": {
+    "schemaVersion": { "const": "1.0" },
+    "operationId": { "$ref": "#/$defs/id" },
+    "request": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["method", "path"],
+      "properties": {
+        "method": {
+          "enum": ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"]
+        },
+        "path": { "type": "string", "pattern": "^/" }
+      }
+    },
+    "cases": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/case" }
+    }
+  },
+  "$defs": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+    },
+    "duration": {
+      "type": "string",
+      "pattern": "^[0-9]+(?:ms|s|m)$"
+    },
+    "scalar": {
+      "type": ["string", "number", "boolean", "null"]
+    },
+    "matchExpression": {
+      "oneOf": [
+        { "$ref": "#/$defs/scalar" },
+        {
+          "type": "object",
+          "minProperties": 1,
+          "maxProperties": 1,
+          "additionalProperties": false,
+          "properties": {
+            "equals": { "$ref": "#/$defs/scalar" },
+            "notEquals": { "$ref": "#/$defs/scalar" },
+            "in": {
+              "type": "array",
+              "minItems": 1,
+              "items": { "$ref": "#/$defs/scalar" }
+            },
+            "present": { "const": true },
+            "absent": { "const": true },
+            "matchesRegex": { "type": "string", "minLength": 1 },
+            "startsWith": { "type": "string" },
+            "endsWith": { "type": "string" },
+            "contains": { "type": "string" },
+            "greaterThan": { "type": "number" },
+            "greaterThanOrEqual": { "type": "number" },
+            "lessThan": { "type": "number" },
+            "lessThanOrEqual": { "type": "number" },
+            "between": {
+              "type": "array",
+              "prefixItems": [
+                { "type": "number" },
+                { "type": "number" }
+              ],
+              "minItems": 2,
+              "maxItems": 2
+            }
+          }
+        }
+      ]
+    },
+    "response": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status"],
+      "properties": {
+        "status": { "type": "integer", "minimum": 100, "maximum": 599 },
+        "headers": {
+          "type": "object",
+          "additionalProperties": { "type": "string" }
+        },
+        "contentType": { "type": "string", "minLength": 1 },
+        "body": { "type": "string", "minLength": 1 },
+        "delay": { "$ref": "#/$defs/duration" }
+      }
+    },
+    "transport": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type"],
+      "properties": {
+        "type": { "enum": ["timeout", "connection-close", "connection-reset"] },
+        "duration": { "$ref": "#/$defs/duration" }
+      }
+    },
+    "case": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "priority", "when"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "priority": { "type": "integer", "minimum": 0 },
+        "when": {
+          "type": "object",
+          "minProperties": 1,
+          "propertyNames": {
+            "pattern": "^(path|query|header|cookie|json|form|state)\\.[A-Za-z0-9_.-]+$"
+          },
+          "additionalProperties": { "$ref": "#/$defs/matchExpression" }
+        },
+        "respond": { "$ref": "#/$defs/response" },
+        "transport": { "$ref": "#/$defs/transport" }
+      },
+      "oneOf": [
+        { "required": ["respond"], "not": { "required": ["transport"] } },
+        { "required": ["transport"], "not": { "required": ["respond"] } }
+      ]
+    }
+  }
+}
