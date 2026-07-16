@@ -1,0 +1,15 @@
+{
+  "organizations": [
+    {
+      "id": "org_test_conflict_a",
+      "name": "Conflict Example A",
+      "domain": "conflict.example"
+    },
+    {
+      "id": "org_test_conflict_b",
+      "name": "Conflict Example B",
+      "domain": "conflict.example"
+    }
+  ],
+  "ambiguous": true
+}

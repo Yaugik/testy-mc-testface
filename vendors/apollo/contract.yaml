@@ -1,0 +1,176 @@
+schemaVersion: "1.0"
+suiteId: apollo-contract
+defaults:
+  headers:
+    X-Api-Key: test-apollo-key
+  requestTimeoutMs: 2000
+cases:
+  - id: complete
+    steps:
+      - id: request
+        request:
+          method: POST
+          path: /v1/organizations/match
+          jsonBody:
+            domain: complete.example
+        expect:
+          status: 200
+          matchedCase: complete-company
+
+  - id: partial
+    steps:
+      - id: request
+        request:
+          method: POST
+          path: /v1/organizations/match
+          jsonBody:
+            domain: partial.example
+        expect:
+          status: 200
+          matchedCase: partial-company
+
+  - id: no-result
+    steps:
+      - id: request
+        request:
+          method: POST
+          path: /v1/organizations/match
+          jsonBody:
+            domain: none.example
+        expect:
+          status: 200
+          matchedCase: no-result
+
+  - id: conflicting
+    steps:
+      - id: request
+        request:
+          method: POST
+          path: /v1/organizations/match
+          jsonBody:
+            domain: conflict.example
+        expect:
+          status: 200
+          matchedCase: conflicting-companies
+
+  - id: suppressed
+    steps:
+      - id: request
+        request:
+          method: POST
+          path: /v1/organizations/match
+          jsonBody:
+            domain: suppressed.example
+        expect:
+          status: 200
+          matchedCase: suppressed-company
+
+  - id: invalid-payload
+    steps:
+      - id: request
+        request:
+          method: POST
+          path: /v1/organizations/match
+          jsonBody:
+            domain: invalid-payload.example
+        expect:
+          status: 200
+          matchedCase: invalid-payload
+
+  - id: quota
+    steps:
+      - id: request
+        request:
+          method: POST
+          path: /v1/organizations/match
+          jsonBody:
+            domain: quota.example
+        expect:
+          status: 429
+          matchedCase: quota-exhausted
+
+  - id: retryable
+    steps:
+      - id: request
+        request:
+          method: POST
+          path: /v1/organizations/match
+          jsonBody:
+            domain: retryable.example
+        expect:
+          status: 503
+          matchedCase: retryable-failure
+
+  - id: permanent
+    steps:
+      - id: request
+        request:
+          method: POST
+          path: /v1/organizations/match
+          jsonBody:
+            domain: permanent.example
+        expect:
+          status: 500
+          matchedCase: permanent-failure
+
+  - id: authentication
+    steps:
+      - id: invalid-key
+        request:
+          method: POST
+          path: /v1/organizations/match
+          headers:
+            X-Api-Key: invalid-test-key
+          jsonBody:
+            domain: complete.example
+        expect:
+          status: 401
+
+  - id: recovery
+    steps:
+      - id: timeout
+        request:
+          method: POST
+          path: /v1/organizations/match
+          jsonBody:
+            domain: recovery.example
+          timeoutMs: 1200
+        expect:
+          transportError: true
+          matchedCase: recovery-sequence
+          sequenceIndex: 0
+      - id: unavailable
+        request:
+          method: POST
+          path: /v1/organizations/match
+          jsonBody:
+            domain: recovery.example
+        expect:
+          status: 503
+          matchedCase: recovery-sequence
+          sequenceIndex: 1
+      - id: recovered
+        request:
+          method: POST
+          path: /v1/organizations/match
+          jsonBody:
+            domain: recovery.example
+        expect:
+          status: 200
+          matchedCase: recovery-sequence
+          sequenceIndex: 2
+      - id: repeat-last
+        request:
+          method: POST
+          path: /v1/organizations/match
+          jsonBody:
+            domain: recovery.example
+        expect:
+          status: 200
+          matchedCase: recovery-sequence
+          sequenceIndex: 2
+    expect:
+      stores:
+        recovery:
+          attempts: "4"
+          last-outcome: recovered

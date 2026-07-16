@@ -1,0 +1,10 @@
+{
+  "organization": {
+    "id": "org_test_complete",
+    "name": "Northstar Example Ltd",
+    "domain": "complete.example",
+    "industry": "Software",
+    "employee_count": 240,
+    "confidence": 0.98
+  }
+}

@@ -1,0 +1,119 @@
+schemaVersion: "1.0"
+operationId: match-company
+request:
+  method: POST
+  path: /v1/organizations/match
+cases:
+  - id: complete-company
+    priority: 100
+    when:
+      json.domain: complete.example
+    respond:
+      status: 200
+      body: responses/complete.json
+
+  - id: partial-company
+    priority: 100
+    when:
+      json.domain: partial.example
+    respond:
+      status: 200
+      body: responses/partial.json
+
+  - id: no-result
+    priority: 100
+    when:
+      json.domain: none.example
+    respond:
+      status: 200
+      body: responses/none.json
+
+  - id: conflicting-companies
+    priority: 100
+    when:
+      json.domain: conflict.example
+    respond:
+      status: 200
+      body: responses/conflict.json
+
+  - id: suppressed-company
+    priority: 100
+    when:
+      json.domain: suppressed.example
+    respond:
+      status: 200
+      body: responses/suppressed.json
+
+  - id: invalid-payload
+    priority: 100
+    when:
+      json.domain: invalid-payload.example
+    respond:
+      status: 200
+      body: responses/invalid.json
+
+  - id: quota-exhausted
+    priority: 100
+    when:
+      json.domain: quota.example
+    respond:
+      status: 429
+      headers:
+        Retry-After: "60"
+      body: responses/quota.json
+
+  - id: retryable-failure
+    priority: 100
+    when:
+      json.domain: retryable.example
+    respond:
+      status: 503
+      body: responses/unavailable.json
+
+  - id: permanent-failure
+    priority: 100
+    when:
+      json.domain: permanent.example
+    respond:
+      status: 500
+      body: responses/permanent.json
+
+  - id: recovery-sequence
+    priority: 100
+    when:
+      json.domain: recovery.example
+    effects:
+      stores:
+        - store: recovery
+          key: attempts
+          operation: increment
+    sequence:
+      onExhausted: repeat-last
+      steps:
+        - transport:
+            type: timeout
+            duration: 500ms
+          effects:
+            stores:
+              - store: recovery
+                key: last-outcome
+                operation: set
+                value: timeout
+        - respond:
+            status: 503
+            body: responses/unavailable.json
+          effects:
+            stores:
+              - store: recovery
+                key: last-outcome
+                operation: set
+                value: unavailable
+        - respond:
+            status: 200
+            body: responses/complete.json
+          effects:
+            stores:
+              - store: recovery
+                key: last-outcome
+                operation: set
+                value: recovered
