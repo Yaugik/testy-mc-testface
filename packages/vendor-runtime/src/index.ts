@@ -13,4 +13,6 @@ export type {
   ProviderCallLedgerEntry,
   RunningVendorRuntime,
   RuntimeStartOptions,
+  RuntimeStateSnapshot,
+  RuntimeStoreData,
 } from "./types.js";
