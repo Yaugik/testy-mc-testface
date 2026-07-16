@@ -1,0 +1,38 @@
+schemaVersion: "1.0"
+operationId: lookup-ip
+request:
+  method: GET
+  path: /{ip}
+
+cases:
+  - id: corporate-high-confidence
+    priority: 100
+    when:
+      path.ip: "198.51.100.10"
+    respond:
+      status: 200
+      body: responses/corporate.json
+
+  - id: residential
+    priority: 100
+    when:
+      path.ip: "198.51.100.20"
+    respond:
+      status: 200
+      body: responses/residential.json
+
+  - id: unknown
+    priority: 100
+    when:
+      path.ip: "198.51.100.30"
+    respond:
+      status: 200
+      body: responses/unknown.json
+
+  - id: timeout
+    priority: 100
+    when:
+      path.ip: "198.51.100.60"
+    transport:
+      type: timeout
+      duration: 5s

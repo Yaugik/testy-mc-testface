@@ -1,0 +1,14 @@
+{
+  "ip": "198.51.100.10",
+  "company": {
+    "name": "Nordlicht Example GmbH",
+    "domain": "nordlicht-example.test",
+    "type": "business"
+  },
+  "privacy": {
+    "vpn": false,
+    "proxy": false,
+    "hosting": false
+  },
+  "confidence": "high"
+}

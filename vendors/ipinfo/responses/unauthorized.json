@@ -1,0 +1,6 @@
+{
+  "error": {
+    "code": "unauthorized",
+    "message": "Synthetic credential was not accepted"
+  }
+}
