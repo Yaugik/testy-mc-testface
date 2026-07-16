@@ -22,6 +22,12 @@ export type HttpMethod =
 
 export type DurationString = `${number}ms` | `${number}s` | `${number}m`;
 
+export type JsonPrimitive = string | number | boolean | null;
+export type JsonValue =
+  | JsonPrimitive
+  | readonly JsonValue[]
+  | { readonly [key: string]: JsonValue };
+
 export interface ResponseDefinition {
   readonly status: number;
   readonly headers?: Readonly<Record<string, string>>;
@@ -109,7 +115,7 @@ export interface OperationConfig {
   readonly cases: readonly OperationCaseDefinition[];
 }
 
-export type MatchScalar = string | number | boolean | null;
+export type MatchScalar = JsonPrimitive;
 
 export type MatchExpression =
   | MatchScalar
@@ -130,12 +136,38 @@ export type MatchExpression =
       readonly between?: readonly [number, number];
     };
 
+export interface StoreMutationDefinition {
+  readonly store: string;
+  readonly key: string;
+  readonly operation: "set" | "increment" | "delete";
+  readonly value?: JsonValue;
+}
+
+export interface CaseEffectsDefinition {
+  readonly setState?: string;
+  readonly stores?: readonly StoreMutationDefinition[];
+}
+
+export interface SequenceStepDefinition {
+  readonly respond?: ResponseDefinition;
+  readonly transport?: TransportFaultDefinition;
+  readonly effects?: CaseEffectsDefinition;
+}
+
+export interface ResponseSequenceDefinition {
+  readonly onExhausted: "repeat-last" | "cycle" | "terminal";
+  readonly steps: readonly SequenceStepDefinition[];
+  readonly terminalResponse?: ResponseDefinition;
+}
+
 export interface OperationCaseDefinition {
   readonly id: string;
   readonly priority: number;
   readonly when: Readonly<Record<string, MatchExpression>>;
   readonly respond?: ResponseDefinition;
   readonly transport?: TransportFaultDefinition;
+  readonly sequence?: ResponseSequenceDefinition;
+  readonly effects?: CaseEffectsDefinition;
 }
 
 export interface VendorExecutionModel {
