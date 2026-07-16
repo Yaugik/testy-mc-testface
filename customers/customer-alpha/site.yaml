@@ -1,0 +1,120 @@
+schemaVersion: "1.0"
+site:
+  id: alpha-marketing-site
+  displayName: Customer Alpha Marketing Site
+  hostname: customer-alpha.test
+variables:
+  companyName: Nordlicht Example GmbH
+tracking:
+  enabled: true
+  endpoint: /__testy/events
+consent:
+  id: analytics-consent
+  text: Allow synthetic analytics for this test session?
+  storage: cookie
+  key: testy_consent
+  acceptText: Accept
+  rejectText: Reject
+  acceptTestId: accept-consent
+  rejectTestId: reject-consent
+pages:
+  - id: home
+    path: /
+    title: Customer Alpha
+    blocks:
+      - id: hero-heading
+        type: heading
+        level: 1
+        text: Welcome to Customer Alpha
+        testId: hero-heading
+      - id: company-message
+        type: text
+        text: A deterministic experience for {{companyName}}.
+        testId: company-message
+      - id: pricing-link
+        type: link
+        text: View pricing
+        href: /pricing
+        testId: pricing-link
+      - id: contact-link
+        type: link
+        text: Contact sales
+        href: /contact
+        testId: contact-link
+  - id: pricing
+    path: /pricing
+    title: Pricing
+    blocks:
+      - id: pricing-heading
+        type: heading
+        level: 1
+        text: Pricing
+        testId: pricing-heading
+      - id: enterprise-copy
+        type: text
+        text: Enterprise plans are available for synthetic customers.
+        testId: enterprise-copy
+      - id: pricing-contact-link
+        type: link
+        text: Talk to sales
+        href: /contact
+        testId: pricing-contact-link
+  - id: contact
+    path: /contact
+    title: Contact sales
+    blocks:
+      - id: contact-heading
+        type: heading
+        level: 1
+        text: Contact sales
+        testId: contact-heading
+      - id: lead-form
+        type: form
+        method: POST
+        action: /contact/submit
+        successPath: /thanks
+        testId: lead-form
+        fields:
+          - id: work-email
+            type: email
+            name: work_email
+            label: Work email
+            placeholder: qa@example.test
+            testId: work-email
+            required: true
+          - id: company-size
+            type: select
+            name: company_size
+            label: Company size
+            testId: company-size
+            required: true
+            value: medium
+            options:
+              - value: small
+                label: 1-49
+              - value: medium
+                label: 50-249
+              - value: large
+                label: 250+
+          - id: product-updates
+            type: checkbox
+            name: product_updates
+            label: Receive synthetic product updates
+            testId: product-updates
+            value: "yes"
+        submit:
+          text: Submit
+          testId: submit-lead
+  - id: thanks
+    path: /thanks
+    title: Thank you
+    blocks:
+      - id: thanks-heading
+        type: heading
+        level: 1
+        text: Thank you
+        testId: thanks-heading
+      - id: thanks-copy
+        type: text
+        text: Your synthetic request was received.
+        testId: thanks-copy
