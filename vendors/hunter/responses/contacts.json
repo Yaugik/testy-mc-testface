@@ -1,0 +1,20 @@
+{
+  "data": {
+    "domain": "contacts.example",
+    "organization": "Contacts Example Ltd",
+    "emails": [
+      {
+        "value": "alex@contacts.example",
+        "type": "personal",
+        "confidence": 98,
+        "verified": true
+      },
+      {
+        "value": "sales@contacts.example",
+        "type": "generic",
+        "confidence": 92,
+        "verified": true
+      }
+    ]
+  }
+}

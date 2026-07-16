@@ -1,0 +1,8 @@
+{
+  "errors": [
+    {
+      "id": "quota_exhausted",
+      "details": "Synthetic Hunter quota exhausted"
+    }
+  ]
+}

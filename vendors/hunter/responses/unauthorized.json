@@ -1,0 +1,8 @@
+{
+  "errors": [
+    {
+      "id": "unauthorized",
+      "details": "Synthetic Hunter API key is invalid"
+    }
+  ]
+}

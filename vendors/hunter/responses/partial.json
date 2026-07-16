@@ -1,0 +1,13 @@
+{
+  "data": {
+    "domain": "partial.example",
+    "organization": "Partial Contacts Example",
+    "emails": [
+      {
+        "value": "hello@partial.example",
+        "confidence": 61,
+        "verified": false
+      }
+    ]
+  }
+}
