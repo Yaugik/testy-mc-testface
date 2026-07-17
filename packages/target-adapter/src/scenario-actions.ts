@@ -5,7 +5,10 @@ import type {
   ScenarioActionRegistry,
   ScenarioValue,
 } from "@testy/scenario-engine";
-import type { GatewayAdminClient, GatewayRouteBinding } from "@testy/traffic-gateway";
+import type {
+  GatewayAdminClient,
+  GatewayRouteBinding,
+} from "@testy/traffic-gateway";
 
 import type {
   AdapterRunContext,
@@ -32,18 +35,27 @@ export interface GatewayTargetScenarioActionsOptions {
   readonly defaultTargetLeaseTtlMs?: number;
 }
 
-export function createGatewayTargetScenarioActions(
+export interface GatewayTargetScenarioActionBundle {
+  readonly actions: ScenarioActionRegistry;
+  routeFor(context: ScenarioActionContext): GatewayRouteBinding;
+}
+
+export function createGatewayTargetScenarioActionBundle(
   options: GatewayTargetScenarioActionsOptions,
-): ScenarioActionRegistry {
+): GatewayTargetScenarioActionBundle {
   const states = new Map<RunId, RunIntegrationState>();
   const stateFor = (context: ScenarioActionContext): RunIntegrationState => {
     const existing = states.get(context.runId);
     if (existing) return existing;
-    const created: RunIntegrationState = { createdAt: new Date().toISOString() };
+    const created: RunIntegrationState = {
+      createdAt: new Date().toISOString(),
+    };
     states.set(context.runId, created);
     return created;
   };
-  const adapterContext = (context: ScenarioActionContext): AdapterRunContext => {
+  const adapterContext = (
+    context: ScenarioActionContext,
+  ): AdapterRunContext => {
     const state = stateFor(context);
     return {
       runId: context.runId,
@@ -54,14 +66,17 @@ export function createGatewayTargetScenarioActions(
     };
   };
 
-  return {
+  const actions: ScenarioActionRegistry = {
     "gateway.create-route": async (input, context) => {
       const state = stateFor(context);
       if (!state.gateway) {
         const value = readObject(input);
         const targetOrigin = readString(value, "targetOrigin");
         const syntheticIp = readString(value, "syntheticIp");
-        const ttlMs = readOptionalNumber(value, "ttlMs") ?? options.defaultRouteTtlMs ?? 15 * 60 * 1000;
+        const ttlMs =
+          readOptionalNumber(value, "ttlMs") ??
+          options.defaultRouteTtlMs ??
+          15 * 60 * 1000;
         state.gateway = await options.gateway.createRoute({
           runId: context.runId,
           targetOrigin,
@@ -87,20 +102,28 @@ export function createGatewayTargetScenarioActions(
       return {
         routeId: binding.routeId,
         callCount: entries.length,
-        forwardedCount: entries.filter((entry) => entry.outcome === "forwarded").length,
-        rejectedCount: entries.filter((entry) => entry.outcome === "rejected").length,
-        failedCount: entries.filter((entry) => entry.outcome === "failed").length,
+        forwardedCount: entries.filter(
+          (entry) => entry.outcome === "forwarded",
+        ).length,
+        rejectedCount: entries.filter(
+          (entry) => entry.outcome === "rejected",
+        ).length,
+        failedCount: entries.filter((entry) => entry.outcome === "failed")
+          .length,
       };
     },
     "target.prepare-run": async (_input, context) => {
       const state = stateFor(context);
       if (!state.prepared) {
-        state.prepared = await options.adapter.prepareRun(adapterContext(context));
+        state.prepared = await options.adapter.prepareRun(
+          adapterContext(context),
+        );
       }
       if (!state.targetLeaseRegistered) {
         const prepared = state.prepared;
         const expiresAt = new Date(
-          Date.now() + (options.defaultTargetLeaseTtlMs ?? 24 * 60 * 60 * 1000),
+          Date.now() +
+            (options.defaultTargetLeaseTtlMs ?? 24 * 60 * 60 * 1000),
         ).toISOString();
         await context.registerResourceLease(
           "target-run",
@@ -117,7 +140,10 @@ export function createGatewayTargetScenarioActions(
       requirePrepared(state);
       const endpoints = readStringMap(readObject(input), "endpoints");
       assertSafeVendorEndpoints(endpoints);
-      await options.adapter.configureVendorEndpoints(adapterContext(context), endpoints);
+      await options.adapter.configureVendorEndpoints(
+        adapterContext(context),
+        endpoints,
+      );
       return { configuredVendorIds: Object.keys(endpoints).sort() };
     },
     "target.configure-site": async (input, context) => {
@@ -128,14 +154,19 @@ export function createGatewayTargetScenarioActions(
       const site: SiteDefinition = {
         siteId: readOptionalString(value, "siteId") ?? prepared.siteId,
         hostname: assertSyntheticHostname(readString(value, "hostname")),
-        trackingScriptUrl: readOptionalString(value, "trackingScriptUrl") ?? prepared.trackingScriptUrl,
+        trackingScriptUrl:
+          readOptionalString(value, "trackingScriptUrl") ??
+          prepared.trackingScriptUrl,
         gateway: {
           proxyBaseUrl: gateway.proxyBaseUrl,
           routeToken: gateway.routeToken,
           runIdHeader: context.runId,
         },
       };
-      const configured = await options.adapter.configureSyntheticSite(adapterContext(context), site);
+      const configured = await options.adapter.configureSyntheticSite(
+        adapterContext(context),
+        site,
+      );
       return {
         siteId: configured.siteId,
         hostname: configured.hostname,
@@ -145,7 +176,9 @@ export function createGatewayTargetScenarioActions(
     "target.start-observation": async (_input, context) => {
       const state = stateFor(context);
       requirePrepared(state);
-      state.observation = await options.adapter.startObservation(adapterContext(context));
+      state.observation = await options.adapter.startObservation(
+        adapterContext(context),
+      );
       return {
         observationId: state.observation.observationId,
         targetRunId: state.observation.targetRunId,
@@ -153,41 +186,66 @@ export function createGatewayTargetScenarioActions(
     },
     "target.wait-for-completion": async (input, context) => {
       const state = stateFor(context);
-      if (!state.observation) throw new Error("Target observation has not been started.");
+      if (!state.observation) {
+        throw new Error("Target observation has not been started.");
+      }
       const value = readObject(input);
       const expectedState = readOptionalString(value, "expectedState");
-      const result = await options.adapter.waitForCompletion(adapterContext(context), {
-        timeoutMs: readOptionalNumber(value, "timeoutMs") ?? 60_000,
-        pollIntervalMs: readOptionalNumber(value, "pollIntervalMs") ?? 2_000,
-        ...(expectedState ? { expectedState } : {}),
-        signal: context.signal,
-      });
+      const result = await options.adapter.waitForCompletion(
+        adapterContext(context),
+        {
+          timeoutMs: readOptionalNumber(value, "timeoutMs") ?? 60_000,
+          pollIntervalMs:
+            readOptionalNumber(value, "pollIntervalMs") ?? 2_000,
+          ...(expectedState ? { expectedState } : {}),
+          signal: context.signal,
+        },
+      );
       return {
         completed: result.completed,
         state: result.state,
         observedAt: result.observedAt,
-        ...(result.detailsFingerprint ? { detailsFingerprint: result.detailsFingerprint } : {}),
+        ...(result.detailsFingerprint
+          ? { detailsFingerprint: result.detailsFingerprint }
+          : {}),
       };
     },
     "target.collect-outcome": async (_input, context) => {
-      const outcome = await options.adapter.collectOutcome(adapterContext(context));
+      const outcome = await options.adapter.collectOutcome(
+        adapterContext(context),
+      );
       return {
         targetRunId: outcome.targetRunId,
         tenantId: outcome.tenantId,
         visibleTenantIds: outcome.visibleTenantIds,
         scoreCount: outcome.scoreCount,
         companyCount: outcome.companyCount,
-        ...(outcome.detailsFingerprint ? { detailsFingerprint: outcome.detailsFingerprint } : {}),
+        ...(outcome.detailsFingerprint
+          ? { detailsFingerprint: outcome.detailsFingerprint }
+          : {}),
       };
     },
     "target.cleanup-run": async (_input, context) => {
       const state = stateFor(context);
       await options.adapter.cleanupRun(adapterContext(context));
-      if (state.gateway) await options.gateway.deleteRoute(state.gateway.routeId);
+      if (state.gateway) {
+        await options.gateway.deleteRoute(state.gateway.routeId);
+      }
       states.delete(context.runId);
       return { cleaned: true };
     },
   };
+
+  return {
+    actions,
+    routeFor: (context) => requireGateway(stateFor(context)),
+  };
+}
+
+export function createGatewayTargetScenarioActions(
+  options: GatewayTargetScenarioActionsOptions,
+): ScenarioActionRegistry {
+  return createGatewayTargetScenarioActionBundle(options).actions;
 }
 
 export function createGatewayTargetResourceCleaners(
@@ -206,7 +264,9 @@ export function mergeScenarioActionRegistries(
   const merged: Record<string, ScenarioActionRegistry[string]> = {};
   for (const registry of registries) {
     for (const [name, handler] of Object.entries(registry)) {
-      if (merged[name]) throw new Error(`Scenario action '${name}' was registered twice.`);
+      if (merged[name]) {
+        throw new Error(`Scenario action '${name}' was registered twice.`);
+      }
       merged[name] = handler;
     }
   }
@@ -231,33 +291,59 @@ function assertSafeVendorEndpoints(endpoints: VendorEndpoints): void {
       throw new Error(`Vendor endpoint '${vendorId}' must be an absolute URL.`);
     }
     if (url.protocol !== "http:" && url.protocol !== "https:") {
-      throw new Error(`Vendor endpoint '${vendorId}' must use HTTP or HTTPS.`);
+      throw new Error(
+        `Vendor endpoint '${vendorId}' must use HTTP or HTTPS.`,
+      );
     }
     if (url.username || url.password || url.hash) {
-      throw new Error(`Vendor endpoint '${vendorId}' cannot contain credentials or a fragment.`);
+      throw new Error(
+        `Vendor endpoint '${vendorId}' cannot contain credentials or a fragment.`,
+      );
     }
     const hostname = url.hostname.toLowerCase();
-    if (blockedProviderHosts.some((blocked) => hostname === blocked || hostname.endsWith(`.${blocked}`))) {
-      throw new Error(`Vendor endpoint '${vendorId}' cannot target a real provider host.`);
+    if (
+      blockedProviderHosts.some(
+        (blocked) => hostname === blocked || hostname.endsWith(`.${blocked}`),
+      )
+    ) {
+      throw new Error(
+        `Vendor endpoint '${vendorId}' cannot target a real provider host.`,
+      );
     }
     if (!isSyntheticRuntimeHostname(hostname)) {
-      throw new Error(`Vendor endpoint '${vendorId}' must target an isolated synthetic runtime.`);
+      throw new Error(
+        `Vendor endpoint '${vendorId}' must target an isolated synthetic runtime.`,
+      );
     }
   }
 }
 
 function isSyntheticRuntimeHostname(hostname: string): boolean {
-  if (hostname === "localhost" || hostname === "[::1]" || !hostname.includes(".")) return true;
+  if (
+    hostname === "localhost" ||
+    hostname === "[::1]" ||
+    !hostname.includes(".")
+  ) {
+    return true;
+  }
   if (/\.(?:test|example|invalid|internal)$/iu.test(hostname)) return true;
   const octets = hostname.split(".").map((value) => Number(value));
-  if (octets.length !== 4 || octets.some((value) => !Number.isInteger(value) || value < 0 || value > 255)) {
+  if (
+    octets.length !== 4 ||
+    octets.some(
+      (value) =>
+        !Number.isInteger(value) || value < 0 || value > 255,
+    )
+  ) {
     return false;
   }
   return (
     octets[0] === 10 ||
     octets[0] === 127 ||
     (octets[0] === 169 && octets[1] === 254) ||
-    (octets[0] === 172 && (octets[1] ?? 0) >= 16 && (octets[1] ?? 0) <= 31) ||
+    (octets[0] === 172 &&
+      (octets[1] ?? 0) >= 16 &&
+      (octets[1] ?? 0) <= 31) ||
     (octets[0] === 192 && octets[1] === 168) ||
     (octets[0] === 192 && octets[1] === 0 && octets[2] === 2) ||
     (octets[0] === 198 && octets[1] === 51 && octets[2] === 100) ||
@@ -267,13 +353,21 @@ function isSyntheticRuntimeHostname(hostname: string): boolean {
 
 function assertSyntheticHostname(value: string): string {
   const hostname = value.toLowerCase();
-  if (hostname === "localhost" || !hostname.includes(".") || /\.(?:test|example|invalid|internal)$/iu.test(hostname)) {
+  if (
+    hostname === "localhost" ||
+    !hostname.includes(".") ||
+    /\.(?:test|example|invalid|internal)$/iu.test(hostname)
+  ) {
     return value;
   }
-  throw new Error("Synthetic site hostname must use an approved test namespace.");
+  throw new Error(
+    "Synthetic site hostname must use an approved test namespace.",
+  );
 }
 
-function safeGatewayBinding(binding: GatewayRouteBinding | undefined): ScenarioValue {
+function safeGatewayBinding(
+  binding: GatewayRouteBinding | undefined,
+): ScenarioValue {
   if (!binding) throw new Error("Gateway route is not available.");
   return {
     routeId: binding.routeId,
@@ -284,12 +378,16 @@ function safeGatewayBinding(binding: GatewayRouteBinding | undefined): ScenarioV
   };
 }
 
-function safePreparedTarget(prepared: PreparedTarget | undefined): ScenarioValue {
+function safePreparedTarget(
+  prepared: PreparedTarget | undefined,
+): ScenarioValue {
   if (!prepared) throw new Error("Target run is not prepared.");
   return {
     targetRunId: prepared.targetRunId,
     tenantId: prepared.tenantId,
-    ...(prepared.controlTenantId ? { controlTenantId: prepared.controlTenantId } : {}),
+    ...(prepared.controlTenantId
+      ? { controlTenantId: prepared.controlTenantId }
+      : {}),
     trackingScriptUrl: prepared.trackingScriptUrl,
     siteId: prepared.siteId,
   };
@@ -305,17 +403,24 @@ function requirePrepared(state: RunIntegrationState): PreparedTarget {
   return state.prepared;
 }
 
-function readObject(input: ScenarioValue | undefined): Readonly<Record<string, ScenarioValue>> {
+function readObject(
+  input: ScenarioValue | undefined,
+): Readonly<Record<string, ScenarioValue>> {
   if (!input || typeof input !== "object" || Array.isArray(input)) {
     throw new Error("Scenario action input must be an object.");
   }
   return input as Readonly<Record<string, ScenarioValue>>;
 }
 
-function readString(value: Readonly<Record<string, ScenarioValue>>, key: string): string {
+function readString(
+  value: Readonly<Record<string, ScenarioValue>>,
+  key: string,
+): string {
   const result = value[key];
   if (typeof result !== "string" || result.length === 0) {
-    throw new Error(`Scenario action input '${key}' must be a non-empty string.`);
+    throw new Error(
+      `Scenario action input '${key}' must be a non-empty string.`,
+    );
   }
   return result;
 }
@@ -325,7 +430,9 @@ function readOptionalString(
   key: string,
 ): string | undefined {
   const result = value[key];
-  return typeof result === "string" && result.length > 0 ? result : undefined;
+  return typeof result === "string" && result.length > 0
+    ? result
+    : undefined;
 }
 
 function readOptionalNumber(
@@ -333,7 +440,9 @@ function readOptionalNumber(
   key: string,
 ): number | undefined {
   const result = value[key];
-  return typeof result === "number" && Number.isFinite(result) ? result : undefined;
+  return typeof result === "number" && Number.isFinite(result)
+    ? result
+    : undefined;
 }
 
 function readStringMap(
@@ -341,12 +450,18 @@ function readStringMap(
   key: string,
 ): VendorEndpoints {
   const candidate = value[key];
-  if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) {
+  if (
+    !candidate ||
+    typeof candidate !== "object" ||
+    Array.isArray(candidate)
+  ) {
     throw new Error(`Scenario action input '${key}' must be an object.`);
   }
   const result: Record<string, string> = {};
   for (const [name, endpoint] of Object.entries(candidate)) {
-    if (typeof endpoint !== "string") throw new Error(`Vendor endpoint '${name}' must be a string.`);
+    if (typeof endpoint !== "string") {
+      throw new Error(`Vendor endpoint '${name}' must be a string.`);
+    }
     result[name] = endpoint;
   }
   return result;

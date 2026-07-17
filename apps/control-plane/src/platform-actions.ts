@@ -10,9 +10,13 @@ import {
 } from "@testy/scenario-engine";
 import {
   createGatewayTargetResourceCleaners,
-  createGatewayTargetScenarioActions,
+  createGatewayTargetScenarioActionBundle,
   mergeScenarioActionRegistries,
 } from "@testy/target-adapter";
+import {
+  createTrafficScenarioActions,
+  type TrafficEvidence,
+} from "@testy/traffic-generator";
 import { GatewayAdminClient } from "@testy/traffic-gateway";
 
 import type { ControlPlaneConfig } from "./config.js";
@@ -86,11 +90,55 @@ function createTargetActions(
     authToken: integration.glEyeAuthToken,
     allowedOrigins: integration.glEyeAllowedOrigins,
   });
-  const targetActions = createGatewayTargetScenarioActions({ gateway, adapter });
+  const target = createGatewayTargetScenarioActionBundle({ gateway, adapter });
+  const traffic = createTrafficScenarioActions({
+    routeFor: target.routeFor,
+    recordEvidence: async (selected, context) =>
+      recordTrafficEvidence(selected, context, evidence),
+  });
+  const actions = mergeScenarioActionRegistries(target.actions, traffic);
   return {
-    actions: recordTargetObservations(targetActions, evidence),
+    actions: recordTargetObservations(actions, evidence),
     resourceCleaners: createGatewayTargetResourceCleaners(gateway, adapter),
   };
+}
+
+async function recordTrafficEvidence(
+  selected: TrafficEvidence,
+  context: ScenarioActionContext,
+  evidence: ScenarioRunRepository,
+): Promise<void> {
+  if (selected.kind === "request") {
+    await evidence.recordObservation({
+      observationId: `traffic-request-${selected.report.requestId}`,
+      runId: context.runId,
+      observationType: "traffic-request-summary",
+      status: selected.report.status,
+      value: selected.report as unknown as ScenarioValue,
+      metadata: { sourceAction: "traffic-generator" },
+      observedAt: selected.report.completedAt,
+    });
+    return;
+  }
+  const report = selected.report;
+  await evidence.recordObservation({
+    observationId: `traffic-batch-${report.batchId}`,
+    runId: context.runId,
+    observationType: "traffic-batch-summary",
+    status: report.status,
+    value: {
+      batchId: report.batchId,
+      status: report.status,
+      durationMs: report.durationMs,
+      requestCount: report.requestCount,
+      passedCount: report.passedCount,
+      failedCount: report.failedCount,
+      timedOut: report.timedOut,
+      concurrency: report.concurrency,
+    },
+    metadata: { sourceAction: "traffic-generator" },
+    observedAt: report.completedAt,
+  });
 }
 
 function recordTargetObservations(
@@ -170,6 +218,6 @@ function readOptionalRecord(
   value: ScenarioValue | undefined,
 ): Readonly<Record<string, ScenarioValue>> | undefined {
   return value && typeof value === "object" && !Array.isArray(value)
-    ? value as Readonly<Record<string, ScenarioValue>>
+    ? (value as Readonly<Record<string, ScenarioValue>>)
     : undefined;
 }

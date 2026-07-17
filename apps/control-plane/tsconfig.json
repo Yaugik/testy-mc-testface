@@ -11,6 +11,7 @@
     { "path": "../../packages/scenario-engine" },
     { "path": "../../packages/reporting" },
     { "path": "../../packages/traffic-gateway" },
+    { "path": "../../packages/traffic-generator" },
     { "path": "../../packages/target-adapter" },
     { "path": "../../packages/platform-actions" },
     { "path": "../../adapters/gl-eye" }
