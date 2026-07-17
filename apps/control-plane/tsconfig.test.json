@@ -6,13 +6,9 @@
     "composite": false,
     "noEmit": true
   },
-  "include": [
-    "src/**/*.ts",
-    "test/**/*.ts"
-  ],
+  "include": ["src/**/*.ts", "test/**/*.ts"],
   "references": [
-    {
-      "path": "../../packages/shared-types"
-    }
+    { "path": "../../packages/shared-types" },
+    { "path": "../../packages/scenario-engine" }
   ]
 }
