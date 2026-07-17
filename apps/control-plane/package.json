@@ -1,6 +1,36 @@
 {
-  "name":"@testy/control-plane","version":"0.1.0","private":true,"type":"module",
-  "scripts":{"prebuild":"pnpm --filter @testy/shared-types build && pnpm --filter @testy/assertion-engine build && pnpm --filter @testy/scenario-engine build && pnpm --filter @testy/reporting build && pnpm --filter @testy/traffic-gateway build && pnpm --filter @testy/target-adapter build && pnpm --filter @testy/gl-eye-adapter build","build":"tsc -p tsconfig.json","pretypecheck":"pnpm run prebuild","typecheck":"tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json --noEmit","pretest":"pnpm run build","test":"vitest run","dev":"tsx watch src/server.ts","start":"node dist/server.js","migrate":"tsx src/migrate.ts","migrate:prod":"node dist/migrate.js"},
-  "dependencies":{"@testy/assertion-engine":"workspace:*","@testy/gl-eye-adapter":"workspace:*","@testy/reporting":"workspace:*","@testy/scenario-engine":"workspace:*","@testy/shared-types":"workspace:*","@testy/target-adapter":"workspace:*","@testy/traffic-gateway":"workspace:*","fastify":"^5.0.0","pg":"^8.0.0"},
-  "devDependencies":{"@types/node":"^24.0.0","@types/pg":"^8.0.0","tsx":"^4.0.0","typescript":"^5.0.0","vitest":"^3.0.0"}
+  "name": "@testy/control-plane",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "prebuild": "pnpm --filter @testy/shared-types build && pnpm --filter @testy/assertion-engine build && pnpm --filter @testy/scenario-engine build && pnpm --filter @testy/reporting build && pnpm --filter @testy/traffic-gateway build && pnpm --filter @testy/target-adapter build && pnpm --filter @testy/gl-eye-adapter build",
+    "build": "tsc -p tsconfig.json",
+    "pretypecheck": "pnpm run prebuild",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json --noEmit",
+    "pretest": "pnpm run build",
+    "test": "vitest run",
+    "dev": "tsx watch src/server.ts",
+    "start": "node dist/server.js",
+    "migrate": "tsx src/migrate.ts",
+    "migrate:prod": "node dist/migrate.js"
+  },
+  "dependencies": {
+    "@testy/assertion-engine": "workspace:*",
+    "@testy/gl-eye-adapter": "workspace:*",
+    "@testy/reporting": "workspace:*",
+    "@testy/scenario-engine": "workspace:*",
+    "@testy/shared-types": "workspace:*",
+    "@testy/target-adapter": "workspace:*",
+    "@testy/traffic-gateway": "workspace:*",
+    "fastify": "^5.0.0",
+    "pg": "^8.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "@types/pg": "^8.0.0",
+    "tsx": "^4.0.0",
+    "typescript": "^5.0.0",
+    "vitest": "^3.0.0"
+  }
 }

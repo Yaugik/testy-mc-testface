@@ -4,7 +4,13 @@ import type {
   AssertionSnapshot,
   AssertionValue,
 } from "@testy/assertion-engine";
-import type { ResourceLease, RunId, RunStatus, SanitizedError, ScenarioId } from "@testy/shared-types";
+import type {
+  ResourceLease,
+  RunId,
+  RunStatus,
+  SanitizedError,
+  ScenarioId,
+} from "@testy/shared-types";
 
 export type ScenarioScalar = string | number | boolean | null;
 export type ScenarioValue = AssertionValue;
@@ -18,7 +24,9 @@ export interface ScenarioConfig {
   readonly target: string;
   readonly timeoutMs?: number;
   readonly variables?: Readonly<Record<string, ScenarioValue>>;
-  readonly fragments?: Readonly<Record<string, readonly ScenarioStepDefinition[]>>;
+  readonly fragments?: Readonly<
+    Record<string, readonly ScenarioStepDefinition[]>
+  >;
   readonly assertions?: readonly AssertionDefinition[];
   readonly phases: ScenarioPhaseConfig;
 }
@@ -107,8 +115,10 @@ export interface ResolvedParallelStep extends Omit<ParallelStep, "steps"> {
 export interface ResolvedRepeatStep extends Omit<RepeatStep, "steps"> {
   readonly steps: readonly ResolvedScenarioStep[];
 }
-export interface ResolvedConditionStep
-  extends Omit<ConditionStep, "then" | "else"> {
+export interface ResolvedConditionStep extends Omit<
+  ConditionStep,
+  "then" | "else"
+> {
   readonly then: readonly ResolvedScenarioStep[];
   readonly else?: readonly ResolvedScenarioStep[];
 }
@@ -134,7 +144,7 @@ export interface ResolvedScenario {
     readonly observe: readonly ResolvedScenarioStep[];
     readonly assert: readonly ResolvedScenarioStep[];
   };
-  readonly assertions: readonly AssertionDefinition[];
+  readonly assertions?: readonly AssertionDefinition[];
   readonly contentHash: string;
 }
 
@@ -159,7 +169,9 @@ export type ScenarioActionHandler = (
   context: ScenarioActionContext,
 ) => Promise<ScenarioValue | undefined>;
 
-export type ScenarioActionRegistry = Readonly<Record<string, ScenarioActionHandler>>;
+export type ScenarioActionRegistry = Readonly<
+  Record<string, ScenarioActionHandler>
+>;
 
 export interface ScenarioStepRecord {
   readonly runId: RunId;
@@ -321,7 +333,9 @@ export interface ScenarioRunRepository {
   listObservations(runId: RunId): Promise<readonly PersistedObservation[]>;
   createResourceLease(lease: ResourceLease): Promise<void>;
   releaseResourceLease(leaseId: string, releasedAt: string): Promise<void>;
-  listActiveResourceLeases(runId: RunId): Promise<readonly PersistedResourceLease[]>;
+  listActiveResourceLeases(
+    runId: RunId,
+  ): Promise<readonly PersistedResourceLease[]>;
   buildAssertionSnapshot(runId: RunId): Promise<AssertionSnapshot>;
   buildReport(runId: RunId): Promise<ScenarioRunReport | undefined>;
 }

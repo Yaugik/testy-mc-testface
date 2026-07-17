@@ -21,15 +21,28 @@ export function resolveScenario(config: ScenarioConfig): ResolvedScenario {
   validateFragmentReferences(config, issues);
   validateUniqueAssertionIds(config, issues);
   validateAssertions(config, issues);
+  if (
+    (config.assertions?.length ?? 0) > 0 &&
+    (config.phases.assert ?? []).some((step) => step.id === "system-assertions")
+  ) {
+    issues.push(
+      "Step ID 'system-assertions' is reserved when declarative assertions are configured.",
+    );
+  }
   if (issues.length > 0) {
     throw new ScenarioValidationError(issues);
   }
 
   const variables = config.variables ?? {};
-  const assertions = substituteValue(config.assertions ?? [], variables) as NonNullable<
-    ScenarioConfig["assertions"]
-  >;
-  const authoredAssertSteps = expand(config.phases.assert ?? [], fragments, variables);
+  const assertions = substituteValue(
+    config.assertions ?? [],
+    variables,
+  ) as NonNullable<ScenarioConfig["assertions"]>;
+  const authoredAssertSteps = expand(
+    config.phases.assert ?? [],
+    fragments,
+    variables,
+  );
   const phases = {
     allocate: expand(config.phases.allocate ?? [], fragments, variables),
     compile: expand(config.phases.compile ?? [], fragments, variables),
@@ -90,7 +103,13 @@ function expand(
         ]);
       }
       result.push(
-        ...expand(fragment, fragments, variables, [...stack, step.useFragment], nextId),
+        ...expand(
+          fragment,
+          fragments,
+          variables,
+          [...stack, step.useFragment],
+          nextId,
+        ),
       );
       continue;
     }
@@ -129,7 +148,15 @@ function resolveStep(
         id,
         then: expand(mapped.then, fragments, variables, stack, `${id}.then`),
         ...(mapped.else
-          ? { else: expand(mapped.else, fragments, variables, stack, `${id}.else`) }
+          ? {
+              else: expand(
+                mapped.else,
+                fragments,
+                variables,
+                stack,
+                `${id}.else`,
+              ),
+            }
           : {}),
       } as ResolvedConditionStep;
     default:
@@ -146,7 +173,9 @@ function substituteValue(
     if (exact) {
       const replacement = variables[exact[1] as string];
       if (replacement === undefined) {
-        throw new ScenarioValidationError([`Scenario variable '${exact[1]}' is not defined.`]);
+        throw new ScenarioValidationError([
+          `Scenario variable '${exact[1]}' is not defined.`,
+        ]);
       }
       return replacement;
     }
@@ -155,7 +184,9 @@ function substituteValue(
       (_match, name: string) => {
         const replacement = variables[name];
         if (replacement === undefined) {
-          throw new ScenarioValidationError([`Scenario variable '${name}' is not defined.`]);
+          throw new ScenarioValidationError([
+            `Scenario variable '${name}' is not defined.`,
+          ]);
         }
         if (typeof replacement === "object") {
           throw new ScenarioValidationError([
@@ -171,7 +202,10 @@ function substituteValue(
   }
   if (value && typeof value === "object") {
     return Object.fromEntries(
-      Object.entries(value).map(([key, item]) => [key, substituteValue(item, variables)]),
+      Object.entries(value).map(([key, item]) => [
+        key,
+        substituteValue(item, variables),
+      ]),
     );
   }
   return value;
@@ -179,7 +213,10 @@ function substituteValue(
 
 function validateUniqueStepIds(config: ScenarioConfig, issues: string[]): void {
   const seen = new Set<string>();
-  const visit = (steps: readonly ScenarioStepDefinition[], label: string): void => {
+  const visit = (
+    steps: readonly ScenarioStepDefinition[],
+    label: string,
+  ): void => {
     for (const step of steps) {
       const key = `${label}:${step.id}`;
       if (seen.has(key)) {
@@ -202,7 +239,10 @@ function validateUniqueStepIds(config: ScenarioConfig, issues: string[]): void {
   }
 }
 
-function validateFragmentReferences(config: ScenarioConfig, issues: string[]): void {
+function validateFragmentReferences(
+  config: ScenarioConfig,
+  issues: string[],
+): void {
   const fragments = config.fragments ?? {};
   const visit = (steps: readonly ScenarioStepDefinition[]): void => {
     for (const step of steps) {
@@ -224,7 +264,10 @@ function validateFragmentReferences(config: ScenarioConfig, issues: string[]): v
   for (const steps of Object.values(fragments)) visit(steps);
 }
 
-function validateUniqueAssertionIds(config: ScenarioConfig, issues: string[]): void {
+function validateUniqueAssertionIds(
+  config: ScenarioConfig,
+  issues: string[],
+): void {
   const seen = new Set<string>();
   for (const assertion of config.assertions ?? []) {
     if (seen.has(assertion.id)) {
@@ -233,7 +276,6 @@ function validateUniqueAssertionIds(config: ScenarioConfig, issues: string[]): v
     seen.add(assertion.id);
   }
 }
-
 
 function validateAssertions(config: ScenarioConfig, issues: string[]): void {
   for (const assertion of config.assertions ?? []) {
@@ -246,14 +288,18 @@ function validateAssertions(config: ScenarioConfig, issues: string[]): void {
         assertion.minimum === undefined &&
         assertion.maximum === undefined
       ) {
-        issues.push(`Assertion '${assertion.id}' must define equals, minimum, or maximum.`);
+        issues.push(
+          `Assertion '${assertion.id}' must define equals, minimum, or maximum.`,
+        );
       }
       if (
         typeof assertion.minimum === "number" &&
         typeof assertion.maximum === "number" &&
         assertion.minimum > assertion.maximum
       ) {
-        issues.push(`Assertion '${assertion.id}' has minimum greater than maximum.`);
+        issues.push(
+          `Assertion '${assertion.id}' has minimum greater than maximum.`,
+        );
       }
     }
     if (
