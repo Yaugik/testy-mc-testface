@@ -1,4 +1,4 @@
-export { runBrowserJourney } from "./executor.js";
+export { runBrowserJourney } from "./runner.js";
 export { installNetworkFixtures, installSiteRoute, matchesRequest } from "./network.js";
 export { fingerprintUrl, locatorFor, sanitizeArtifactName, shouldCapture } from "./util.js";
 export type {
