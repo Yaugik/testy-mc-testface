@@ -60,6 +60,9 @@ export async function runBrowserJourney(
   let traceStarted = false;
   let tracePath: string | undefined;
   let reportError: string | undefined;
+  let journeyTimedOut = false;
+  let journeyTimer: ReturnType<typeof setTimeout> | undefined;
+  let abortListener: (() => void) | undefined;
 
   try {
     throwIfAborted(options.signal);
@@ -73,6 +76,14 @@ export async function runBrowserJourney(
       serviceWorkers: "block",
     });
     context.setDefaultTimeout(journey.timeoutMs);
+    journeyTimer = setTimeout(() => {
+      journeyTimedOut = true;
+      void context?.close().catch(() => undefined);
+    }, journey.timeoutMs);
+    abortListener = () => {
+      void context?.close().catch(() => undefined);
+    };
+    options.signal?.addEventListener("abort", abortListener, { once: true });
     await installSiteRoute(context, site);
     await installNetworkFixtures(context, journey.networkFixtures ?? []);
     await applySession(context, journey, site);
@@ -117,8 +128,14 @@ export async function runBrowserJourney(
       }
     }
   } catch (error) {
-    reportError = error instanceof Error ? error.message : String(error);
+    reportError = journeyTimedOut
+      ? `Browser journey exceeded ${journey.timeoutMs}ms.`
+      : error instanceof Error
+        ? error.message
+        : String(error);
   } finally {
+    if (journeyTimer) clearTimeout(journeyTimer);
+    if (abortListener) options.signal?.removeEventListener("abort", abortListener);
     const failed = reportError !== undefined;
     if (context && traceStarted) {
       if (shouldCapture(journey.artifactPolicy.trace, failed)) {
