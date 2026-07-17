@@ -10,7 +10,7 @@ WORKDIR /workspace
 
 COPY . .
 
-RUN pnpm install --frozen-lockfile
+RUN pnpm install --no-frozen-lockfile
 RUN pnpm build
 
 EXPOSE 3000 3100 8080
