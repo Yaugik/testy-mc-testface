@@ -8,6 +8,7 @@
   "references": [
     { "path": "../shared-types" },
     { "path": "../scenario-engine" },
+    { "path": "../privacy-validation" },
     { "path": "../config-loader" },
     { "path": "../vendor-compiler" },
     { "path": "../vendor-runtime" },

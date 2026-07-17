@@ -34,6 +34,9 @@ export interface PlatformActionOptions {
 }
 
 export interface PlatformActionDependencies {
+  validateVendorPackagePrivacy(
+    path: string,
+  ): Promise<{ readonly passed: boolean; readonly scannedFiles: number }>;
   loadVendorPackage(path: string): Promise<LoadedVendorPackage>;
   compileVendorBundle(
     loaded: LoadedVendorPackage,

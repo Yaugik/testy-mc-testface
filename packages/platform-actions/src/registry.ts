@@ -1,6 +1,7 @@
 import { loadBrowserPackage, resolveJourney } from "@testy/browser-config";
 import { runBrowserJourney } from "@testy/browser-runner";
 import { loadVendorPackage } from "@testy/config-loader";
+import { validateVendorPackagePrivacy } from "@testy/privacy-validation";
 import type { ScenarioActionContext } from "@testy/scenario-engine";
 import { startSyntheticSite } from "@testy/synthetic-site-host";
 import { compileVendorBundle, writeVendorBundle } from "@testy/vendor-compiler";
@@ -24,6 +25,7 @@ export function createIntegratedPlatformActions(
   const engine = options.containerEngine ?? new DockerCliContainerEngine();
   const manager = new ImposterRuntimeManager(engine);
   const dependencies: PlatformActionDependencies = {
+    validateVendorPackagePrivacy,
     loadVendorPackage,
     compileVendorBundle,
     writeVendorBundle,

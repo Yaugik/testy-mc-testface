@@ -12,7 +12,7 @@
     }
   },
   "scripts": {
-    "prebuild": "pnpm --filter @testy/shared-types build && pnpm --filter @testy/scenario-engine build && pnpm --filter @testy/config-loader build && pnpm --filter @testy/vendor-compiler build && pnpm --filter @testy/vendor-runtime build && pnpm --filter @testy/browser-config build && pnpm --filter @testy/synthetic-site-host build && pnpm --filter @testy/browser-runner build",
+    "prebuild": "pnpm --filter @testy/shared-types build && pnpm --filter @testy/scenario-engine build && pnpm --filter @testy/privacy-validation build && pnpm --filter @testy/config-loader build && pnpm --filter @testy/vendor-compiler build && pnpm --filter @testy/vendor-runtime build && pnpm --filter @testy/browser-config build && pnpm --filter @testy/synthetic-site-host build && pnpm --filter @testy/browser-runner build",
     "build": "tsc -p tsconfig.json",
     "pretypecheck": "pnpm run prebuild",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json --noEmit",
@@ -24,6 +24,7 @@
     "@testy/browser-runner": "workspace:*",
     "@testy/browser-schema": "workspace:*",
     "@testy/config-loader": "workspace:*",
+    "@testy/privacy-validation": "workspace:*",
     "@testy/scenario-engine": "workspace:*",
     "@testy/shared-types": "workspace:*",
     "@testy/synthetic-site-host": "workspace:*",

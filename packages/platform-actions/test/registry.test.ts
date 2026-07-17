@@ -63,6 +63,10 @@ describe("createIntegratedPlatformActions", () => {
         },
       },
       dependencies: {
+        validateVendorPackagePrivacy: async () => ({
+          passed: true,
+          scannedFiles: 4,
+        }),
         loadVendorPackage: async () =>
           ({ executionModel: { vendor: { id: "ipinfo" } } }) as never,
         compileVendorBundle: () =>

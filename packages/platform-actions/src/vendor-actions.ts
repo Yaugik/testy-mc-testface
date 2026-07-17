@@ -33,9 +33,10 @@ export function createVendorActions(
     "vendor.compile": async (input, context) => {
       const value = readObject(input);
       const packageName = readSafeRelativeName(value, "package");
-      const loaded = await dependencies.loadVendorPackage(
-        safeChild(options.vendorPackagesRoot, packageName),
-      );
+      const packagePath = safeChild(options.vendorPackagesRoot, packageName);
+      const privacy =
+        await dependencies.validateVendorPackagePrivacy(packagePath);
+      const loaded = await dependencies.loadVendorPackage(packagePath);
       const compiled = dependencies.compileVendorBundle(loaded, {
         ...(options.runtimeImage ? { runtimeImage: options.runtimeImage } : {}),
         runNamespace: context.runId as string,
@@ -73,6 +74,7 @@ export function createVendorActions(
         vendorId,
         bundleId: bundle.bundleId,
         warningCount: bundle.manifest.warnings.length,
+        privacyScannedFiles: privacy.scannedFiles,
       };
     },
 
