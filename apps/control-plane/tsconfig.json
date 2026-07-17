@@ -12,6 +12,7 @@
     { "path": "../../packages/reporting" },
     { "path": "../../packages/traffic-gateway" },
     { "path": "../../packages/target-adapter" },
+    { "path": "../../packages/platform-actions" },
     { "path": "../../adapters/gl-eye" }
   ],
   "include": ["src/**/*.ts"]
