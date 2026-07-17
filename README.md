@@ -7,11 +7,18 @@ This project complements [Yaugik/gl-eye-spec-tacles](https://github.com/Yaugik/g
 ## Current implementation
 
 The repository now contains the TypeScript platform foundation, a hardened
-multi-vendor simulation layer, and an executable browser automation vertical slice:
+multi-vendor simulation layer, executable browser automation, and persistent scenario
+orchestration:
 
-- Fastify Control Plane health and readiness endpoints.
-- PostgreSQL migration runner and initial `test_runs` model.
+- Fastify Control Plane health, readiness, scenario-validation, and run-lifecycle APIs.
+- PostgreSQL migrations for runs, steps, leases, runtimes, provider/browser records,
+  observations, assertions, timeline events, and artifacts.
 - Shared platform identifiers and lifecycle types.
+- Versioned scenario YAML with deterministic resolution and content hashing.
+- Ordered, parallel, repeated, conditional, polling, retry, timeout, compensation,
+  cancellation, and cleanup scenario primitives.
+- Persistent run status, step attempts, timelines, reports, restart recovery, and
+  idempotent cleanup boundaries.
 - Vendor v1 JSON Schemas and runtime-neutral execution model.
 - YAML package loader with source-aware diagnostics and deterministic hashing.
 - Synthetic IPinfo, Apollo, and Hunter packages.
@@ -53,6 +60,7 @@ pnpm test
 pnpm vendor:validate
 pnpm vendor:compile
 pnpm browser:validate
+pnpm scenario:validate
 ```
 
 Install the Chromium binary used by the sample journey:
@@ -66,6 +74,18 @@ Start PostgreSQL and the Control Plane:
 ```bash
 docker compose up --build
 ```
+
+Validate or execute the deterministic orchestration smoke scenario:
+
+```bash
+pnpm scenario:validate
+pnpm scenario:run
+pnpm testy doctor
+```
+
+The scenario command exercises the lifecycle engine with built-in deterministic actions.
+The Control Plane persists submitted scenarios before execution and exposes status,
+cancellation, timeline, report, and artifact endpoints.
 
 Start a compiled IPinfo Imposter runtime and keep it active until `Ctrl+C`:
 
@@ -142,6 +162,15 @@ Control Plane endpoints:
 
 - `GET http://localhost:3000/v1/health`
 - `GET http://localhost:3000/v1/readiness`
+- `GET http://localhost:3000/v1/scenarios`
+- `GET http://localhost:3000/v1/scenarios/:scenarioId`
+- `POST http://localhost:3000/v1/scenarios/validate`
+- `POST http://localhost:3000/v1/runs`
+- `GET http://localhost:3000/v1/runs/:runId`
+- `POST http://localhost:3000/v1/runs/:runId/cancel`
+- `GET http://localhost:3000/v1/runs/:runId/timeline`
+- `GET http://localhost:3000/v1/runs/:runId/report`
+- `GET http://localhost:3000/v1/runs/:runId/artifacts`
 
 ## Documents
 
@@ -155,4 +184,5 @@ Control Plane endpoints:
 - [Provider hardening v0.1](docs/provider-hardening-v0.1.md)
 - [Browser DSL and synthetic site host v0.1](docs/browser-dsl-site-host-v0.1.md)
 - [Playwright browser runner v0.1](docs/playwright-browser-runner-v0.1.md)
+- [Scenario orchestration and run lifecycle v0.1](docs/scenario-orchestration-v0.1.md)
 - [ADR 0001: Imposter runtime boundary](docs/adr-0001-imposter-runtime.md)

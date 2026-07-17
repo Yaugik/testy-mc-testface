@@ -4,7 +4,10 @@
   "private": true,
   "description": "Configuration-driven black-box testing platform for GL-EYE and compatible systems.",
   "packageManager": "pnpm@10.13.1",
-  "engines": { "node": ">=24", "pnpm": ">=10" },
+  "engines": {
+    "node": ">=24",
+    "pnpm": ">=10"
+  },
   "scripts": {
     "build": "pnpm -r --if-present build",
     "typecheck": "pnpm --filter @testy/shared-types build && pnpm --filter @testy/vendor-schema build && pnpm -r --if-present typecheck",
@@ -35,7 +38,12 @@
     "site:serve": "pnpm --filter @testy/synthetic-site-host build && pnpm --filter @testy/synthetic-site-host exec node dist/cli.js ../../customers/customer-alpha",
     "browser:install": "pnpm --filter @testy/browser-runner exec playwright install chromium",
     "browser:run": "pnpm --filter @testy/browser-runner build && pnpm --filter @testy/browser-runner exec node dist/cli.js ../../customers/customer-alpha lead-capture ../../generated/browser",
-    "ci": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build"
+    "scenario:prepare": "pnpm --filter @testy/scenario-engine build",
+    "scenario:validate": "pnpm scenario:prepare && pnpm --filter @testy/scenario-engine exec node dist/cli.js validate ../../scenarios/orchestration-smoke.yaml",
+    "scenario:run": "pnpm scenario:prepare && pnpm --filter @testy/scenario-engine exec node dist/cli.js run ../../scenarios/orchestration-smoke.yaml",
+    "ci": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build",
+    "testy:prepare": "pnpm --filter @testy/cli build",
+    "testy": "pnpm testy:prepare && pnpm --filter @testy/cli exec node dist/cli.js"
   },
   "devDependencies": {
     "@eslint/js": "^9.0.0",
