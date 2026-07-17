@@ -26,7 +26,7 @@ export interface BrowserActionResult {
 export interface BrowserConsoleEntry {
   readonly timestamp: string;
   readonly type: string;
-  readonly text: string;
+  readonly textFingerprint: string;
 }
 
 export interface BrowserRequestEntry {
@@ -35,12 +35,13 @@ export interface BrowserRequestEntry {
   readonly urlFingerprint: string;
   readonly status?: number;
   readonly failed: boolean;
-  readonly failureText?: string;
+  readonly failureFingerprint?: string;
 }
 
 export interface BrowserArtifactManifest {
   readonly rootDirectory: string;
   readonly tracePath?: string;
+  readonly selectedHarPath?: string;
   readonly screenshots: readonly string[];
 }
 
