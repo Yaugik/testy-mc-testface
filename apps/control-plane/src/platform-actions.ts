@@ -1,5 +1,6 @@
 import { GlEyeTargetAdapter } from "@testy/gl-eye-adapter";
 import { createIntegratedPlatformActions } from "@testy/platform-actions";
+import { ReferenceSutTargetAdapter } from "@testy/reference-sut-adapter";
 import {
   createBuiltinScenarioActions,
   type ScenarioActionContext,
@@ -12,6 +13,7 @@ import {
   createGatewayTargetResourceCleaners,
   createGatewayTargetScenarioActionBundle,
   mergeScenarioActionRegistries,
+  type TargetAdapter,
 } from "@testy/target-adapter";
 import {
   createTrafficScenarioActions,
@@ -84,12 +86,19 @@ function createTargetActions(
     baseUrl: integration.gatewayAdminUrl,
     adminToken: integration.gatewayAdminToken,
   });
-  const adapter = new GlEyeTargetAdapter({
-    baseUrl: integration.glEyeBaseUrl,
-    environment: integration.glEyeEnvironment,
-    authToken: integration.glEyeAuthToken,
-    allowedOrigins: integration.glEyeAllowedOrigins,
-  });
+  const adapter: TargetAdapter =
+    integration.adapter === "reference-sut"
+      ? new ReferenceSutTargetAdapter({
+          baseUrl: integration.glEyeBaseUrl,
+          environment: integration.glEyeEnvironment,
+          serviceToken: integration.glEyeAuthToken,
+        })
+      : new GlEyeTargetAdapter({
+          baseUrl: integration.glEyeBaseUrl,
+          environment: integration.glEyeEnvironment,
+          authToken: integration.glEyeAuthToken,
+          allowedOrigins: integration.glEyeAllowedOrigins,
+        });
   const target = createGatewayTargetScenarioActionBundle({ gateway, adapter });
   const traffic = createTrafficScenarioActions({
     routeFor: target.routeFor,
