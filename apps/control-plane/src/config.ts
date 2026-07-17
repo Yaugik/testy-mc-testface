@@ -7,6 +7,14 @@ export interface TargetIntegrationConfig {
   readonly glEyeAllowedOrigins: readonly string[];
 }
 
+export interface MaintenanceConfig {
+  readonly intervalMs: number;
+  readonly batchSize: number;
+  readonly claimTtlMs: number;
+  readonly artifactRetentionMs: number;
+  readonly adminToken?: string;
+}
+
 export type ConfiguredBrowser = "chromium" | "firefox" | "webkit";
 
 export interface ControlPlaneConfig {
@@ -20,6 +28,7 @@ export interface ControlPlaneConfig {
   readonly generatedRunsDirectory: string;
   readonly browser: ConfiguredBrowser;
   readonly browserHeadless: boolean;
+  readonly maintenance: MaintenanceConfig;
   readonly runtimeImage?: string;
   readonly targetIntegration?: TargetIntegrationConfig;
 }
@@ -54,8 +63,49 @@ export function loadConfig(
     generatedRunsDirectory: environment.GENERATED_RUNS_DIR ?? "generated/runs",
     browser: parseBrowser(environment.TESTY_BROWSER),
     browserHeadless: parseBoolean(environment.TESTY_HEADLESS, true),
+    maintenance: loadMaintenance(environment),
     ...(runtimeImage ? { runtimeImage } : {}),
     ...(targetIntegration ? { targetIntegration } : {}),
+  };
+}
+
+function loadMaintenance(environment: NodeJS.ProcessEnv): MaintenanceConfig {
+  const adminToken = nonEmpty(environment.TESTY_MAINTENANCE_ADMIN_TOKEN);
+  if (adminToken && adminToken.length < 16) {
+    throw new Error(
+      "TESTY_MAINTENANCE_ADMIN_TOKEN must contain at least 16 characters.",
+    );
+  }
+  return {
+    intervalMs: parseInteger(
+      "TESTY_MAINTENANCE_INTERVAL_MS",
+      environment.TESTY_MAINTENANCE_INTERVAL_MS,
+      60_000,
+      0,
+      86_400_000,
+    ),
+    batchSize: parseInteger(
+      "TESTY_MAINTENANCE_BATCH_SIZE",
+      environment.TESTY_MAINTENANCE_BATCH_SIZE,
+      100,
+      1,
+      10_000,
+    ),
+    claimTtlMs: parseInteger(
+      "TESTY_MAINTENANCE_CLAIM_TTL_MS",
+      environment.TESTY_MAINTENANCE_CLAIM_TTL_MS,
+      300_000,
+      1_000,
+      86_400_000,
+    ),
+    artifactRetentionMs: parseInteger(
+      "TESTY_ARTIFACT_RETENTION_MS",
+      environment.TESTY_ARTIFACT_RETENTION_MS,
+      7 * 24 * 60 * 60 * 1000,
+      0,
+      365 * 24 * 60 * 60 * 1000,
+    ),
+    ...(adminToken ? { adminToken } : {}),
   };
 }
 
@@ -111,6 +161,23 @@ function parseBoolean(value: string | undefined, fallback: boolean): boolean {
   if (normalized === "true") return true;
   if (normalized === "false") return false;
   throw new Error("TESTY_HEADLESS must be true or false.");
+}
+
+function parseInteger(
+  name: string,
+  value: string | undefined,
+  fallback: number,
+  minimum: number,
+  maximum: number,
+): number {
+  if (value === undefined) return fallback;
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed < minimum || parsed > maximum) {
+    throw new Error(
+      `${name} must be an integer between ${minimum} and ${maximum}.`,
+    );
+  }
+  return parsed;
 }
 
 function nonEmpty(value: string | undefined): string | undefined {
