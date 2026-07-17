@@ -11,6 +11,8 @@ export interface PreparedTarget {
   readonly trackingScriptUrl: string;
   readonly siteId: string;
   readonly targetOrigin: string;
+  readonly ingestionToken?: string;
+  readonly contractVersion?: string;
 }
 
 export type VendorEndpoints = Readonly<Record<string, string>>;
@@ -54,10 +56,25 @@ export interface TargetOutcome {
   readonly visibleTenantIds: readonly string[];
   readonly scoreCount: number;
   readonly companyCount: number;
+  readonly processedEventCount?: number;
+  readonly duplicateEventCount?: number;
+  readonly companyFingerprint?: string;
+  readonly scoreFingerprints?: readonly string[];
+  readonly providerProvenance?: readonly string[];
+  readonly confidence?: "low" | "medium" | "high";
+  readonly suppressionStatus?: "allowed" | "suppressed";
+  readonly processingWarnings?: readonly string[];
   readonly detailsFingerprint?: string;
 }
 
+export interface TargetCapabilities {
+  readonly contractVersion: string;
+  readonly target: string;
+  readonly features: Readonly<Record<string, boolean>>;
+}
+
 export interface TargetAdapter {
+  capabilities?(): Promise<TargetCapabilities>;
   prepareRun(context: AdapterRunContext): Promise<PreparedTarget>;
   configureVendorEndpoints(
     context: AdapterRunContext,
