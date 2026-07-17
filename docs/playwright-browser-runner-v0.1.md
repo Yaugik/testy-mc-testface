@@ -2,14 +2,19 @@
 
 This slice executes resolved Browser DSL journeys in real Playwright browser contexts.
 It consumes `ResolvedJourney` from `@testy/browser-config` and a temporary site binding
-from `@testy/synthetic-site-host`.
+from `@testy/synthetic-site-host`. The package pins Playwright `1.59.1` so the library
+and installed browser binary remain aligned.
 
 ## Isolation model
 
 Every journey run launches a fresh browser context with the persona locale, timezone,
 viewport and color scheme. Cookies and local-storage values are applied only to that
-context. Service workers are blocked so configured network routes cannot be bypassed.
-The context, all tabs and the browser are closed on pass, failure or cancellation.
+context and remapped to the run-specific synthetic origin. Service workers are blocked
+so configured network routes cannot be bypassed.
+
+An external abort signal closes the active context immediately, including while an
+action is waiting. The resolved journey timeout is also enforced as a total run limit.
+The context, all tabs and the browser are closed on pass, failure, timeout or cancellation.
 
 Playwright documents browser contexts as independent, incognito-like sessions with
 separate cookies, local storage and session storage. This is the platform boundary used
@@ -42,8 +47,9 @@ session, tab and artifact actions:
 - open, switch and close tab;
 - explicit screenshots.
 
-Each action produces a sanitized timing record with the step ID, action, status,
-duration and current page URL. Execution stops at the first failed action.
+Duplicate tab names are rejected. Each action produces a sanitized timing record with
+the step ID, action, status, duration and current page URL without query or fragment
+values. Execution stops at the first failed action.
 
 ## Network fixtures and synthetic host routing
 
@@ -64,19 +70,23 @@ The runner supports customer/journey artifact policy for:
 - Playwright traces with screenshots, DOM snapshots and sources;
 - console entries;
 - failed-request records;
-- selected request metadata.
+- selected sanitized HAR output.
 
 Request records retain method, status and a SHA-256 URL fingerprint after query and
 fragment removal. Query values and request bodies are never written to the browser
-report. Artifact paths are confined under a sanitized run and journey namespace.
+report. Console text and transport failure text are stored only as SHA-256 fingerprints.
+The selected-HAR artifact uses fingerprint URNs instead of raw URLs and contains no
+headers, cookies, query values or bodies. Trace paths are included only when trace
+creation succeeds.
 
-`report.json` records the resolved journey hash, action timeline, artifact manifest and
-sanitized failure message. On-failure screenshot and trace behavior is applied even
-when action execution aborts early.
+Artifact paths are confined under a sanitized run and journey namespace. `report.json`
+records the resolved journey hash, action timeline, artifact manifest and failure
+summary. On-failure screenshot and trace behavior is applied when execution aborts
+early because of an action failure or timeout.
 
 ## Commands
 
-Install Chromium once:
+Install the pinned Chromium binary once:
 
 ```bash
 pnpm browser:install
@@ -95,11 +105,12 @@ Environment controls:
 
 ## Verification boundary
 
-Unit tests cover artifact policy, artifact-name confinement, URL fingerprinting and
-network matching without launching a browser. The runner is implemented against the
-Playwright library APIs for contexts, routing, locators, screenshots and tracing.
+The final pass uses strict TypeScript with `noUncheckedIndexedAccess` and
+`exactOptionalPropertyTypes`. Focused utility assertions cover artifact policy, artifact
+name confinement, query-free page URLs, URL and console fingerprinting, failed-request
+selection and method-constrained network matching.
 
 A real browser execution was not performed in the current development environment
-because Playwright browser binaries and workspace dependencies are unavailable. The
-release gate must install the pinned browser binary and run `pnpm browser:run`, followed
-by parallel-context, returning-session, popup and deliberate-failure artifact tests.
+because the Playwright browser binary is unavailable. The release gate must install the
+pinned browser binary and run `pnpm browser:run`, followed by parallel-context,
+returning-session, popup and deliberate-failure artifact tests.
