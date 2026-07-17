@@ -36,6 +36,7 @@ export class ImposterRuntimeManager {
     let containerId: string | undefined;
 
     try {
+      const networked = options.networkName !== undefined;
       const handle = await this.engine.run({
         image: bundle.manifest.runtime.image,
         name: containerName,
@@ -57,20 +58,18 @@ export class ImposterRuntimeManager {
             readOnly: true,
           },
         ],
-        ports: [
-          {
-            hostAddress: "127.0.0.1",
-            containerPort: IMPOSTER_CONTAINER_PORT,
-          },
-        ],
+        ports: networked
+          ? []
+          : [{ hostAddress: "127.0.0.1", containerPort: IMPOSTER_CONTAINER_PORT }],
+        ...(options.networkName ? { networkName: options.networkName } : {}),
       });
       containerId = handle.id;
 
-      const hostPort = await this.engine.resolveHostPort(
-        containerId,
-        IMPOSTER_CONTAINER_PORT,
-      );
-      const baseUrl = `http://127.0.0.1:${hostPort}`;
+      const baseUrl = networked
+        ? `http://${containerName}:${String(IMPOSTER_CONTAINER_PORT)}`
+        : `http://127.0.0.1:${String(
+            await this.engine.resolveHostPort(containerId, IMPOSTER_CONTAINER_PORT),
+          )}`;
       const status = await this.waitForReady(baseUrl, options);
       let stopped = false;
 
@@ -96,9 +95,7 @@ export class ImposterRuntimeManager {
         stateSnapshot,
         resetState,
         stop: async () => {
-          if (stopped) {
-            return;
-          }
+          if (stopped) return;
           stopped = true;
           await this.engine.remove(containerId as string);
         },
@@ -139,7 +136,6 @@ export class ImposterRuntimeManager {
       if (options.signal?.aborted) {
         throw options.signal.reason ?? new Error("Runtime startup aborted.");
       }
-
       try {
         const response = await this.fetcher(
           `${baseUrl}${IMPOSTER_STATUS_PATH}`,
@@ -147,14 +143,11 @@ export class ImposterRuntimeManager {
         );
         if (response.ok) {
           const status = (await response.json()) as ImposterStatus;
-          if (status.status === "ok") {
-            return status;
-          }
+          if (status.status === "ok") return status;
         }
       } catch (error) {
         lastError = error;
       }
-
       await sleep(pollIntervalMs, options.signal);
     }
 
@@ -163,20 +156,12 @@ export class ImposterRuntimeManager {
     });
   }
 
-  private async readStore(
-    baseUrl: string,
-    storeName: string,
-  ): Promise<RuntimeStoreData> {
+  private async readStore(baseUrl: string, storeName: string): Promise<RuntimeStoreData> {
     const response = await this.fetcher(storeUrl(baseUrl, storeName));
-    if (response.status === 404) {
-      return {};
-    }
+    if (response.status === 404) return {};
     if (!response.ok) {
-      throw new Error(
-        `Unable to read Imposter store '${storeName}': HTTP ${response.status}.`,
-      );
+      throw new Error(`Unable to read Imposter store '${storeName}': HTTP ${response.status}.`);
     }
-
     const value = (await response.json()) as unknown;
     if (!isRecord(value)) {
       throw new Error(`Imposter store '${storeName}' did not return an object.`);
@@ -189,10 +174,7 @@ export class ImposterRuntimeManager {
     bundle: WrittenVendorBundle,
   ): Promise<RuntimeStateSnapshot | undefined> {
     const stores = bundle.manifest.state.stores;
-    if (!stores) {
-      return undefined;
-    }
-
+    if (!stores) return undefined;
     const [state, counters, sequences, userEntries] = await Promise.all([
       this.readStore(baseUrl, stores.state),
       this.readStore(baseUrl, stores.counters),
@@ -204,11 +186,8 @@ export class ImposterRuntimeManager {
         ] as const),
       ),
     ]);
-
     return {
-      ...(typeof state.currentState === "string"
-        ? { currentState: state.currentState }
-        : {}),
+      ...(typeof state.currentState === "string" ? { currentState: state.currentState } : {}),
       state,
       counters,
       sequences,
@@ -221,10 +200,7 @@ export class ImposterRuntimeManager {
     bundle: WrittenVendorBundle,
   ): Promise<void> {
     const stores = bundle.manifest.state.stores;
-    if (!stores) {
-      return;
-    }
-
+    if (!stores) return;
     await this.replaceStore(baseUrl, stores.state, {
       currentState: bundle.manifest.state.initialState,
     });
@@ -243,20 +219,15 @@ export class ImposterRuntimeManager {
     const url = storeUrl(baseUrl, storeName);
     const deleteResponse = await this.fetcher(url, { method: "DELETE" });
     if (!deleteResponse.ok && deleteResponse.status !== 404) {
-      throw new Error(
-        `Unable to clear Imposter store '${storeName}': HTTP ${deleteResponse.status}.`,
-      );
+      throw new Error(`Unable to clear Imposter store '${storeName}': HTTP ${deleteResponse.status}.`);
     }
-
     const createResponse = await this.fetcher(url, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(data),
     });
     if (!createResponse.ok) {
-      throw new Error(
-        `Unable to seed Imposter store '${storeName}': HTTP ${createResponse.status}.`,
-      );
+      throw new Error(`Unable to seed Imposter store '${storeName}': HTTP ${createResponse.status}.`);
     }
   }
 }
@@ -275,10 +246,7 @@ function makeContainerName(vendorId: string, bundleId: string): string {
 }
 
 async function sleep(durationMs: number, signal?: AbortSignal): Promise<void> {
-  if (signal?.aborted) {
-    throw signal.reason ?? new Error("Operation aborted.");
-  }
-
+  if (signal?.aborted) throw signal.reason ?? new Error("Operation aborted.");
   await new Promise<void>((resolveSleep, rejectSleep) => {
     const timer = setTimeout(resolveSleep, durationMs);
     const onAbort = (): void => {
