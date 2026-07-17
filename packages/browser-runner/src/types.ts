@@ -75,7 +75,7 @@ export interface BrowserJourneyReport {
   readonly actions: readonly BrowserActionResult[];
   readonly console: readonly BrowserConsoleEntry[];
   readonly requests: readonly BrowserRequestEntry[];
-  readonly requestChecks: readonly BrowserRequestCheck[];
+  readonly requestChecks?: readonly BrowserRequestCheck[];
   readonly artifacts: BrowserArtifactManifest;
   readonly error?: string;
 }

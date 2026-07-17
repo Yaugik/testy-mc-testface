@@ -15,6 +15,10 @@ import type { ProviderCallLedgerEntry } from "@testy/vendor-runtime";
 
 import type { PlatformActionDependencies } from "./types.js";
 
+export interface BrowserEvidenceOptions {
+  readonly executionId: string;
+}
+
 export function toPersistedCall(
   context: ScenarioActionContext,
   entry: ProviderCallLedgerEntry,
@@ -25,22 +29,16 @@ export function toPersistedCall(
     ...(entry.operationId ? { operationId: entry.operationId } : {}),
     ...(entry.caseId ? { caseId: entry.caseId } : {}),
     ...(entry.correlationId ? { correlationId: entry.correlationId } : {}),
-    ...(entry.sequenceIndex === undefined
-      ? {}
-      : { sequenceIndex: entry.sequenceIndex }),
+    ...(entry.sequenceIndex === undefined ? {} : { sequenceIndex: entry.sequenceIndex }),
     ...(entry.statusCode === undefined ? {} : { statusCode: entry.statusCode }),
     ...(entry.durationMs === undefined ? {} : { durationMs: entry.durationMs }),
     metadata: {
       unmatched: entry.unmatched,
       ...(entry.method ? { method: entry.method } : {}),
-      ...(entry.pathFingerprint
-        ? { pathFingerprint: entry.pathFingerprint }
-        : {}),
+      ...(entry.pathFingerprint ? { pathFingerprint: entry.pathFingerprint } : {}),
       ...(entry.stateBefore ? { stateBefore: entry.stateBefore } : {}),
       ...(entry.stateAfter ? { stateAfter: entry.stateAfter } : {}),
-      ...(entry.stateRequestCount === undefined
-        ? {}
-        : { stateRequestCount: entry.stateRequestCount }),
+      ...(entry.stateRequestCount === undefined ? {} : { stateRequestCount: entry.stateRequestCount }),
     },
     occurredAt: entry.timestamp ?? new Date().toISOString(),
   };
@@ -50,6 +48,7 @@ export async function persistBrowserEvidence(
   evidence: ScenarioRunRepository,
   context: ScenarioActionContext,
   report: Awaited<ReturnType<PlatformActionDependencies["runBrowserJourney"]>>,
+  options: BrowserEvidenceOptions,
 ): Promise<void> {
   for (const action of report.actions) {
     const record: PersistedBrowserAction = {
@@ -59,16 +58,11 @@ export async function persistBrowserEvidence(
       action: action.action,
       status: action.status === "passed" ? "PASSED" : "FAILED",
       durationMs: action.durationMs,
-      ...(action.pageUrl
-        ? { pageFingerprint: fingerprintUrl(action.pageUrl) }
-        : {}),
+      ...(action.pageUrl ? { pageFingerprint: fingerprintUrl(action.pageUrl) } : {}),
       metadata: {
-        ...(action.error
-          ? { errorFingerprint: fingerprintText(action.error) }
-          : {}),
-        ...(action.screenshotPath
-          ? { screenshotName: basename(action.screenshotPath) }
-          : {}),
+        executionId: options.executionId,
+        ...(action.error ? { errorFingerprint: fingerprintText(action.error) } : {}),
+        ...(action.screenshotPath ? { screenshotName: basename(action.screenshotPath) } : {}),
       },
       startedAt: action.startedAt,
       completedAt: action.completedAt,
@@ -77,55 +71,57 @@ export async function persistBrowserEvidence(
   }
 
   await evidence.recordObservation({
-    observationId: `browser-journey-${report.journeyId}`,
+    observationId: `browser-journey-${report.journeyId}-${options.executionId}`,
     runId: context.runId,
     observationType: "browser-journey-summary",
     status: report.status,
     value: {
       journeyId: report.journeyId,
+      executionId: options.executionId,
       status: report.status,
       actionCount: report.actions.length,
-      failedActionCount: report.actions.filter(
-        (action) => action.status === "failed",
-      ).length,
-      failedRequestCount: report.requests.filter((request) => request.failed)
-        .length,
+      failedActionCount: report.actions.filter((action) => action.status === "failed").length,
+      failedRequestCount: report.requests.filter((request) => request.failed).length,
       consoleEntryCount: report.console.length,
     },
     metadata: { browser: report.browser },
     observedAt: report.completedAt,
   });
 
-  await persistArtifact(
-    evidence,
-    context,
-    "browser-report",
-    join(report.artifacts.rootDirectory, "report.json"),
-    { journeyId: report.journeyId },
-  );
-  for (const screenshot of report.artifacts.screenshots) {
-    await persistArtifact(evidence, context, "browser-screenshot", screenshot, {
-      journeyId: report.journeyId,
-      name: basename(screenshot),
+  for (const check of report.requestChecks ?? []) {
+    await evidence.recordObservation({
+      observationId: `browser-request-${options.executionId}-${check.id}`,
+      runId: context.runId,
+      observationType: "browser-request-check",
+      status: check.successfulCount > 0 && check.failedCount === 0
+        ? "delivered"
+        : check.matchedCount === 0
+          ? "missing"
+          : "failed",
+      value: {
+        executionId: options.executionId,
+        requestId: check.id,
+        urlFingerprint: check.urlFingerprint,
+        ...(check.method ? { method: check.method } : {}),
+        matchedCount: check.matchedCount,
+        successfulCount: check.successfulCount,
+        failedCount: check.failedCount,
+      },
+      metadata: {},
+      observedAt: report.completedAt,
     });
   }
+
+  const artifactMetadata = { journeyId: report.journeyId, executionId: options.executionId };
+  await persistArtifact(evidence, context, "browser-report", join(report.artifacts.rootDirectory, "report.json"), artifactMetadata);
+  for (const screenshot of report.artifacts.screenshots) {
+    await persistArtifact(evidence, context, "browser-screenshot", screenshot, { ...artifactMetadata, name: basename(screenshot) });
+  }
   if (report.artifacts.tracePath) {
-    await persistArtifact(
-      evidence,
-      context,
-      "browser-trace",
-      report.artifacts.tracePath,
-      { journeyId: report.journeyId },
-    );
+    await persistArtifact(evidence, context, "browser-trace", report.artifacts.tracePath, artifactMetadata);
   }
   if (report.artifacts.selectedHarPath) {
-    await persistArtifact(
-      evidence,
-      context,
-      "browser-selected-har",
-      report.artifacts.selectedHarPath,
-      { journeyId: report.journeyId },
-    );
+    await persistArtifact(evidence, context, "browser-selected-har", report.artifacts.selectedHarPath, artifactMetadata);
   }
 }
 
@@ -150,9 +146,7 @@ export async function persistArtifact(
 }
 
 async function sha256File(path: string): Promise<string> {
-  return createHash("sha256")
-    .update(await readFile(path))
-    .digest("hex");
+  return createHash("sha256").update(await readFile(path)).digest("hex");
 }
 
 function mediaTypeFor(path: string): string {

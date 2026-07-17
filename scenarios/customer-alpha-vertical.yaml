@@ -14,40 +14,76 @@ assertions:
   - id: browser-journey-passed
     type: browser-journey-passed
     journeyId: lead-capture
-  - id: ipinfo-called
+  - id: duplicate-submit-passed
+    type: browser-action
+    journeyId: lead-capture
+    action: submit
+    expectedStatus: PASSED
+    minimum: 2
+  - id: tracking-script-delivered-twice
+    type: observation-count
+    observationType: browser-request-check
+    status: delivered
+    equals: 2
+  - id: ipinfo-called-once
     type: provider-call-count
     vendorId: ipinfo
-    minimum: 1
-  - id: apollo-called
+    equals: 1
+  - id: apollo-called-once
     type: provider-call-count
     vendorId: apollo
-    minimum: 1
-  - id: hunter-called
+    equals: 1
+  - id: hunter-called-once
     type: provider-call-count
     vendorId: hunter
-    minimum: 1
+    equals: 1
   - id: provider-order
     type: provider-call-order
-    severity: warning
+    exact: true
     sequence:
       - vendorId: ipinfo
       - vendorId: apollo
       - vendorId: hunter
-  - id: target-created-score
+  - id: target-created-one-score
     type: observation
     observationType: target-outcome
     path: scoreCount
-    operator: greater-than-or-equal
+    operator: equals
     expected: 1
-  - id: form-was-submitted
+  - id: target-created-one-company
+    type: observation
+    observationType: target-outcome
+    path: companyCount
+    operator: equals
+    expected: 1
+  - id: primary-tenant-visible
+    type: observation
+    observationType: target-outcome
+    path: primaryTenantVisible
+    operator: equals
+    expected: true
+  - id: control-tenant-configured
+    type: observation
+    observationType: target-outcome
+    path: controlTenantConfigured
+    operator: equals
+    expected: true
+  - id: control-tenant-hidden
+    type: observation
+    observationType: target-outcome
+    path: controlTenantVisible
+    operator: equals
+    expected: false
+  - id: form-submitted-twice
     type: observation
     observationType: synthetic-site-events
     path: counts.form-submit
-    operator: greater-than-or-equal
-    expected: 1
-  - id: browser-report-present
+    operator: equals
+    expected: 2
+  - id: browser-reports-present
     type: artifact-present
     kind: browser-report
+    minimum: 2
   - id: no-unexpected-external-calls
     type: no-unexpected-external-calls
 
@@ -122,11 +158,20 @@ phases:
       action: target.start-observation
 
   run:
-    - id: run-lead-capture
+    - id: run-lead-capture-initial
       kind: task
       action: browser.run-journey
       input:
         journeyId: lead-capture
+        executionId: initial
+        targetPreparationStepId: prepare-target
+    - id: run-lead-capture-duplicate
+      kind: task
+      action: browser.run-journey
+      input:
+        journeyId: lead-capture
+        executionId: duplicate
+        targetPreparationStepId: prepare-target
 
   observe:
     - id: collect-local-evidence

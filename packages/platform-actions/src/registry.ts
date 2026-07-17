@@ -53,7 +53,17 @@ export function createIntegratedPlatformActions(
     if (!state.cleanupRegistered) {
       state.cleanupRegistered = true;
       context.registerCleanup("platform-run-state", async () => {
+        const activeVendors = [...state.vendors.entries()]
+          .filter(([, vendor]) => vendor.runtime !== undefined)
+          .map(([vendorId]) => vendorId)
+          .sort();
+        const siteActive = state.site !== undefined;
         states.delete(key);
+        if (activeVendors.length > 0 || siteActive) {
+          throw new Error(
+            `Platform cleanup left active resources: vendors=${activeVendors.join(",") || "none"}, site=${siteActive ? "active" : "none"}.`,
+          );
+        }
       });
     }
     return state;
@@ -67,6 +77,9 @@ export function createIntegratedPlatformActions(
     resourceCleaners: {
       "vendor-runtime": async (lease) => engine.remove(lease.resourceKey),
       "synthetic-site": async () => undefined,
+    },
+    diagnostics: {
+      activeRunIds: () => [...states.keys()].sort(),
     },
   };
 }
