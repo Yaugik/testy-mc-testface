@@ -15,6 +15,31 @@ services:
     volumes:
       - testy-postgres-data:/var/lib/postgresql/data
 
+  reference-sut:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: ["pnpm", "--filter", "@testy/reference-sut", "start"]
+    environment:
+      REFERENCE_SUT_HOST: 0.0.0.0
+      REFERENCE_SUT_PORT: 8080
+      REFERENCE_SUT_PUBLIC_ORIGIN: ${REFERENCE_SUT_PUBLIC_ORIGIN:-http://reference-sut:8080}
+      REFERENCE_SUT_ENVIRONMENT: local
+      REFERENCE_SUT_SERVICE_TOKEN: ${REFERENCE_SUT_SERVICE_TOKEN:-reference-sut-service-token-local}
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://localhost:8080/v1/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
   traffic-gateway:
     build:
       context: .
@@ -24,12 +49,10 @@ services:
       TESTY_GATEWAY_HOST: 0.0.0.0
       TESTY_GATEWAY_PORT: 3100
       TESTY_GATEWAY_ADMIN_TOKEN: ${TESTY_GATEWAY_ADMIN_TOKEN:-test-gateway-admin-token-local}
-      TESTY_GATEWAY_ALLOWED_TARGET_ORIGINS: ${TESTY_GATEWAY_ALLOWED_TARGET_ORIGINS:-http://host.docker.internal:8080}
+      TESTY_GATEWAY_ALLOWED_TARGET_ORIGINS: ${TESTY_GATEWAY_ALLOWED_TARGET_ORIGINS:-http://reference-sut:8080}
       TESTY_GATEWAY_BLOCKED_PROVIDER_HOSTS: ${TESTY_GATEWAY_BLOCKED_PROVIDER_HOSTS:-}
     ports:
       - "3100:3100"
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
     healthcheck:
       test:
         [
@@ -63,16 +86,21 @@ services:
       TESTY_MAINTENANCE_CLAIM_TTL_MS: ${TESTY_MAINTENANCE_CLAIM_TTL_MS:-300000}
       TESTY_ARTIFACT_RETENTION_MS: ${TESTY_ARTIFACT_RETENTION_MS:-604800000}
       TESTY_MAINTENANCE_ADMIN_TOKEN: ${TESTY_MAINTENANCE_ADMIN_TOKEN:-}
-      TESTY_GATEWAY_ADMIN_URL: ${TESTY_GATEWAY_ADMIN_URL:-}
-      TESTY_GATEWAY_ADMIN_TOKEN: ${TESTY_CONTROL_GATEWAY_ADMIN_TOKEN:-}
-      GL_EYE_BASE_URL: ${GL_EYE_BASE_URL:-}
-      GL_EYE_ENVIRONMENT: ${GL_EYE_ENVIRONMENT:-}
-      GL_EYE_TEST_SUPPORT_TOKEN: ${GL_EYE_TEST_SUPPORT_TOKEN:-}
-      GL_EYE_ALLOWED_ORIGINS: ${GL_EYE_ALLOWED_ORIGINS:-}
+      TESTY_TARGET_ADAPTER: ${TESTY_TARGET_ADAPTER:-reference-sut}
+      TESTY_GATEWAY_ADMIN_URL: ${TESTY_GATEWAY_ADMIN_URL:-http://traffic-gateway:3100}
+      TESTY_GATEWAY_ADMIN_TOKEN: ${TESTY_CONTROL_GATEWAY_ADMIN_TOKEN:-test-gateway-admin-token-local}
+      GL_EYE_BASE_URL: ${GL_EYE_BASE_URL:-http://reference-sut:8080}
+      GL_EYE_ENVIRONMENT: ${GL_EYE_ENVIRONMENT:-local}
+      GL_EYE_TEST_SUPPORT_TOKEN: ${GL_EYE_TEST_SUPPORT_TOKEN:-reference-sut-service-token-local}
+      GL_EYE_ALLOWED_ORIGINS: ${GL_EYE_ALLOWED_ORIGINS:-http://reference-sut:8080}
     ports:
       - "3000:3000"
     depends_on:
       postgres:
+        condition: service_healthy
+      reference-sut:
+        condition: service_healthy
+      traffic-gateway:
         condition: service_healthy
     healthcheck:
       test:
