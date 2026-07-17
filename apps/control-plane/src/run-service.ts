@@ -1,5 +1,16 @@
 import { randomUUID } from "node:crypto";
 
+import {
+  AssertionFailureError,
+  createAssertionEvaluator,
+  type AssertionDefinition,
+  type AssertionResult,
+} from "@testy/assertion-engine";
+import {
+  buildRunReport,
+  renderRunReportHtml,
+  type RunReportDocument,
+} from "@testy/reporting";
 import type { ResourceLease, RunId, RunStatus } from "@testy/shared-types";
 import {
   createBuiltinScenarioActions,
@@ -11,10 +22,10 @@ import {
   type PersistedRun,
   type ScenarioActionRegistry,
   type ScenarioExecutionObserver,
-  type ScenarioRunReport,
   type ScenarioRunRepository,
   type ScenarioStepRecord,
   type ScenarioTimelineRecord,
+  type ScenarioValue,
 } from "@testy/scenario-engine";
 
 import { emptyScenarioCatalog, type ScenarioCatalog } from "./scenario-catalog.js";
@@ -38,7 +49,8 @@ export interface RunService {
   get(runId: RunId): Promise<PersistedRun | undefined>;
   cancel(runId: RunId): Promise<boolean>;
   timeline(runId: RunId): Promise<readonly ScenarioTimelineRecord[]>;
-  report(runId: RunId): Promise<ScenarioRunReport | undefined>;
+  report(runId: RunId): Promise<RunReportDocument | undefined>;
+  reportHtml(runId: RunId): Promise<string | undefined>;
   artifacts(runId: RunId): ReturnType<ScenarioRunRepository["listArtifacts"]>;
   recoverInterruptedRuns(): Promise<void>;
   shutdown(): Promise<void>;
@@ -49,15 +61,46 @@ export type ResourceLeaseCleaner = (lease: PersistedResourceLease) => Promise<vo
 export class ScenarioRunService implements RunService {
   private readonly controllers = new Map<RunId, AbortController>();
   private readonly executions = new Map<RunId, Promise<void>>();
+  private readonly actions: ScenarioActionRegistry;
 
   public constructor(
     private readonly repository: ScenarioRunRepository,
-    private readonly actions: ScenarioActionRegistry = createBuiltinScenarioActions(),
+    actions: ScenarioActionRegistry = createBuiltinScenarioActions(),
     private readonly resourceCleaners: Readonly<Record<string, ResourceLeaseCleaner>> = {
       synthetic: async () => undefined,
     },
     private readonly catalog: ScenarioCatalog = emptyScenarioCatalog,
-  ) {}
+  ) {
+    const evaluate = createAssertionEvaluator({
+      load: async (runId) => this.repository.buildAssertionSnapshot(runId),
+    });
+    this.actions = {
+      ...actions,
+      "assertions-evaluate": async (input, context) => {
+        const definitions = readAssertionDefinitions(input);
+        const results = await evaluate(definitions, {
+          runId: context.runId,
+          signal: context.signal,
+        });
+        await this.persistAssertionResults(results);
+        const failed = results.filter(
+          (result) => !result.passed && result.severity === "error",
+        );
+        if (failed.length > 0) {
+          throw new AssertionFailureError(
+            failed.map((result) => result.assertionId),
+          );
+        }
+        return {
+          assertionCount: results.length,
+          passedCount: results.filter((result) => result.passed).length,
+          warningFailureCount: results.filter(
+            (result) => !result.passed && result.severity === "warning",
+          ).length,
+        };
+      },
+    };
+  }
 
   public async validate(value: unknown): Promise<ReturnType<typeof resolveScenario>> {
     const config = await validateScenarioConfig(value);
@@ -133,8 +176,14 @@ export class ScenarioRunService implements RunService {
     return this.repository.listTimeline(runId);
   }
 
-  public report(runId: RunId): Promise<ScenarioRunReport | undefined> {
-    return this.repository.buildReport(runId);
+  public async report(runId: RunId): Promise<RunReportDocument | undefined> {
+    const source = await this.repository.buildReport(runId);
+    return source ? buildRunReport(source) : undefined;
+  }
+
+  public async reportHtml(runId: RunId): Promise<string | undefined> {
+    const report = await this.report(runId);
+    return report ? renderRunReportHtml(report) : undefined;
   }
 
   public artifacts(runId: RunId): ReturnType<ScenarioRunRepository["listArtifacts"]> {
@@ -226,15 +275,42 @@ export class ScenarioRunService implements RunService {
       signal: controller.signal,
       observer,
     });
+    const assertionResults = await this.repository.listAssertionResults(run.id);
     await this.repository.updateRunStatus(run.id, report.status, {
       outcomeStatus: report.status,
       finishedAt: report.completedAt,
       metadata: {
         outputKeys: report.outputKeys,
         cleanupErrorCount: report.cleanupErrors.length,
+        assertionCount: assertionResults.length,
+        failedAssertionCount: assertionResults.filter(
+          (result) => !result.passed && result.severity === "error",
+        ).length,
+        warningAssertionCount: assertionResults.filter(
+          (result) => !result.passed && result.severity === "warning",
+        ).length,
         ...(report.error ? { executionError: report.error.message } : {}),
       },
     });
+  }
+
+  private async persistAssertionResults(
+    results: readonly AssertionResult[],
+  ): Promise<void> {
+    for (const result of results) {
+      await this.repository.recordAssertionResult(result);
+      await this.repository.appendTimeline({
+        runId: result.runId,
+        occurredAt: result.assertedAt,
+        category: "assertion",
+        name: result.passed ? "assertion-passed" : "assertion-failed",
+        metadata: {
+          assertionId: result.assertionId,
+          type: result.type,
+          severity: result.severity,
+        },
+      });
+    }
   }
 
   private async finalizeInterruptedCancellation(runId: RunId): Promise<void> {
@@ -272,6 +348,15 @@ export class ScenarioRunService implements RunService {
     }
     return errors;
   }
+}
+
+function readAssertionDefinitions(
+  value: ScenarioValue | undefined,
+): readonly AssertionDefinition[] {
+  if (!Array.isArray(value)) {
+    throw new Error("Resolved scenario assertions must be an array.");
+  }
+  return value as unknown as readonly AssertionDefinition[];
 }
 
 function readScenarioReference(value: unknown): string | undefined {

@@ -1,10 +1,13 @@
-import type { ResourceLease, RunId, RunStatus, ScenarioId, SanitizedError } from "@testy/shared-types";
+import type {
+  AssertionDefinition,
+  AssertionResult,
+  AssertionSnapshot,
+  AssertionValue,
+} from "@testy/assertion-engine";
+import type { ResourceLease, RunId, RunStatus, SanitizedError, ScenarioId } from "@testy/shared-types";
 
 export type ScenarioScalar = string | number | boolean | null;
-export type ScenarioValue =
-  | ScenarioScalar
-  | readonly ScenarioValue[]
-  | { readonly [key: string]: ScenarioValue };
+export type ScenarioValue = AssertionValue;
 
 export interface ScenarioConfig {
   readonly schemaVersion: "1.0";
@@ -16,6 +19,7 @@ export interface ScenarioConfig {
   readonly timeoutMs?: number;
   readonly variables?: Readonly<Record<string, ScenarioValue>>;
   readonly fragments?: Readonly<Record<string, readonly ScenarioStepDefinition[]>>;
+  readonly assertions?: readonly AssertionDefinition[];
   readonly phases: ScenarioPhaseConfig;
 }
 
@@ -130,6 +134,7 @@ export interface ResolvedScenario {
     readonly observe: readonly ResolvedScenarioStep[];
     readonly assert: readonly ResolvedScenarioStep[];
   };
+  readonly assertions: readonly AssertionDefinition[];
   readonly contentHash: string;
 }
 
@@ -171,9 +176,9 @@ export interface ScenarioStepRecord {
 }
 
 export interface ScenarioTimelineRecord {
-  readonly runId: RunId;
   readonly occurredAt: string;
-  readonly category: "lifecycle" | "step" | "cleanup" | "engine";
+  readonly runId: RunId;
+  readonly category: "lifecycle" | "step" | "cleanup" | "engine" | "assertion";
   readonly name: string;
   readonly metadata: Readonly<Record<string, ScenarioValue>>;
 }
@@ -222,11 +227,51 @@ export interface PersistedRun {
   readonly finishedAt?: string;
 }
 
+export interface PersistedProviderCall {
+  readonly runId: RunId;
+  readonly vendorId: string;
+  readonly operationId?: string;
+  readonly caseId?: string;
+  readonly correlationId?: string;
+  readonly sequenceIndex?: number;
+  readonly statusCode?: number;
+  readonly durationMs?: number;
+  readonly metadata: Readonly<Record<string, ScenarioValue>>;
+  readonly occurredAt: string;
+}
+
+export interface PersistedBrowserAction {
+  readonly runId: RunId;
+  readonly journeyId: string;
+  readonly stepId: string;
+  readonly action: string;
+  readonly status: "PASSED" | "FAILED" | "CANCELLED";
+  readonly durationMs?: number;
+  readonly pageFingerprint?: string;
+  readonly metadata: Readonly<Record<string, ScenarioValue>>;
+  readonly startedAt: string;
+  readonly completedAt?: string;
+}
+
+export interface PersistedObservation {
+  readonly observationId: string;
+  readonly runId: RunId;
+  readonly observationType: string;
+  readonly status: string;
+  readonly value?: ScenarioValue;
+  readonly metadata: Readonly<Record<string, ScenarioValue>>;
+  readonly observedAt: string;
+}
+
 export interface ScenarioRunReport {
   readonly run: PersistedRun;
   readonly steps: readonly ScenarioStepRecord[];
   readonly timeline: readonly ScenarioTimelineRecord[];
   readonly artifacts: readonly PersistedArtifact[];
+  readonly assertions: readonly AssertionResult[];
+  readonly providerCalls: readonly PersistedProviderCall[];
+  readonly browserActions: readonly PersistedBrowserAction[];
+  readonly observations: readonly PersistedObservation[];
 }
 
 export interface PersistedArtifact {
@@ -264,9 +309,19 @@ export interface ScenarioRunRepository {
   appendTimeline(record: ScenarioTimelineRecord): Promise<void>;
   listTimeline(runId: RunId): Promise<readonly ScenarioTimelineRecord[]>;
   listSteps(runId: RunId): Promise<readonly ScenarioStepRecord[]>;
+  addArtifact(artifact: PersistedArtifact): Promise<void>;
   listArtifacts(runId: RunId): Promise<readonly PersistedArtifact[]>;
+  recordAssertionResult(result: AssertionResult): Promise<void>;
+  listAssertionResults(runId: RunId): Promise<readonly AssertionResult[]>;
+  recordProviderCall(record: PersistedProviderCall): Promise<void>;
+  listProviderCalls(runId: RunId): Promise<readonly PersistedProviderCall[]>;
+  recordBrowserAction(record: PersistedBrowserAction): Promise<void>;
+  listBrowserActions(runId: RunId): Promise<readonly PersistedBrowserAction[]>;
+  recordObservation(record: PersistedObservation): Promise<void>;
+  listObservations(runId: RunId): Promise<readonly PersistedObservation[]>;
   createResourceLease(lease: ResourceLease): Promise<void>;
   releaseResourceLease(leaseId: string, releasedAt: string): Promise<void>;
   listActiveResourceLeases(runId: RunId): Promise<readonly PersistedResourceLease[]>;
+  buildAssertionSnapshot(runId: RunId): Promise<AssertionSnapshot>;
   buildReport(runId: RunId): Promise<ScenarioRunReport | undefined>;
 }

@@ -19,18 +19,36 @@ export function resolveScenario(config: ScenarioConfig): ResolvedScenario {
   const fragments = config.fragments ?? {};
   validateUniqueStepIds(config, issues);
   validateFragmentReferences(config, issues);
+  validateUniqueAssertionIds(config, issues);
+  validateAssertions(config, issues);
   if (issues.length > 0) {
     throw new ScenarioValidationError(issues);
   }
 
   const variables = config.variables ?? {};
+  const assertions = substituteValue(config.assertions ?? [], variables) as NonNullable<
+    ScenarioConfig["assertions"]
+  >;
+  const authoredAssertSteps = expand(config.phases.assert ?? [], fragments, variables);
   const phases = {
     allocate: expand(config.phases.allocate ?? [], fragments, variables),
     compile: expand(config.phases.compile ?? [], fragments, variables),
     configure: expand(config.phases.configure ?? [], fragments, variables),
     run: expand(config.phases.run, fragments, variables),
     observe: expand(config.phases.observe ?? [], fragments, variables),
-    assert: expand(config.phases.assert ?? [], fragments, variables),
+    assert: [
+      ...authoredAssertSteps,
+      ...(assertions.length === 0
+        ? []
+        : [
+            {
+              id: "system-assertions",
+              kind: "task" as const,
+              action: "assertions-evaluate",
+              input: assertions as unknown as ScenarioValue,
+            },
+          ]),
+    ],
   };
   const materialized = {
     schemaVersion: "1.0" as const,
@@ -40,6 +58,7 @@ export function resolveScenario(config: ScenarioConfig): ResolvedScenario {
     timeoutMs: config.timeoutMs ?? DEFAULT_TIMEOUT_MS,
     variables,
     phases,
+    assertions,
   };
 
   return {
@@ -203,4 +222,47 @@ function validateFragmentReferences(config: ScenarioConfig, issues: string[]): v
     if (steps) visit(steps);
   }
   for (const steps of Object.values(fragments)) visit(steps);
+}
+
+function validateUniqueAssertionIds(config: ScenarioConfig, issues: string[]): void {
+  const seen = new Set<string>();
+  for (const assertion of config.assertions ?? []) {
+    if (seen.has(assertion.id)) {
+      issues.push(`Duplicate assertion ID '${assertion.id}'.`);
+    }
+    seen.add(assertion.id);
+  }
+}
+
+
+function validateAssertions(config: ScenarioConfig, issues: string[]): void {
+  for (const assertion of config.assertions ?? []) {
+    if (
+      assertion.type === "provider-call-count" ||
+      assertion.type === "observation-count"
+    ) {
+      if (
+        assertion.equals === undefined &&
+        assertion.minimum === undefined &&
+        assertion.maximum === undefined
+      ) {
+        issues.push(`Assertion '${assertion.id}' must define equals, minimum, or maximum.`);
+      }
+      if (
+        typeof assertion.minimum === "number" &&
+        typeof assertion.maximum === "number" &&
+        assertion.minimum > assertion.maximum
+      ) {
+        issues.push(`Assertion '${assertion.id}' has minimum greater than maximum.`);
+      }
+    }
+    if (
+      assertion.type === "observation" &&
+      assertion.operator !== "present" &&
+      assertion.operator !== "absent" &&
+      assertion.expected === undefined
+    ) {
+      issues.push(`Assertion '${assertion.id}' requires an expected value.`);
+    }
+  }
 }
