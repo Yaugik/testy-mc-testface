@@ -43,7 +43,11 @@
     "scenario:run": "pnpm scenario:prepare && pnpm --filter @testy/scenario-engine exec node dist/cli.js run ../../scenarios/orchestration-smoke.yaml",
     "ci": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build",
     "testy:prepare": "pnpm --filter @testy/cli build",
-    "testy": "pnpm testy:prepare && pnpm --filter @testy/cli exec node dist/cli.js"
+    "testy": "pnpm testy:prepare && pnpm --filter @testy/cli exec node dist/cli.js",
+    "gateway:prepare": "pnpm --filter @testy/traffic-gateway build && pnpm --filter @testy/traffic-gateway-app build",
+    "gateway:start": "pnpm gateway:prepare && pnpm --filter @testy/traffic-gateway-app start",
+    "gateway:test": "pnpm --filter @testy/traffic-gateway test",
+    "target:test": "pnpm --filter @testy/target-adapter test && pnpm --filter @testy/gl-eye-adapter test"
   },
   "devDependencies": {
     "@eslint/js": "^9.0.0",

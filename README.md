@@ -42,6 +42,9 @@ orchestration:
   run-specific hostnames, and privacy-safe event capture.
 - A Playwright runner with isolated contexts, stable locators, network fixtures,
   tab/session actions, cancellation, traces, screenshots, and sanitized reports.
+- A persistent scenario engine with retries, polling, cancellation, cleanup, reports, and Control Plane APIs.
+- A closed run-scoped Traffic Gateway with reserved synthetic IP enforcement, destination allowlisting, spoofed-header stripping, and fingerprint-only ledgers.
+- A pluggable target-adapter contract, deterministic fake target, and authenticated GL-EYE test-support HTTP adapter.
 
 ## Local development
 
@@ -69,7 +72,16 @@ Install the Chromium binary used by the sample journey:
 pnpm browser:install
 ```
 
-Start PostgreSQL and the Control Plane:
+
+Start the standalone Traffic Gateway:
+
+```bash
+pnpm gateway:start
+```
+
+The gateway requires an explicit target-origin allowlist and admin token. It strips supplied attribution headers, enforces RFC 5737 source addresses, blocks real provider destinations, and applies request and response size limits. The Control Plane registers GL-EYE actions only when every gateway and GL-EYE integration variable is non-empty; empty Compose substitutions leave the integration disabled.
+
+Start PostgreSQL, the Traffic Gateway, and the Control Plane:
 
 ```bash
 docker compose up --build
@@ -162,6 +174,7 @@ Control Plane endpoints:
 
 - `GET http://localhost:3000/v1/health`
 - `GET http://localhost:3000/v1/readiness`
+- `GET http://localhost:3100/v1/health`
 - `GET http://localhost:3000/v1/scenarios`
 - `GET http://localhost:3000/v1/scenarios/:scenarioId`
 - `POST http://localhost:3000/v1/scenarios/validate`
@@ -185,4 +198,5 @@ Control Plane endpoints:
 - [Browser DSL and synthetic site host v0.1](docs/browser-dsl-site-host-v0.1.md)
 - [Playwright browser runner v0.1](docs/playwright-browser-runner-v0.1.md)
 - [Scenario orchestration and run lifecycle v0.1](docs/scenario-orchestration-v0.1.md)
+- [Traffic Gateway and GL-EYE target adapter v0.1](docs/traffic-gateway-gl-eye-adapter-v0.1.md)
 - [ADR 0001: Imposter runtime boundary](docs/adr-0001-imposter-runtime.md)

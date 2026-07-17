@@ -15,6 +15,33 @@ services:
     volumes:
       - testy-postgres-data:/var/lib/postgresql/data
 
+  traffic-gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: ["pnpm", "--filter", "@testy/traffic-gateway-app", "start"]
+    environment:
+      TESTY_GATEWAY_HOST: 0.0.0.0
+      TESTY_GATEWAY_PORT: 3100
+      TESTY_GATEWAY_ADMIN_TOKEN: ${TESTY_GATEWAY_ADMIN_TOKEN:-test-gateway-admin-token-local}
+      TESTY_GATEWAY_ALLOWED_TARGET_ORIGINS: ${TESTY_GATEWAY_ALLOWED_TARGET_ORIGINS:-http://host.docker.internal:8080}
+      TESTY_GATEWAY_BLOCKED_PROVIDER_HOSTS: ${TESTY_GATEWAY_BLOCKED_PROVIDER_HOSTS:-}
+    ports:
+      - "3100:3100"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://localhost:3100/v1/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
   control-plane:
     build:
       context: .
@@ -24,6 +51,13 @@ services:
       CONTROL_PLANE_PORT: 3000
       DATABASE_URL: postgresql://testy:testy@postgres:5432/testy
       LOG_LEVEL: info
+      SCENARIOS_DIR: scenarios
+      TESTY_GATEWAY_ADMIN_URL: ${TESTY_GATEWAY_ADMIN_URL:-}
+      TESTY_GATEWAY_ADMIN_TOKEN: ${TESTY_CONTROL_GATEWAY_ADMIN_TOKEN:-}
+      GL_EYE_BASE_URL: ${GL_EYE_BASE_URL:-}
+      GL_EYE_ENVIRONMENT: ${GL_EYE_ENVIRONMENT:-}
+      GL_EYE_TEST_SUPPORT_TOKEN: ${GL_EYE_TEST_SUPPORT_TOKEN:-}
+      GL_EYE_ALLOWED_ORIGINS: ${GL_EYE_ALLOWED_ORIGINS:-}
     ports:
       - "3000:3000"
     depends_on:
