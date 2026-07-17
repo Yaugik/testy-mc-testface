@@ -46,6 +46,9 @@ export function createPlatformActions(
     browser: config.browser,
     headless: config.browserHeadless,
     ...(config.runtimeImage ? { runtimeImage: config.runtimeImage } : {}),
+    ...(config.runtimeNetworkName
+      ? { runtimeNetworkName: config.runtimeNetworkName }
+      : {}),
     ...(target
       ? {
           delegates: {
