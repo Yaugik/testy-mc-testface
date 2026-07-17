@@ -7,6 +7,8 @@ import type {
   ScenarioValue,
 } from "@testy/scenario-engine";
 
+import type { MaintenanceClaimOptions } from "./maintenance.js";
+
 interface BrowserActionRow {
   readonly run_id: string;
   readonly journey_id: string;
@@ -40,6 +42,7 @@ interface LeaseRow {
 
 export class PostgresRunObservationStore {
   public constructor(private readonly pool: Pool) {}
+
   public async recordBrowserAction(
     record: PersistedBrowserAction,
   ): Promise<void> {
@@ -160,7 +163,10 @@ export class PostgresRunObservationStore {
   ): Promise<void> {
     await this.pool.query(
       `UPDATE resource_leases
-       SET status = 'RELEASED', released_at = COALESCE(released_at, $2)
+       SET status = 'RELEASED',
+           released_at = COALESCE(released_at, $2),
+           cleanup_claimed_until = NULL,
+           last_cleanup_error_fingerprint = NULL
        WHERE id = $1 AND status = 'ACTIVE'`,
       [leaseId, releasedAt],
     );
@@ -176,14 +182,61 @@ export class PostgresRunObservationStore {
        ORDER BY expires_at ASC, id ASC`,
       [runId],
     );
-    return result.rows.map((row) => ({
-      leaseId: row.id,
-      runId: row.run_id as RunId,
-      resourceType: row.resource_type,
-      resourceKey: row.resource_key,
-      expiresAt: row.expires_at.toISOString(),
-      status: row.status,
-      ...(row.released_at ? { releasedAt: row.released_at.toISOString() } : {}),
-    }));
+    return result.rows.map(mapLease);
   }
+
+  public async claimExpiredResourceLeases(
+    options: MaintenanceClaimOptions,
+  ): Promise<readonly PersistedResourceLease[]> {
+    const result = await this.pool.query<LeaseRow>(
+      `WITH candidates AS (
+         SELECT id
+         FROM resource_leases
+         WHERE status = 'ACTIVE'
+           AND expires_at <= $1
+           AND (cleanup_claimed_until IS NULL OR cleanup_claimed_until <= NOW())
+         ORDER BY expires_at ASC, id ASC
+         FOR UPDATE SKIP LOCKED
+         LIMIT $2
+       )
+       UPDATE resource_leases AS leases
+       SET cleanup_claimed_until = $3,
+           cleanup_attempts = cleanup_attempts + 1,
+           last_cleanup_attempt_at = NOW()
+       FROM candidates
+       WHERE leases.id = candidates.id
+       RETURNING leases.id, leases.run_id, leases.resource_type,
+                 leases.resource_key, leases.status, leases.expires_at,
+                 leases.released_at`,
+      [options.before, options.limit, options.claimUntil],
+    );
+    return result.rows.map(mapLease);
+  }
+
+  public async recordResourceLeaseCleanupFailure(
+    leaseId: string,
+    attemptedAt: string,
+    errorFingerprint: string,
+  ): Promise<void> {
+    await this.pool.query(
+      `UPDATE resource_leases
+       SET cleanup_claimed_until = NULL,
+           last_cleanup_attempt_at = $2,
+           last_cleanup_error_fingerprint = $3
+       WHERE id = $1 AND status = 'ACTIVE'`,
+      [leaseId, attemptedAt, errorFingerprint],
+    );
+  }
+}
+
+function mapLease(row: LeaseRow): PersistedResourceLease {
+  return {
+    leaseId: row.id,
+    runId: row.run_id as RunId,
+    resourceType: row.resource_type,
+    resourceKey: row.resource_key,
+    expiresAt: row.expires_at.toISOString(),
+    status: row.status,
+    ...(row.released_at ? { releasedAt: row.released_at.toISOString() } : {}),
+  };
 }
