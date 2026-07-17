@@ -30,7 +30,14 @@ import type {
   BrowserRequestEntry,
   BrowserRunnerOptions,
 } from "./types.js";
-import { fingerprintUrl, locatorFor, shouldCapture } from "./util.js";
+import {
+  fingerprintText,
+  fingerprintUrl,
+  locatorFor,
+  sanitizePageUrl,
+  selectFailedRequests,
+  shouldCapture,
+} from "./util.js";
 
 export async function runBrowserJourney(
   journey: ResolvedJourney,
@@ -51,6 +58,7 @@ export async function runBrowserJourney(
   let browser: Browser | undefined;
   let context: BrowserContext | undefined;
   let traceStarted = false;
+  let tracePath: string | undefined;
   let reportError: string | undefined;
 
   try {
@@ -113,18 +121,29 @@ export async function runBrowserJourney(
   } finally {
     const failed = reportError !== undefined;
     if (context && traceStarted) {
-      await stopTrace(
-        context,
-        shouldCapture(journey.artifactPolicy.trace, failed)
-          ? workspace.tracePath
-          : undefined,
-      ).catch(() => undefined);
+      if (shouldCapture(journey.artifactPolicy.trace, failed)) {
+        try {
+          await stopTrace(context, workspace.tracePath);
+          tracePath = workspace.tracePath;
+        } catch {
+          // A missing trace must not hide the original journey result.
+        }
+      } else {
+        await stopTrace(context).catch(() => undefined);
+      }
     }
     await context?.close().catch(() => undefined);
     await browser?.close().catch(() => undefined);
   }
 
   const failed = reportError !== undefined;
+  let selectedHarPath: string | undefined;
+  if (shouldCapture(journey.artifactPolicy.selectedHar, failed)) {
+    const destination = join(workspace.rootDirectory, "selected-har.json");
+    await writeFile(destination, JSON.stringify(buildSelectedHar(requests), null, 2));
+    selectedHarPath = destination;
+  }
+
   const report: BrowserJourneyReport = {
     schemaVersion: "1.0",
     customerId: journey.customerId,
@@ -137,14 +156,15 @@ export async function runBrowserJourney(
     completedAt: new Date().toISOString(),
     actions,
     console: shouldCapture(journey.artifactPolicy.console, failed) ? consoleEntries : [],
-    requests: shouldCapture(journey.artifactPolicy.failedRequests, failed)
-      ? requests.filter((entry) => entry.failed)
-      : requests,
+    requests: selectFailedRequests(
+      journey.artifactPolicy.failedRequests,
+      failed,
+      requests,
+    ),
     artifacts: {
       rootDirectory: workspace.rootDirectory,
-      ...(shouldCapture(journey.artifactPolicy.trace, failed)
-        ? { tracePath: workspace.tracePath }
-        : {}),
+      ...(tracePath ? { tracePath } : {}),
+      ...(selectedHarPath ? { selectedHarPath } : {}),
       screenshots,
     },
     ...(reportError ? { error: reportError } : {}),
@@ -231,6 +251,7 @@ async function executeStep(
         break;
       case "openTab": {
         const name = step.tab ?? `tab-${pages.size + 1}`;
+        if (pages.has(name)) throw new Error(`Browser tab '${name}' already exists.`);
         page = await page.context().newPage();
         pages.set(name, page);
         if (step.path) await page.goto(siteUrl(site, step.path));
@@ -287,11 +308,19 @@ async function applySession(
   if (cookies.length > 0) {
     await context.addCookies(cookies.map((cookie) => ({ ...cookie, domain: site.hostname })));
   }
-  const storageEntries = Object.values(journey.persona.session?.localStorage ?? {})[0];
-  if (storageEntries) {
-    await context.addInitScript((entries) => {
-      for (const [key, value] of Object.entries(entries)) localStorage.setItem(key, value);
-    }, storageEntries);
+
+  const storageEntries = Object.assign(
+    {},
+    ...Object.values(journey.persona.session?.localStorage ?? {}),
+  ) as Record<string, string>;
+  if (Object.keys(storageEntries).length > 0) {
+    await context.addInitScript(
+      ({ origin, entries }) => {
+        if (window.location.origin !== origin) return;
+        for (const [key, value] of Object.entries(entries)) localStorage.setItem(key, value);
+      },
+      { origin: site.origin, entries: storageEntries },
+    );
   }
 }
 
@@ -304,16 +333,17 @@ function attachObservers(
     consoleEntries.push({
       timestamp: new Date().toISOString(),
       type: message.type(),
-      text: message.text(),
+      textFingerprint: fingerprintText(message.text()),
     });
   });
   context.on("requestfailed", (request) => {
+    const failureText = request.failure()?.errorText;
     requests.push({
       timestamp: new Date().toISOString(),
       method: request.method(),
       urlFingerprint: fingerprintUrl(request.url()),
       failed: true,
-      ...(request.failure()?.errorText ? { failureText: request.failure()?.errorText } : {}),
+      ...(failureText ? { failureFingerprint: fingerprintText(failureText) } : {}),
     });
   });
   context.on("response", (response) => {
@@ -373,9 +403,51 @@ function actionResult(
     startedAt: startedAt.toISOString(),
     completedAt: completed.toISOString(),
     durationMs: completed.getTime() - startedAt.getTime(),
-    ...(pageUrl ? { pageUrl } : {}),
+    ...(pageUrl ? { pageUrl: sanitizePageUrl(pageUrl) } : {}),
     ...(error ? { error } : {}),
     ...(screenshotPath ? { screenshotPath } : {}),
+  };
+}
+
+function buildSelectedHar(requests: readonly BrowserRequestEntry[]): unknown {
+  return {
+    log: {
+      version: "1.2",
+      creator: {
+        name: "@testy/browser-runner",
+        version: "0.1.0",
+      },
+      entries: requests.map((entry) => ({
+        startedDateTime: entry.timestamp,
+        time: 0,
+        request: {
+          method: entry.method,
+          url: `urn:sha256:${entry.urlFingerprint}`,
+          httpVersion: "",
+          headers: [],
+          queryString: [],
+          cookies: [],
+          headersSize: -1,
+          bodySize: -1,
+        },
+        response: {
+          status: entry.status ?? 0,
+          statusText: entry.failed ? "failed" : "",
+          httpVersion: "",
+          headers: [],
+          cookies: [],
+          content: { size: 0, mimeType: "application/octet-stream" },
+          redirectURL: "",
+          headersSize: -1,
+          bodySize: -1,
+        },
+        cache: {},
+        timings: { send: 0, wait: 0, receive: 0 },
+        ...(entry.failureFingerprint
+          ? { _failureFingerprint: entry.failureFingerprint }
+          : {}),
+      })),
+    },
   };
 }
 
