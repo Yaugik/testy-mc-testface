@@ -2,15 +2,17 @@ import { buildApp } from "./app.js";
 import { closeDatabase, databasePool } from "./database.js";
 import { loadConfig } from "./config.js";
 import { sanitizeError } from "./errors.js";
+import { createPlatformActions } from "./platform-actions.js";
 import { PostgresScenarioRunRepository } from "./run-repository.js";
 import { FileScenarioCatalog } from "./scenario-catalog.js";
 import { ScenarioRunService } from "./run-service.js";
 
 const config = loadConfig();
+const platform = createPlatformActions(config.targetIntegration);
 const runs = new ScenarioRunService(
   new PostgresScenarioRunRepository(databasePool),
-  undefined,
-  undefined,
+  platform.actions,
+  platform.resourceCleaners,
   new FileScenarioCatalog(config.scenariosDirectory),
 );
 const app = buildApp({

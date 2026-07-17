@@ -1,0 +1,32 @@
+{
+  "name": "@testy/target-adapter",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "prebuild": "pnpm --filter @testy/shared-types build && pnpm --filter @testy/scenario-engine build && pnpm --filter @testy/traffic-gateway build",
+    "build": "tsc -p tsconfig.json",
+    "pretypecheck": "pnpm run prebuild",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json --noEmit",
+    "pretest": "pnpm run build",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@testy/scenario-engine": "workspace:*",
+    "@testy/shared-types": "workspace:*",
+    "@testy/traffic-gateway": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "typescript": "^5.0.0",
+    "vitest": "^3.0.0"
+  }
+}
