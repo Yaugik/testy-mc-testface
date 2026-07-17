@@ -8,6 +8,7 @@ export {
   sanitizePageUrl,
   selectFailedRequests,
   shouldCapture,
+  summarizeExpectedRequests,
 } from "./util.js";
 export type {
   BrowserActionResult,
@@ -15,7 +16,9 @@ export type {
   BrowserConsoleEntry,
   BrowserJourneyReport,
   BrowserName,
+  BrowserRequestCheck,
   BrowserRequestEntry,
   BrowserRunnerOptions,
+  ExpectedBrowserRequest,
   JourneyStatus,
 } from "./types.js";

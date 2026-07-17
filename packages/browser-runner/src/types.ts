@@ -3,12 +3,20 @@ import type { ArtifactPolicy, JourneyActionDefinition } from "@testy/browser-sch
 export type BrowserName = "chromium" | "firefox" | "webkit";
 export type JourneyStatus = "passed" | "failed" | "cancelled";
 
+export interface ExpectedBrowserRequest {
+  readonly id: string;
+  readonly url: string;
+  readonly method?: string;
+}
+
 export interface BrowserRunnerOptions {
   readonly browser?: BrowserName;
   readonly headless?: boolean;
   readonly artifactRoot: string;
   readonly runNamespace: string;
   readonly signal?: AbortSignal;
+  readonly externalScripts?: readonly string[];
+  readonly expectedRequests?: readonly ExpectedBrowserRequest[];
 }
 
 export interface BrowserActionResult {
@@ -38,6 +46,15 @@ export interface BrowserRequestEntry {
   readonly failureFingerprint?: string;
 }
 
+export interface BrowserRequestCheck {
+  readonly id: string;
+  readonly method?: string;
+  readonly urlFingerprint: string;
+  readonly matchedCount: number;
+  readonly successfulCount: number;
+  readonly failedCount: number;
+}
+
 export interface BrowserArtifactManifest {
   readonly rootDirectory: string;
   readonly tracePath?: string;
@@ -58,6 +75,7 @@ export interface BrowserJourneyReport {
   readonly actions: readonly BrowserActionResult[];
   readonly console: readonly BrowserConsoleEntry[];
   readonly requests: readonly BrowserRequestEntry[];
+  readonly requestChecks: readonly BrowserRequestCheck[];
   readonly artifacts: BrowserArtifactManifest;
   readonly error?: string;
 }
