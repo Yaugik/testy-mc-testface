@@ -11,6 +11,7 @@ class FakeContainerEngine implements ContainerEngine {
   public runSpec: ContainerRunSpec | undefined;
   public readonly removed: string[] = [];
   public logText = "";
+  public resolveCalls = 0;
 
   public async run(spec: ContainerRunSpec): Promise<{ readonly id: string }> {
     this.runSpec = spec;
@@ -18,6 +19,7 @@ class FakeContainerEngine implements ContainerEngine {
   }
 
   public async resolveHostPort(): Promise<number> {
+    this.resolveCalls += 1;
     return 49152;
   }
 
@@ -55,9 +57,7 @@ describe("ImposterRuntimeManager", () => {
     let requests = 0;
     const fetcher = (async () => {
       requests += 1;
-      if (requests < 2) {
-        return new Response("not ready", { status: 503 });
-      }
+      if (requests < 2) return new Response("not ready", { status: 503 });
       return Response.json({ status: "ok", version: "5.x" });
     }) as typeof fetch;
 
@@ -72,10 +72,30 @@ describe("ImposterRuntimeManager", () => {
       containerPath: "/opt/imposter/config",
       readOnly: true,
     });
+    expect(engine.resolveCalls).toBe(1);
 
     await runtime.stop();
     await runtime.stop();
     expect(engine.removed).toEqual(["container-1"]);
+  });
+
+  it("uses container DNS without publishing a host port on a private network", async () => {
+    const engine = new FakeContainerEngine();
+    const fetcher = (async (input: string | URL | Request) => {
+      expect(String(input)).toBe("http://testy-run-ipinfo:8080/system/status");
+      return Response.json({ status: "ok", version: "5.x" });
+    }) as typeof fetch;
+
+    const runtime = await new ImposterRuntimeManager(engine, fetcher).start(bundle, {
+      containerName: "testy-run-ipinfo",
+      networkName: "testy-platform",
+    });
+
+    expect(runtime.baseUrl).toBe("http://testy-run-ipinfo:8080");
+    expect(runtime.providerBaseUrl).toBe("http://testy-run-ipinfo:8080/ipinfo");
+    expect(engine.runSpec?.networkName).toBe("testy-platform");
+    expect(engine.runSpec?.ports).toEqual([]);
+    expect(engine.resolveCalls).toBe(0);
   });
 
   it("reads and resets generated runtime stores", async () => {
@@ -89,9 +109,7 @@ describe("ImposterRuntimeManager", () => {
 
     const fetcher = (async (input: string | URL | Request, init?: RequestInit) => {
       const url = new URL(String(input));
-      if (url.pathname === "/system/status") {
-        return Response.json({ status: "ok" });
-      }
+      if (url.pathname === "/system/status") return Response.json({ status: "ok" });
 
       const prefix = "/system/store/";
       const storeName = decodeURIComponent(url.pathname.slice(prefix.length));
