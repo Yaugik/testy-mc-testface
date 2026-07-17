@@ -75,28 +75,50 @@ export function createBrowserActions(
 
     "platform.configure-target-vendors": async (_input, context) => {
       const delegate = options.delegates?.configureVendorEndpoints;
-      if (!delegate) throw new Error("Target vendor-endpoint configuration is not available.");
+      if (!delegate) {
+        throw new Error(
+          "Target vendor-endpoint configuration is not available.",
+        );
+      }
       const endpoints = Object.fromEntries(
         [...stateFor(context).vendors.entries()]
-          .map(([vendorId, vendor]) => [vendorId, requireRuntime(vendor, vendorId).providerBaseUrl] as const)
+          .map(
+            ([vendorId, vendor]) =>
+              [
+                vendorId,
+                requireRuntime(vendor, vendorId).providerBaseUrl,
+              ] as const,
+          )
           .sort(([left], [right]) => left.localeCompare(right)),
       );
-      if (Object.keys(endpoints).length === 0) throw new Error("No vendor runtimes are active for this run.");
+      if (Object.keys(endpoints).length === 0) {
+        throw new Error("No vendor runtimes are active for this run.");
+      }
       return delegate({ endpoints }, context);
     },
 
     "platform.configure-target-site": async (_input, context) => {
       const delegate = options.delegates?.configureSyntheticSite;
-      if (!delegate) throw new Error("Target synthetic-site configuration is not available.");
+      if (!delegate) {
+        throw new Error(
+          "Target synthetic-site configuration is not available.",
+        );
+      }
       const site = requireSite(stateFor(context));
-      return delegate({ siteId: site.siteId, hostname: site.hostname }, context);
+      return delegate(
+        { siteId: site.siteId, hostname: site.hostname },
+        context,
+      );
     },
 
     "browser.run-journey": async (input, context) => {
       const value = readObject(input);
       const journeyId = readString(value, "journeyId");
       const executionId = readOptionalString(value, "executionId") ?? "default";
-      const targetPreparationStepId = readOptionalString(value, "targetPreparationStepId");
+      const targetPreparationStepId = readOptionalString(
+        value,
+        "targetPreparationStepId",
+      );
       const trackingScriptUrl = targetPreparationStepId
         ? readTrackingScriptUrl(context.outputs[targetPreparationStepId])
         : undefined;
@@ -107,29 +129,49 @@ export function createBrowserActions(
         requireSite(state),
         {
           ...(options.browser ? { browser: options.browser } : {}),
-          ...(options.headless === undefined ? {} : { headless: options.headless }),
-          artifactRoot: join(options.generatedRoot, safeSegment(context.runId as string), "browser"),
+          ...(options.headless === undefined
+            ? {}
+            : { headless: options.headless }),
+          artifactRoot: join(
+            options.generatedRoot,
+            safeSegment(context.runId as string),
+            "browser",
+          ),
           runNamespace: `${context.runId as string}-${safeSegment(executionId)}`,
           signal: context.signal,
-          ...(trackingScriptUrl ? {
-            externalScripts: [trackingScriptUrl],
-            expectedRequests: [{ id: "target-tracking-script", url: trackingScriptUrl, method: "GET" }],
-          } : {}),
+          ...(trackingScriptUrl
+            ? {
+                externalScripts: [trackingScriptUrl],
+                expectedRequests: [
+                  {
+                    id: "target-tracking-script",
+                    url: trackingScriptUrl,
+                    method: "GET",
+                  },
+                ],
+              }
+            : {}),
         },
       );
       state.browserReports.set(executionId, report);
-      await persistBrowserEvidence(options.evidence, context, report, { executionId });
+      await persistBrowserEvidence(options.evidence, context, report, {
+        executionId,
+      });
       return {
         journeyId,
         executionId,
         status: report.status,
         actionCount: report.actions.length,
-        failedActionCount: report.actions.filter((action) => action.status === "failed").length,
+        failedActionCount: report.actions.filter(
+          (action) => action.status === "failed",
+        ).length,
         requestCount: report.requests.length,
         requestCheckCount: report.requestChecks?.length ?? 0,
-        artifactCount: report.artifacts.screenshots.length +
+        artifactCount:
+          report.artifacts.screenshots.length +
           (report.artifacts.tracePath ? 1 : 0) +
-          (report.artifacts.selectedHarPath ? 1 : 0) + 1,
+          (report.artifacts.selectedHarPath ? 1 : 0) +
+          1,
       };
     },
 
@@ -149,11 +191,15 @@ export function createBrowserActions(
         value: {
           eventCount: events.length,
           counts,
-          forms: events.filter((event) => event.type === "form-submit").map((event) => ({
-            ...(event.formId ? { formId: event.formId } : {}),
-            fieldNames: event.fieldNames ?? [],
-            ...(event.bodyFingerprint ? { bodyFingerprint: event.bodyFingerprint } : {}),
-          })),
+          forms: events
+            .filter((event) => event.type === "form-submit")
+            .map((event) => ({
+              ...(event.formId ? { formId: event.formId } : {}),
+              fieldNames: event.fieldNames ?? [],
+              ...(event.bodyFingerprint
+                ? { bodyFingerprint: event.bodyFingerprint }
+                : {}),
+            })),
         },
         metadata: {},
         observedAt: new Date().toISOString(),
@@ -168,14 +214,17 @@ function readOptionalString(
   key: string,
 ): string | undefined {
   const selected = value[key];
-  return typeof selected === "string" && selected.length > 0 ? selected : undefined;
+  return typeof selected === "string" && selected.length > 0
+    ? selected
+    : undefined;
 }
 
 function readTrackingScriptUrl(value: ScenarioValue | undefined): string {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     throw new Error("Target preparation output is unavailable.");
   }
-  const selected = value.trackingScriptUrl;
+  const record = value as Readonly<Record<string, ScenarioValue>>;
+  const selected = record.trackingScriptUrl;
   if (typeof selected !== "string" || selected.length === 0) {
     throw new Error("Target preparation output did not include a tracking script URL.");
   }
