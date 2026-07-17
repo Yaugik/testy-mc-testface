@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "prebuild": "pnpm --filter @testy/shared-types build && pnpm --filter @testy/assertion-engine build && pnpm --filter @testy/scenario-engine build && pnpm --filter @testy/reporting build && pnpm --filter @testy/traffic-gateway build && pnpm --filter @testy/traffic-generator build && pnpm --filter @testy/target-adapter build && pnpm --filter @testy/gl-eye-adapter build && pnpm --filter @testy/platform-actions build",
+    "prebuild": "pnpm --filter @testy/shared-types build && pnpm --filter @testy/assertion-engine build && pnpm --filter @testy/scenario-engine build && pnpm --filter @testy/reporting build && pnpm --filter @testy/traffic-gateway build && pnpm --filter @testy/traffic-generator build && pnpm --filter @testy/target-adapter build && pnpm --filter @testy/gl-eye-adapter build && pnpm --filter @testy/reference-sut-adapter build && pnpm --filter @testy/platform-actions build",
     "build": "tsc -p tsconfig.json",
     "pretypecheck": "pnpm run prebuild",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json --noEmit",
@@ -19,6 +19,7 @@
     "@testy/assertion-engine": "workspace:*",
     "@testy/gl-eye-adapter": "workspace:*",
     "@testy/platform-actions": "workspace:*",
+    "@testy/reference-sut-adapter": "workspace:*",
     "@testy/reporting": "workspace:*",
     "@testy/scenario-engine": "workspace:*",
     "@testy/shared-types": "workspace:*",
