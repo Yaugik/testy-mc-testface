@@ -3,6 +3,8 @@ import { createHash } from "node:crypto";
 import type { ArtifactCaptureMode, ArtifactPolicy, BrowserSelector } from "@testy/browser-schema";
 import type { Locator, Page } from "playwright";
 
+import type { BrowserRequestEntry } from "./types.js";
+
 export function shouldCapture(mode: ArtifactCaptureMode, failed: boolean): boolean {
   return mode === "always" || (mode === "on-failure" && failed);
 }
@@ -15,11 +17,33 @@ export function sanitizeArtifactName(value: string): string {
   return (normalized || "artifact").slice(0, 120);
 }
 
+export function fingerprintText(value: string): string {
+  return createHash("sha256").update(value).digest("hex");
+}
+
 export function fingerprintUrl(value: string): string {
-  const url = new URL(value);
-  url.search = "";
-  url.hash = "";
-  return createHash("sha256").update(url.toString()).digest("hex");
+  return fingerprintText(sanitizePageUrl(value));
+}
+
+export function sanitizePageUrl(value: string): string {
+  try {
+    const url = new URL(value);
+    url.search = "";
+    url.hash = "";
+    return url.toString();
+  } catch {
+    return "about:blank";
+  }
+}
+
+export function selectFailedRequests(
+  mode: ArtifactCaptureMode,
+  journeyFailed: boolean,
+  entries: readonly BrowserRequestEntry[],
+): readonly BrowserRequestEntry[] {
+  return shouldCapture(mode, journeyFailed)
+    ? entries.filter((entry) => entry.failed)
+    : [];
 }
 
 export function locatorFor(page: Page, selector: BrowserSelector): Locator {
