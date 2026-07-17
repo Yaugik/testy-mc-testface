@@ -18,6 +18,7 @@ export interface ContainerRunSpec {
   readonly labels: Readonly<Record<string, string>>;
   readonly mounts: readonly ContainerMount[];
   readonly ports: readonly ContainerPortBinding[];
+  readonly networkName?: string;
 }
 
 export interface ContainerHandle {
@@ -41,6 +42,7 @@ export interface RuntimeStartOptions {
   readonly pollIntervalMs?: number;
   readonly signal?: AbortSignal;
   readonly containerName?: string;
+  readonly networkName?: string;
 }
 
 export type RuntimeStoreData = Readonly<Record<string, unknown>>;
