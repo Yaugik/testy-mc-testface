@@ -1,0 +1,36 @@
+{
+  "name": "@testy/browser-runner",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "bin": {
+    "testy-browser-run": "./dist/cli.js"
+  },
+  "scripts": {
+    "prebuild": "pnpm --filter @testy/browser-schema build && pnpm --filter @testy/browser-config build && pnpm --filter @testy/synthetic-site-host build",
+    "build": "tsc -p tsconfig.json",
+    "pretypecheck": "pnpm run prebuild",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json --noEmit",
+    "pretest": "pnpm run build",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@testy/browser-config": "workspace:*",
+    "@testy/browser-schema": "workspace:*",
+    "@testy/synthetic-site-host": "workspace:*",
+    "playwright": "^1.55.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "typescript": "^5.0.0",
+    "vitest": "^3.0.0"
+  }
+}
