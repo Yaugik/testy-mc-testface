@@ -54,7 +54,7 @@ function scan(file, source) {
     }
   }
 
-  for (const match of source.matchAll(/\b(?:https?:\/\/)?([a-z0-9-]+(?:\.[a-z0-9-]+)+)\b/gi)) {
+  for (const match of source.matchAll(/\b(?:https?:\/\/)?([a-z0-9-]+(?:\.[a-z0-9-]+)*\.[a-z]{2,})\b/gi)) {
     const domain = match[1].toLowerCase();
     if (
       !domain.endsWith(".example") &&
