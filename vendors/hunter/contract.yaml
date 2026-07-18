@@ -1,0 +1,151 @@
+schemaVersion: "1.0"
+suiteId: hunter-contract
+defaults:
+  query:
+    api_key: test-hunter-key
+  requestTimeoutMs: 2000
+cases:
+  - id: contacts
+    steps:
+      - id: request
+        request:
+          method: GET
+          path: /v2/domain-search
+          query:
+            domain: contacts.example
+        expect:
+          status: 200
+          matchedCase: contacts-found
+
+  - id: none
+    steps:
+      - id: request
+        request:
+          method: GET
+          path: /v2/domain-search
+          query:
+            domain: none.example
+        expect:
+          status: 200
+          matchedCase: no-contacts
+
+  - id: partial
+    steps:
+      - id: request
+        request:
+          method: GET
+          path: /v2/domain-search
+          query:
+            domain: partial.example
+        expect:
+          status: 200
+          matchedCase: partial-contacts
+
+  - id: invalid-contact
+    steps:
+      - id: request
+        request:
+          method: GET
+          path: /v2/domain-search
+          query:
+            domain: invalid-contact.example
+        expect:
+          status: 200
+          matchedCase: invalid-contact
+
+  - id: suppressed
+    steps:
+      - id: request
+        request:
+          method: GET
+          path: /v2/domain-search
+          query:
+            domain: suppressed.example
+        expect:
+          status: 200
+          matchedCase: suppressed-domain
+
+  - id: quota
+    steps:
+      - id: request
+        request:
+          method: GET
+          path: /v2/domain-search
+          query:
+            domain: quota.example
+        expect:
+          status: 429
+          matchedCase: quota-exhausted
+
+  - id: conflicting
+    steps:
+      - id: request
+        request:
+          method: GET
+          path: /v2/domain-search
+          query:
+            domain: conflict.example
+        expect:
+          status: 200
+          matchedCase: conflicting-contacts
+
+  - id: authentication
+    steps:
+      - id: invalid-key
+        request:
+          method: GET
+          path: /v2/domain-search
+          query:
+            domain: contacts.example
+            api_key: invalid-test-key
+        expect:
+          status: 401
+
+  - id: recovery
+    steps:
+      - id: timeout
+        request:
+          method: GET
+          path: /v2/domain-search
+          query:
+            domain: recovery.example
+          timeoutMs: 1200
+        expect:
+          transportError: true
+          matchedCase: timeout-recovery
+          sequenceIndex: 0
+      - id: unavailable
+        request:
+          method: GET
+          path: /v2/domain-search
+          query:
+            domain: recovery.example
+        expect:
+          status: 503
+          matchedCase: timeout-recovery
+          sequenceIndex: 1
+      - id: recovered
+        request:
+          method: GET
+          path: /v2/domain-search
+          query:
+            domain: recovery.example
+        expect:
+          status: 200
+          matchedCase: timeout-recovery
+          sequenceIndex: 2
+      - id: repeat-last
+        request:
+          method: GET
+          path: /v2/domain-search
+          query:
+            domain: recovery.example
+        expect:
+          status: 200
+          matchedCase: timeout-recovery
+          sequenceIndex: 2
+    expect:
+      stores:
+        recovery:
+          attempts: "4"
+          last-outcome: recovered

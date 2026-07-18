@@ -1,0 +1,10 @@
+{
+  "ip": "198.51.100.30",
+  "company": null,
+  "privacy": {
+    "vpn": false,
+    "proxy": false,
+    "hosting": false
+  },
+  "classification": "unknown"
+}

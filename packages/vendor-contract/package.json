@@ -1,0 +1,39 @@
+{
+  "name": "@testy/vendor-contract",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "bin": {
+    "testy-vendor-contract": "./dist/cli.js"
+  },
+  "scripts": {
+    "prebuild": "pnpm --filter @testy/vendor-schema build && pnpm --filter @testy/config-loader build && pnpm --filter @testy/vendor-compiler build && pnpm --filter @testy/vendor-runtime build",
+    "build": "tsc -p tsconfig.json && node scripts/copy-schemas.mjs",
+    "pretypecheck": "pnpm --filter @testy/vendor-schema build && pnpm --filter @testy/config-loader build && pnpm --filter @testy/vendor-compiler build && pnpm --filter @testy/vendor-runtime build",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json --noEmit",
+    "pretest": "pnpm run build",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@testy/config-loader": "workspace:*",
+    "@testy/vendor-compiler": "workspace:*",
+    "@testy/vendor-runtime": "workspace:*",
+    "@testy/vendor-schema": "workspace:*",
+    "ajv": "^8.0.0",
+    "yaml": "^2.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "tsx": "^4.0.0",
+    "typescript": "^5.0.0",
+    "vitest": "^3.0.0"
+  }
+}

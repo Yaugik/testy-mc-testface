@@ -1,0 +1,27 @@
+schemaVersion: "1.0"
+initialState: healthy
+
+states:
+  healthy: {}
+
+  degraded:
+    defaults:
+      delay: 2500ms
+
+  unavailable:
+    override:
+      status: 503
+      body: responses/unavailable.json
+
+  quota-exhausted:
+    override:
+      status: 429
+      headers:
+        Retry-After: "30"
+      body: responses/rate-limited.json
+
+transitions:
+  - from: unavailable
+    to: healthy
+    when:
+      requestCountAtLeast: 3

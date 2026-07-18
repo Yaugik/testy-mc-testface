@@ -1,0 +1,19 @@
+{
+  "data": {
+    "domain": "conflict.example",
+    "emails": [
+      {
+        "value": "person-a@conflict.example",
+        "confidence": 95,
+        "verified": true
+      },
+      {
+        "value": "person-b@conflict.example",
+        "confidence": 95,
+        "verified": true,
+        "conflictsWith": "person-a@conflict.example"
+      }
+    ],
+    "ambiguous": true
+  }
+}

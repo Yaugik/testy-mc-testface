@@ -1,0 +1,6 @@
+{
+  "error": {
+    "code": "rate_limited",
+    "message": "Synthetic provider quota is exhausted"
+  }
+}

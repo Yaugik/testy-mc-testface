@@ -1,0 +1,12 @@
+{
+  "data": {
+    "domain": "invalid-contact.example",
+    "emails": [
+      {
+        "value": "not-an-email",
+        "confidence": -1,
+        "verified": "unknown"
+      }
+    ]
+  }
+}

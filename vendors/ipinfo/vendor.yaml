@@ -1,0 +1,39 @@
+schemaVersion: "1.0"
+vendor:
+  id: ipinfo
+  displayName: IPinfo
+  contractVersion: "2026-test"
+
+server:
+  basePath: /ipinfo
+  defaultContentType: application/json
+
+authentication:
+  strategies:
+    - id: bearer-token
+      type: bearer
+      source: header
+      name: Authorization
+      validValues:
+        - "Bearer test-token-valid"
+      onFailure:
+        status: 401
+        body: responses/unauthorized.json
+
+routing:
+  unmatchedRequest:
+    status: 404
+    body: responses/not-found.json
+
+privacy:
+  capture:
+    allow:
+      - method
+      - path
+      - selectedHeaders
+      - bodyFingerprint
+      - timing
+    redactHeaders:
+      - Authorization
+      - Cookie
+      - Set-Cookie

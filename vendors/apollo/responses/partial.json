@@ -1,0 +1,8 @@
+{
+  "organization": {
+    "id": "org_test_partial",
+    "name": "Partial Example",
+    "domain": "partial.example",
+    "confidence": 0.55
+  }
+}

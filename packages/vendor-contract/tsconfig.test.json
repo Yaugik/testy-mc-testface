@@ -1,0 +1,14 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "rootDir": "."
+  },
+  "references": [
+    { "path": "../vendor-schema" },
+    { "path": "../config-loader" },
+    { "path": "../vendor-compiler" },
+    { "path": "../vendor-runtime" }
+  ],
+  "include": ["src/**/*.ts", "test/**/*.ts"]
+}

@@ -10,12 +10,21 @@
   },
   "scripts": {
     "build": "pnpm -r --if-present build",
-    "typecheck": "pnpm --filter @testy/shared-types build && pnpm -r --if-present typecheck",
+    "typecheck": "pnpm --filter @testy/shared-types build && pnpm --filter @testy/vendor-schema build && pnpm -r --if-present typecheck",
     "test": "pnpm -r --if-present test",
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "ci": "pnpm lint && pnpm typecheck && pnpm test && pnpm build"
+    "vendor:validate": "pnpm --filter @testy/vendor-schema build && pnpm --filter @testy/config-loader exec tsx src/cli.ts ../../vendors/ipinfo",
+    "vendor:compile": "pnpm --filter @testy/vendor-schema build && pnpm --filter @testy/config-loader build && pnpm --filter @testy/vendor-compiler exec tsx src/cli.ts ../../vendors/ipinfo ../../generated/vendors",
+    "vendor:runtime": "pnpm --filter @testy/vendor-schema build && pnpm --filter @testy/config-loader build && pnpm --filter @testy/vendor-compiler build && pnpm --filter @testy/vendor-runtime exec tsx src/cli.ts ../../vendors/ipinfo ../../generated/runtime",
+    "vendor:smoke": "pnpm --filter @testy/vendor-schema build && pnpm --filter @testy/config-loader build && pnpm --filter @testy/vendor-compiler build && pnpm --filter @testy/vendor-runtime exec tsx src/stateful-smoke-cli.ts ../../vendors/ipinfo ../../generated/smoke",
+    "vendor:contract:prepare": "pnpm --filter @testy/vendor-contract build",
+    "vendor:contract:ipinfo": "pnpm vendor:contract:prepare && pnpm --filter @testy/vendor-contract exec node dist/cli.js ../../vendors/ipinfo ../../generated/contracts",
+    "vendor:contract:apollo": "pnpm vendor:contract:prepare && pnpm --filter @testy/vendor-contract exec node dist/cli.js ../../vendors/apollo ../../generated/contracts",
+    "vendor:contract:hunter": "pnpm vendor:contract:prepare && pnpm --filter @testy/vendor-contract exec node dist/cli.js ../../vendors/hunter ../../generated/contracts",
+    "vendor:contracts": "pnpm vendor:contract:ipinfo && pnpm vendor:contract:apollo && pnpm vendor:contract:hunter",
+    "ci": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build"
   },
   "devDependencies": {
     "@eslint/js": "^9.0.0",

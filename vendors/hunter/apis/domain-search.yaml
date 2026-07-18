@@ -1,0 +1,103 @@
+schemaVersion: "1.0"
+operationId: domain-search
+request:
+  method: GET
+  path: /v2/domain-search
+cases:
+  - id: contacts-found
+    priority: 100
+    when:
+      query.domain: contacts.example
+    respond:
+      status: 200
+      body: responses/contacts.json
+
+  - id: no-contacts
+    priority: 100
+    when:
+      query.domain: none.example
+    respond:
+      status: 200
+      body: responses/none.json
+
+  - id: partial-contacts
+    priority: 100
+    when:
+      query.domain: partial.example
+    respond:
+      status: 200
+      body: responses/partial.json
+
+  - id: invalid-contact
+    priority: 100
+    when:
+      query.domain: invalid-contact.example
+    respond:
+      status: 200
+      body: responses/invalid.json
+
+  - id: suppressed-domain
+    priority: 100
+    when:
+      query.domain: suppressed.example
+    respond:
+      status: 200
+      body: responses/suppressed.json
+
+  - id: quota-exhausted
+    priority: 100
+    when:
+      query.domain: quota.example
+    respond:
+      status: 429
+      headers:
+        Retry-After: "60"
+      body: responses/quota.json
+
+  - id: conflicting-contacts
+    priority: 100
+    when:
+      query.domain: conflict.example
+    respond:
+      status: 200
+      body: responses/conflict.json
+
+  - id: timeout-recovery
+    priority: 100
+    when:
+      query.domain: recovery.example
+    effects:
+      stores:
+        - store: recovery
+          key: attempts
+          operation: increment
+    sequence:
+      onExhausted: repeat-last
+      steps:
+        - transport:
+            type: timeout
+            duration: 500ms
+          effects:
+            stores:
+              - store: recovery
+                key: last-outcome
+                operation: set
+                value: timeout
+        - respond:
+            status: 503
+            body: responses/unavailable.json
+          effects:
+            stores:
+              - store: recovery
+                key: last-outcome
+                operation: set
+                value: unavailable
+        - respond:
+            status: 200
+            body: responses/contacts.json
+          effects:
+            stores:
+              - store: recovery
+                key: last-outcome
+                operation: set
+                value: recovered

@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://testy-mctestface.dev/schemas/vendor/v1/system-cases.schema.json",
+  "title": "Testy McTestface vendor system cases",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "initialState", "states"],
+  "properties": {
+    "schemaVersion": { "const": "1.0" },
+    "initialState": { "$ref": "#/$defs/id" },
+    "states": {
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": { "$ref": "#/$defs/id" },
+      "additionalProperties": { "$ref": "#/$defs/state" }
+    },
+    "transitions": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/transition" }
+    }
+  },
+  "$defs": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+    },
+    "duration": {
+      "type": "string",
+      "pattern": "^[0-9]+(?:ms|s|m)$"
+    },
+    "response": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status"],
+      "properties": {
+        "status": { "type": "integer", "minimum": 100, "maximum": 599 },
+        "headers": {
+          "type": "object",
+          "additionalProperties": { "type": "string" }
+        },
+        "contentType": { "type": "string", "minLength": 1 },
+        "body": { "type": "string", "minLength": 1 },
+        "delay": { "$ref": "#/$defs/duration" }
+      }
+    },
+    "state": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "defaults": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "delay": { "$ref": "#/$defs/duration" }
+          }
+        },
+        "override": { "$ref": "#/$defs/response" }
+      }
+    },
+    "transition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["from", "to", "when"],
+      "properties": {
+        "from": { "$ref": "#/$defs/id" },
+        "to": { "$ref": "#/$defs/id" },
+        "when": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["requestCountAtLeast"],
+          "properties": {
+            "requestCountAtLeast": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,36 @@
+schemaVersion: "1.0"
+vendor:
+  id: apollo
+  displayName: Synthetic Apollo
+  contractVersion: "2026-07"
+server:
+  basePath: /apollo
+  defaultContentType: application/json
+authentication:
+  strategies:
+    - id: api-key
+      type: api-key
+      source: header
+      name: X-Api-Key
+      validValues:
+        - test-apollo-key
+      onFailure:
+        status: 401
+        body: responses/unauthorized.json
+routing:
+  unmatchedRequest:
+    status: 404
+    body: responses/not-found.json
+privacy:
+  capture:
+    allow:
+      - method
+      - path
+      - queryKeys
+      - selectedHeaders
+      - bodyFingerprint
+      - timing
+    redactHeaders:
+      - Authorization
+      - X-Api-Key
+      - Cookie
