@@ -18,7 +18,8 @@ interface CompatibilityState {
 
 /**
  * Adds browser-safe CORS handling, correct management-authentication responses,
- * and deterministic direct-traffic probes around the canonical reference SUT.
+ * an absolute tracking endpoint, and deterministic direct-traffic probes around
+ * the canonical reference SUT.
  */
 export async function startReferenceSut(
   options: ReferenceSutOptions,
@@ -122,6 +123,19 @@ async function handleOuterRequest(
     return;
   }
 
+  const tracking = /^\/test-support\/v1\/runs\/([^/]+)\/tracking\.js$/u.exec(url.pathname);
+  if (request.method === "GET" && tracking) {
+    await serveTrackingScript(
+      request,
+      response,
+      url,
+      innerOrigin,
+      publicOrigin,
+      decodeURIComponent(tracking[1] ?? ""),
+    );
+    return;
+  }
+
   await proxyToCanonicalServer(request, response, innerOrigin, isTraffic);
 }
 
@@ -210,6 +224,41 @@ async function handleCompatibilityTraffic(
   return false;
 }
 
+async function serveTrackingScript(
+  request: IncomingMessage,
+  response: ServerResponse,
+  url: URL,
+  innerOrigin: string,
+  publicOrigin: string,
+  targetRunId: string,
+): Promise<void> {
+  const upstream = await fetch(`${innerOrigin}${request.url ?? "/"}`, {
+    method: "GET",
+    headers: copyRequestHeaders(request),
+    redirect: "manual",
+  });
+  if (!upstream.ok) {
+    await relayUpstreamResponse(response, upstream, false);
+    return;
+  }
+  await upstream.arrayBuffer();
+
+  const token = url.searchParams.get("token");
+  if (!token) {
+    sendJson(response, 401, { error: "ingestion-token-missing" });
+    return;
+  }
+
+  const endpoint = `${publicOrigin}/test-support/v1/traffic/events?token=${encodeURIComponent(token)}`;
+  const eventId = `browser-${targetRunId}`;
+  response.statusCode = 200;
+  response.setHeader("content-type", "application/javascript; charset=utf-8");
+  response.setHeader("cache-control", "no-store");
+  response.end(
+    `(() => {\n  const endpoint = ${JSON.stringify(endpoint)};\n  const eventId = ${JSON.stringify(eventId)};\n  fetch(endpoint, { method: "POST", headers: { "content-type": "text/plain" }, body: JSON.stringify({ eventId, type: "page-view" }) }).catch(() => undefined);\n})();\n`,
+  );
+}
+
 async function proxyToCanonicalServer(
   request: IncomingMessage,
   response: ServerResponse,
@@ -218,25 +267,35 @@ async function proxyToCanonicalServer(
 ): Promise<void> {
   const method = request.method ?? "GET";
   const body = method === "GET" || method === "HEAD" ? undefined : await readBody(request);
-  const headers = new Headers();
-  for (const [name, value] of Object.entries(request.headers)) {
-    if (value === undefined || isHopByHopHeader(name)) continue;
-    headers.set(name, Array.isArray(value) ? value.join(", ") : value);
-  }
-
   const upstream = await fetch(`${innerOrigin}${request.url ?? "/"}`, {
     method,
-    headers,
+    headers: copyRequestHeaders(request),
     ...(body && body.byteLength > 0 ? { body } : {}),
     redirect: "manual",
   });
+  await relayUpstreamResponse(response, upstream, preserveCors);
+}
 
+async function relayUpstreamResponse(
+  response: ServerResponse,
+  upstream: Response,
+  preserveCors: boolean,
+): Promise<void> {
   response.statusCode = upstream.status;
   upstream.headers.forEach((value, name) => {
     if (!isHopByHopHeader(name)) response.setHeader(name, value);
   });
   if (preserveCors) applyCors(response);
   response.end(Buffer.from(await upstream.arrayBuffer()));
+}
+
+function copyRequestHeaders(request: IncomingMessage): Headers {
+  const headers = new Headers();
+  for (const [name, value] of Object.entries(request.headers)) {
+    if (value === undefined || isHopByHopHeader(name)) continue;
+    headers.set(name, Array.isArray(value) ? value.join(", ") : value);
+  }
+  return headers;
 }
 
 function requiresServiceAuthorization(pathname: string): boolean {
