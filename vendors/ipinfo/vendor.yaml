@@ -1,0 +1,17 @@
+schemaVersion: "1.0"
+vendor:
+  id: ipinfo
+  name: IPinfo
+basePath: /ipinfo
+authentication:
+  type: bearer
+operations:
+  - id: lookup
+    method: GET
+    path: /{ip}
+systemCasesFile: ./system-cases.yaml
+capturePolicy:
+  headers:
+    - x-testy-run-id
+  query: []
+  body: fingerprint
