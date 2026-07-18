@@ -1,0 +1,16 @@
+{
+  "ip": "203.0.113.10",
+  "hostname": "visitor.nordlicht.example",
+  "company": {
+    "name": "Nordlicht Example GmbH",
+    "domain": "nordlicht.example",
+    "type": "business"
+  },
+  "privacy": {
+    "vpn": false,
+    "proxy": false,
+    "tor": false,
+    "hosting": false
+  },
+  "confidence": "high"
+}
