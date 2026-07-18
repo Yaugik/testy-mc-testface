@@ -5,6 +5,7 @@ import {
   validateVendorPackage,
   VendorValidationError,
 } from "@testy/vendor-compiler";
+import { runImposterCapabilitySpike } from "@testy/vendor-runtime";
 
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
 
@@ -14,17 +15,28 @@ function usage(): never {
       "Usage:",
       "  testy vendor validate <vendor-id>",
       "  testy vendor compile <vendor-id>",
+      "  testy spike imposter",
     ].join("\n"),
   );
   process.exit(2);
 }
 
 async function main(): Promise<void> {
-  const [group, command, vendorId] = process.argv.slice(2);
-  if (group !== "vendor" || vendorId === undefined) {
+  const [group, command, argument] = process.argv.slice(2);
+
+  if (group === "spike" && command === "imposter" && argument === undefined) {
+    const result = await runImposterCapabilitySpike(
+      resolve(repositoryRoot, "infrastructure", "imposter", "spike"),
+    );
+    console.log(JSON.stringify(result, null, 2));
+    return;
+  }
+
+  if (group !== "vendor" || argument === undefined) {
     usage();
   }
 
+  const vendorId = argument;
   const vendorDirectory = resolve(repositoryRoot, "vendors", vendorId);
 
   if (command === "validate") {
