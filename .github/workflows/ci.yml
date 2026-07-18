@@ -22,7 +22,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 24
-          cache: pnpm
 
       - name: Enable pnpm
         run: |
@@ -59,7 +58,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 24
-          cache: pnpm
 
       - name: Enable pnpm
         run: |
@@ -71,6 +69,12 @@ jobs:
 
       - name: Build workspace
         run: pnpm build
+
+      - name: Pull and record Imposter image digest
+        run: |
+          docker pull outofcoffee/imposter:4.9.2
+          digest="$(docker image inspect outofcoffee/imposter:4.9.2 --format '{{index .RepoDigests 0}}')"
+          echo "Imposter image: $digest" | tee -a "$GITHUB_STEP_SUMMARY"
 
       - name: Run Imposter container contract
         env:
