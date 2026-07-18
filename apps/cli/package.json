@@ -9,7 +9,8 @@
     "start": "tsx src/index.ts"
   },
   "dependencies": {
-    "@testy/vendor-compiler": "workspace:*"
+    "@testy/vendor-compiler": "workspace:*",
+    "@testy/vendor-runtime": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",
