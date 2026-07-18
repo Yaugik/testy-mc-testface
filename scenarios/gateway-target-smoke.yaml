@@ -1,0 +1,60 @@
+schemaVersion: "1.0"
+scenario:
+  id: gateway-target-smoke
+  displayName: Run-scoped gateway and GL-EYE adapter smoke
+
+target: gl-eye
+timeoutMs: 120000
+
+phases:
+  allocate:
+    - id: create-gateway-route
+      kind: task
+      action: gateway.create-route
+      input:
+        targetOrigin: http://127.0.0.1:8080
+        syntheticIp: 198.51.100.10
+        ttlMs: 900000
+    - id: prepare-target
+      kind: task
+      action: target.prepare-run
+
+  configure:
+    - id: configure-vendors
+      kind: task
+      action: target.configure-vendors
+      input:
+        endpoints:
+          ipinfo: http://run.vendor.test/ipinfo
+          apollo: http://run.vendor.test/apollo
+          hunter: http://run.vendor.test/hunter
+    - id: configure-site
+      kind: task
+      action: target.configure-site
+      input:
+        hostname: customer-alpha.example.test
+
+  run:
+    - id: traffic-placeholder
+      kind: task
+      action: noop
+
+  observe:
+    - id: start-observation
+      kind: task
+      action: target.start-observation
+    - id: wait-for-target
+      kind: task
+      action: target.wait-for-completion
+      input:
+        timeoutMs: 60000
+        pollIntervalMs: 2000
+        expectedState: completed
+
+  assert:
+    - id: collect-outcome
+      kind: task
+      action: target.collect-outcome
+    - id: collect-gateway-ledger
+      kind: task
+      action: gateway.collect-ledger
