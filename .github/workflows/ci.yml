@@ -1,0 +1,108 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Enable pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.13.1 --activate
+
+      - name: Install dependencies
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Lint, typecheck, test, and build
+        run: pnpm ci
+
+      - name: Validate IPinfo vendor package
+        run: pnpm testy vendor validate ipinfo
+
+      - name: Scan synthetic fixtures
+        run: node infrastructure/ci/scan-fixtures.mjs
+
+      - name: Validate Docker Compose
+        run: docker compose config
+
+      - name: Build control-plane image
+        run: docker build --tag testy-control-plane:ci .
+
+  imposter-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Enable pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.13.1 --activate
+
+      - name: Install dependencies
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Build workspace
+        run: pnpm build
+
+      - name: Pull and record Imposter image digest
+        run: |
+          docker pull outofcoffee/imposter:4.9.2
+          digest="$(docker image inspect outofcoffee/imposter:4.9.2 --format '{{index .RepoDigests 0}}')"
+          echo "Imposter image: $digest" | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Run Imposter container contract
+        env:
+          RUN_IMPOSTER_SPIKE: "1"
+        run: pnpm --filter @testy/vendor-runtime test
+
+      - name: Confirm no orphaned Imposter containers
+        if: always()
+        run: |
+          orphaned="$(docker ps -a --filter 'name=testy-imposter-' --format '{{.Names}}')"
+          if [ -n "$orphaned" ]; then
+            echo "Orphaned containers detected:"
+            echo "$orphaned"
+            docker rm --force $orphaned
+            exit 1
+          fi
+
+  secret-scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Scan for secrets
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
