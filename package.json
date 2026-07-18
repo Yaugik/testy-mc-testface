@@ -12,6 +12,7 @@
     "build": "pnpm -r --if-present build",
     "typecheck": "pnpm --filter @testy/shared-types build && pnpm -r --if-present typecheck",
     "test": "pnpm -r --if-present test",
+    "testy": "pnpm --filter @testy/cli start --",
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
