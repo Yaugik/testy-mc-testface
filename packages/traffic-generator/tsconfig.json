@@ -1,0 +1,25 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "dist",
+    "composite": true
+  },
+  "references": [
+    {
+      "path": "../shared-types"
+    },
+    {
+      "path": "../privacy-validation"
+    },
+    {
+      "path": "../scenario-engine"
+    },
+    {
+      "path": "../traffic-gateway"
+    }
+  ],
+  "include": [
+    "src/**/*.ts"
+  ]
+}

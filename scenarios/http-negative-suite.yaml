@@ -1,0 +1,191 @@
+schemaVersion: "1.0"
+scenario:
+  id: http-negative-suite
+  displayName: Direct HTTP malformed, duplicate, retry, and bounded-load suite
+
+target: gl-eye
+timeoutMs: 300000
+
+variables:
+  targetOrigin: http://127.0.0.1:8080
+  syntheticIp: 203.0.113.75
+
+assertions:
+  - id: all-traffic-requests-met-expectations
+    type: observation-count
+    observationType: traffic-request-summary
+    status: passed
+    equals: 14
+  - id: both-traffic-batches-met-expectations
+    type: observation-count
+    observationType: traffic-batch-summary
+    status: passed
+    equals: 2
+  - id: bounded-burst-request-count
+    type: observation
+    observationType: traffic-batch-summary
+    path: requestCount
+    operator: equals
+    expected: 6
+  - id: bounded-burst-concurrency
+    type: observation
+    observationType: traffic-batch-summary
+    path: concurrency
+    operator: equals
+    expected: 2
+  - id: bounded-burst-did-not-time-out
+    type: observation
+    observationType: traffic-batch-summary
+    path: timedOut
+    operator: equals
+    expected: false
+  - id: transient-retry-used-three-attempts
+    type: observation
+    observationType: traffic-request-summary
+    path: attemptCount
+    operator: equals
+    expected: 3
+  - id: no-unexpected-external-calls
+    type: no-unexpected-external-calls
+
+phases:
+  allocate:
+    - id: create-gateway-route
+      kind: task
+      action: gateway.create-route
+      input:
+        targetOrigin: "{{targetOrigin}}"
+        syntheticIp: "{{syntheticIp}}"
+        ttlMs: 600000
+
+  run:
+    - id: malformed-json
+      kind: task
+      action: traffic.send
+      input:
+        id: malformed-json
+        path: /test-support/v1/traffic/malformed-json
+        method: POST
+        body:
+          kind: malformed-json
+          value: '{"company":"Nordlicht Example GmbH"'
+        expect:
+          statusCodes: [400, 422]
+
+    - id: malformed-form
+      kind: task
+      action: traffic.send
+      input:
+        id: malformed-form
+        path: /test-support/v1/traffic/malformed-form
+        method: POST
+        body:
+          kind: raw
+          contentType: application/x-www-form-urlencoded
+          value: company=%E0%A4%A&consent=unknown
+        expect:
+          statusCodes: [400, 422]
+
+    - id: spoofed-attribution
+      kind: task
+      action: traffic.send
+      input:
+        id: spoofed-attribution
+        path: /test-support/v1/traffic/attribution
+        method: POST
+        headers:
+          x-forwarded-for: 192.0.2.250
+          x-real-ip: 192.0.2.251
+        body:
+          kind: json
+          value:
+            eventId: synthetic-attribution-event
+        expect:
+          statusCodes: [202, 204]
+
+    - id: client-disconnect
+      kind: task
+      action: traffic.send
+      input:
+        id: client-disconnect
+        path: /test-support/v1/traffic/slow
+        method: POST
+        abortAfterMs: 50
+        body:
+          kind: json
+          value:
+            eventId: synthetic-client-disconnect
+        expect:
+          networkFailure: true
+
+    - id: duplicate-idempotency
+      kind: task
+      action: traffic.repeat
+      input:
+        batchId: duplicate-idempotency
+        count: 3
+        concurrency: 3
+        request:
+          id: duplicate-event
+          path: /test-support/v1/traffic/idempotent
+          method: POST
+          idempotencyKey: synthetic-idempotency-key-001
+          body:
+            kind: json
+            value:
+              eventId: synthetic-duplicate-event
+          expect:
+            statusCodes: [202, 204, 409]
+
+    - id: bounded-burst
+      kind: task
+      action: traffic.burst
+      input:
+        batchId: bounded-burst
+        concurrency: 2
+        maxTotalDurationMs: 30000
+        requests:
+          - id: burst-1
+            path: /test-support/v1/traffic/burst?ordinal=1
+            expect: { statusCodes: [202, 204] }
+          - id: burst-2
+            path: /test-support/v1/traffic/burst?ordinal=2
+            expect: { statusCodes: [202, 204] }
+          - id: burst-3
+            path: /test-support/v1/traffic/burst?ordinal=3
+            expect: { statusCodes: [202, 204] }
+          - id: burst-4
+            path: /test-support/v1/traffic/burst?ordinal=4
+            expect: { statusCodes: [202, 204] }
+          - id: burst-5
+            path: /test-support/v1/traffic/burst?ordinal=5
+            expect: { statusCodes: [202, 204] }
+          - id: burst-6
+            path: /test-support/v1/traffic/burst?ordinal=6
+            expect: { statusCodes: [202, 204] }
+
+    - id: transient-retry
+      kind: task
+      action: traffic.send
+      input:
+        id: transient-retry
+        path: /test-support/v1/traffic/retry
+        method: POST
+        body:
+          kind: json
+          value:
+            eventId: synthetic-retry-event
+        retry:
+          attempts: 3
+          delayMs: 100
+          backoffFactor: 2
+          retryOnStatuses: [502, 503, 504]
+          retryOnNetworkError: true
+        expect:
+          statusCodes: [202, 204]
+          attemptCount: 3
+
+  observe:
+    - id: collect-gateway-ledger
+      kind: task
+      action: gateway.collect-ledger

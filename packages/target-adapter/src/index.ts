@@ -2,6 +2,7 @@ export { FakeTargetAdapter } from "./fake.js";
 export {
   adapterRunContext,
   createGatewayTargetResourceCleaners,
+  createGatewayTargetScenarioActionBundle,
   createGatewayTargetScenarioActions,
   mergeScenarioActionRegistries,
 } from "./scenario-actions.js";
@@ -17,4 +18,7 @@ export type {
   TargetOutcome,
   VendorEndpoints,
 } from "./types.js";
-export type { GatewayTargetScenarioActionsOptions } from "./scenario-actions.js";
+export type {
+  GatewayTargetScenarioActionBundle,
+  GatewayTargetScenarioActionsOptions,
+} from "./scenario-actions.js";
