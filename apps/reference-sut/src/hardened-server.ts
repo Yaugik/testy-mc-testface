@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { createHash, timingSafeEqual } from "node:crypto";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 
 import {
@@ -10,33 +10,45 @@ import {
 export type { ReferenceSutBinding, ReferenceSutOptions } from "./server.js";
 
 const MAX_BODY_BYTES = 256 * 1024;
-const idempotencyKeys = new Set<string>();
-const retryAttempts = new Map<string, number>();
+
+interface CompatibilityState {
+  readonly idempotencyKeys: Set<string>;
+  readonly retryAttempts: Map<string, number>;
+}
 
 /**
- * Adds browser-safe CORS handling and deterministic direct-traffic probes around
- * the canonical reference SUT without replacing its target-contract behavior.
+ * Adds browser-safe CORS handling, correct management-authentication responses,
+ * and deterministic direct-traffic probes around the canonical reference SUT.
  */
 export async function startReferenceSut(
   options: ReferenceSutOptions,
 ): Promise<ReferenceSutBinding> {
   const host = options.host ?? "127.0.0.1";
+  const state: CompatibilityState = {
+    idempotencyKeys: new Set(),
+    retryAttempts: new Map(),
+  };
   let innerOrigin: string | undefined;
   let publicOrigin = options.publicOrigin;
 
   const outer = createServer((request, response) => {
-    void handleOuterRequest(request, response, () => innerOrigin, () => publicOrigin).catch(
-      (error) => {
-        if (response.headersSent) {
-          response.destroy(error instanceof Error ? error : undefined);
-          return;
-        }
-        sendJson(response, 500, {
-          error: "reference-sut-proxy-error",
-          errorFingerprint: fingerprint(error instanceof Error ? error.message : String(error)),
-        });
-      },
-    );
+    void handleOuterRequest(
+      request,
+      response,
+      options.serviceToken,
+      state,
+      () => innerOrigin,
+      () => publicOrigin,
+    ).catch((error) => {
+      if (response.headersSent) {
+        response.destroy(error instanceof Error ? error : undefined);
+        return;
+      }
+      sendJson(response, 500, {
+        error: "reference-sut-proxy-error",
+        errorFingerprint: fingerprint(error instanceof Error ? error.message : String(error)),
+      });
+    });
   });
 
   await listen(outer, options.port ?? 0, host);
@@ -67,8 +79,8 @@ export async function startReferenceSut(
     origin: publicOrigin,
     port: address.port,
     stop: async () => {
-      idempotencyKeys.clear();
-      retryAttempts.clear();
+      state.idempotencyKeys.clear();
+      state.retryAttempts.clear();
       await close(outer);
       await base.stop();
     },
@@ -78,12 +90,20 @@ export async function startReferenceSut(
 async function handleOuterRequest(
   request: IncomingMessage,
   response: ServerResponse,
+  serviceToken: string,
+  state: CompatibilityState,
   getInnerOrigin: () => string | undefined,
   getPublicOrigin: () => string | undefined,
 ): Promise<void> {
   const publicOrigin = getPublicOrigin() ?? "http://reference-sut.invalid";
   const url = new URL(request.url ?? "/", publicOrigin);
   const isTraffic = url.pathname.startsWith("/test-support/v1/traffic/");
+
+  if (requiresServiceAuthorization(url.pathname) && !authorized(request, serviceToken)) {
+    response.setHeader("www-authenticate", "Bearer");
+    sendJson(response, 401, { error: "unauthorized" });
+    return;
+  }
 
   if (isTraffic) {
     applyCors(response);
@@ -93,7 +113,7 @@ async function handleOuterRequest(
       return;
     }
 
-    if (await handleCompatibilityTraffic(request, response, url)) return;
+    if (await handleCompatibilityTraffic(request, response, url, state)) return;
   }
 
   const innerOrigin = getInnerOrigin();
@@ -109,6 +129,7 @@ async function handleCompatibilityTraffic(
   request: IncomingMessage,
   response: ServerResponse,
   url: URL,
+  state: CompatibilityState,
 ): Promise<boolean> {
   const match = /^\/test-support\/v1\/traffic\/([^/]+)$/u.exec(url.pathname);
   const operation = match?.[1];
@@ -163,11 +184,11 @@ async function handleCompatibilityTraffic(
     const text = await readText(request);
     const eventId = readEventId(text);
     const key = header(request, "idempotency-key") ?? eventId ?? fingerprint(text);
-    if (idempotencyKeys.has(key)) {
+    if (state.idempotencyKeys.has(key)) {
       sendJson(response, 409, { error: "duplicate-event" });
       return true;
     }
-    idempotencyKeys.add(key);
+    state.idempotencyKeys.add(key);
     sendJson(response, 202, { accepted: true, duplicate: false });
     return true;
   }
@@ -175,13 +196,13 @@ async function handleCompatibilityTraffic(
   if (operation === "retry") {
     const text = await readText(request);
     const key = header(request, "idempotency-key") ?? readEventId(text) ?? fingerprint(text);
-    const attempt = (retryAttempts.get(key) ?? 0) + 1;
+    const attempt = (state.retryAttempts.get(key) ?? 0) + 1;
     if (attempt < 3) {
-      retryAttempts.set(key, attempt);
+      state.retryAttempts.set(key, attempt);
       sendJson(response, 503, { error: "transient-unavailable", attempt });
       return true;
     }
-    retryAttempts.delete(key);
+    state.retryAttempts.delete(key);
     sendJson(response, 202, { accepted: true, attempt });
     return true;
   }
@@ -216,6 +237,20 @@ async function proxyToCanonicalServer(
   });
   if (preserveCors) applyCors(response);
   response.end(Buffer.from(await upstream.arrayBuffer()));
+}
+
+function requiresServiceAuthorization(pathname: string): boolean {
+  if (pathname === "/test-support/v1/capabilities") return true;
+  if (pathname === "/test-support/v1/runs") return true;
+  if (!pathname.startsWith("/test-support/v1/runs/")) return false;
+  return !/\/tracking\.js$/u.test(pathname);
+}
+
+function authorized(request: IncomingMessage, expected: string): boolean {
+  const supplied = header(request, "authorization")?.replace(/^Bearer\s+/iu, "") ?? "";
+  const left = Buffer.from(expected);
+  const right = Buffer.from(supplied);
+  return left.length === right.length && timingSafeEqual(left, right);
 }
 
 function applyCors(response: ServerResponse): void {
