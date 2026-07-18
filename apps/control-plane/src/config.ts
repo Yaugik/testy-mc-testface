@@ -33,6 +33,7 @@ export interface ControlPlaneConfig {
   readonly browserHeadless: boolean;
   readonly maintenance: MaintenanceConfig;
   readonly runtimeImage?: string;
+  readonly runtimeNetworkName?: string;
   readonly targetIntegration?: TargetIntegrationConfig;
 }
 
@@ -55,6 +56,7 @@ export function loadConfig(
 ): ControlPlaneConfig {
   const targetIntegration = loadTargetIntegration(environment);
   const runtimeImage = nonEmpty(environment.TESTY_IMPOSTER_IMAGE);
+  const runtimeNetworkName = nonEmpty(environment.TESTY_DOCKER_NETWORK);
   return {
     host: environment.CONTROL_PLANE_HOST ?? "0.0.0.0",
     port: parsePort(environment.CONTROL_PLANE_PORT),
@@ -68,6 +70,7 @@ export function loadConfig(
     browserHeadless: parseBoolean(environment.TESTY_HEADLESS, true),
     maintenance: loadMaintenance(environment),
     ...(runtimeImage ? { runtimeImage } : {}),
+    ...(runtimeNetworkName ? { runtimeNetworkName } : {}),
     ...(targetIntegration ? { targetIntegration } : {}),
   };
 }
@@ -149,19 +152,13 @@ function loadTargetIntegration(
 
 function parseTargetAdapter(value: string | undefined): TargetAdapterKind {
   const normalized = nonEmpty(value) ?? "gl-eye";
-  if (normalized === "gl-eye" || normalized === "reference-sut") {
-    return normalized;
-  }
+  if (normalized === "gl-eye" || normalized === "reference-sut") return normalized;
   throw new Error("TESTY_TARGET_ADAPTER must be gl-eye or reference-sut.");
 }
 
 function parseBrowser(value: string | undefined): ConfiguredBrowser {
   const normalized = nonEmpty(value) ?? "chromium";
-  if (
-    normalized === "chromium" ||
-    normalized === "firefox" ||
-    normalized === "webkit"
-  ) {
+  if (normalized === "chromium" || normalized === "firefox" || normalized === "webkit") {
     return normalized;
   }
   throw new Error("TESTY_BROWSER must be chromium, firefox, or webkit.");
@@ -185,9 +182,7 @@ function parseInteger(
   if (value === undefined) return fallback;
   const parsed = Number(value);
   if (!Number.isInteger(parsed) || parsed < minimum || parsed > maximum) {
-    throw new Error(
-      `${name} must be an integer between ${minimum} and ${maximum}.`,
-    );
+    throw new Error(`${name} must be an integer between ${minimum} and ${maximum}.`);
   }
   return parsed;
 }
@@ -198,8 +193,5 @@ function nonEmpty(value: string | undefined): string | undefined {
 }
 
 function splitCsv(value: string): readonly string[] {
-  return value
-    .split(",")
-    .map((item) => item.trim())
-    .filter(Boolean);
+  return value.split(",").map((item) => item.trim()).filter(Boolean);
 }

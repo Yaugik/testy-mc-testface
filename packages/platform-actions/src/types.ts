@@ -27,6 +27,7 @@ export interface PlatformActionOptions {
   readonly generatedRoot: string;
   readonly evidence: ScenarioRunRepository;
   readonly runtimeImage?: string;
+  readonly runtimeNetworkName?: string;
   readonly browser?: BrowserName;
   readonly headless?: boolean;
   readonly containerEngine?: ContainerEngine;

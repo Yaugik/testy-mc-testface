@@ -10,6 +10,7 @@ describe("platform execution configuration", () => {
     expect(config.generatedRunsDirectory).toBe("generated/runs");
     expect(config.browser).toBe("chromium");
     expect(config.browserHeadless).toBe(true);
+    expect(config.runtimeNetworkName).toBeUndefined();
     expect(config.maintenance).toMatchObject({
       intervalMs: 60_000,
       batchSize: 100,
@@ -26,6 +27,7 @@ describe("platform execution configuration", () => {
       TESTY_BROWSER: "firefox",
       TESTY_HEADLESS: "false",
       TESTY_IMPOSTER_IMAGE: "registry.example.test/imposter@sha256:abc",
+      TESTY_DOCKER_NETWORK: "testy-platform",
       TESTY_MAINTENANCE_INTERVAL_MS: "0",
       TESTY_MAINTENANCE_BATCH_SIZE: "25",
       TESTY_MAINTENANCE_CLAIM_TTL_MS: "120000",
@@ -35,6 +37,7 @@ describe("platform execution configuration", () => {
     expect(config.browser).toBe("firefox");
     expect(config.browserHeadless).toBe(false);
     expect(config.runtimeImage).toContain("@sha256:");
+    expect(config.runtimeNetworkName).toBe("testy-platform");
     expect(config.maintenance).toMatchObject({
       intervalMs: 0,
       batchSize: 25,

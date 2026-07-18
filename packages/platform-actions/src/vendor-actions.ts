@@ -86,6 +86,9 @@ export function createVendorActions(
         vendor.runtime = await dependencies.startVendorRuntime(vendor.bundle, {
           signal: context.signal,
           containerName: `testy-${safeSegment(context.runId as string)}-${safeSegment(vendorId)}`,
+          ...(options.runtimeNetworkName
+            ? { networkName: options.runtimeNetworkName }
+            : {}),
         });
       }
       const runtime = vendor.runtime;

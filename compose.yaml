@@ -14,6 +14,8 @@ services:
       retries: 10
     volumes:
       - testy-postgres-data:/var/lib/postgresql/data
+    networks:
+      - testy-platform
 
   reference-sut:
     build:
@@ -23,7 +25,7 @@ services:
     environment:
       REFERENCE_SUT_HOST: 0.0.0.0
       REFERENCE_SUT_PORT: 8080
-      REFERENCE_SUT_PUBLIC_ORIGIN: ${REFERENCE_SUT_PUBLIC_ORIGIN:-http://reference-sut:8080}
+      REFERENCE_SUT_PUBLIC_ORIGIN: http://reference-sut:8080
       REFERENCE_SUT_ENVIRONMENT: local
       REFERENCE_SUT_SERVICE_TOKEN: ${REFERENCE_SUT_SERVICE_TOKEN:-reference-sut-service-token-local}
     ports:
@@ -39,6 +41,8 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+    networks:
+      - testy-platform
 
   traffic-gateway:
     build:
@@ -49,7 +53,7 @@ services:
       TESTY_GATEWAY_HOST: 0.0.0.0
       TESTY_GATEWAY_PORT: 3100
       TESTY_GATEWAY_ADMIN_TOKEN: ${TESTY_GATEWAY_ADMIN_TOKEN:-test-gateway-admin-token-local}
-      TESTY_GATEWAY_ALLOWED_TARGET_ORIGINS: ${TESTY_GATEWAY_ALLOWED_TARGET_ORIGINS:-http://reference-sut:8080}
+      TESTY_GATEWAY_ALLOWED_TARGET_ORIGINS: http://reference-sut:8080
       TESTY_GATEWAY_BLOCKED_PROVIDER_HOSTS: ${TESTY_GATEWAY_BLOCKED_PROVIDER_HOSTS:-}
     ports:
       - "3100:3100"
@@ -64,6 +68,8 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+    networks:
+      - testy-platform
 
   control-plane:
     build:
@@ -77,8 +83,9 @@ services:
       SCENARIOS_DIR: scenarios
       VENDOR_PACKAGES_DIR: vendors
       BROWSER_PACKAGES_DIR: customers
-      GENERATED_RUNS_DIR: generated/runs
+      GENERATED_RUNS_DIR: ${TESTY_GENERATED_HOST_ROOT:-/tmp/testy-generated}/runs
       TESTY_IMPOSTER_IMAGE: ${TESTY_IMPOSTER_IMAGE:-outofcoffee/imposter:5}
+      TESTY_DOCKER_NETWORK: testy-platform
       TESTY_BROWSER: ${TESTY_BROWSER:-chromium}
       TESTY_HEADLESS: ${TESTY_HEADLESS:-true}
       TESTY_MAINTENANCE_INTERVAL_MS: ${TESTY_MAINTENANCE_INTERVAL_MS:-60000}
@@ -86,15 +93,18 @@ services:
       TESTY_MAINTENANCE_CLAIM_TTL_MS: ${TESTY_MAINTENANCE_CLAIM_TTL_MS:-300000}
       TESTY_ARTIFACT_RETENTION_MS: ${TESTY_ARTIFACT_RETENTION_MS:-604800000}
       TESTY_MAINTENANCE_ADMIN_TOKEN: ${TESTY_MAINTENANCE_ADMIN_TOKEN:-}
-      TESTY_TARGET_ADAPTER: ${TESTY_TARGET_ADAPTER:-reference-sut}
-      TESTY_GATEWAY_ADMIN_URL: ${TESTY_GATEWAY_ADMIN_URL:-http://traffic-gateway:3100}
+      TESTY_TARGET_ADAPTER: reference-sut
+      TESTY_GATEWAY_ADMIN_URL: http://traffic-gateway:3100
       TESTY_GATEWAY_ADMIN_TOKEN: ${TESTY_CONTROL_GATEWAY_ADMIN_TOKEN:-test-gateway-admin-token-local}
-      GL_EYE_BASE_URL: ${GL_EYE_BASE_URL:-http://reference-sut:8080}
-      GL_EYE_ENVIRONMENT: ${GL_EYE_ENVIRONMENT:-local}
+      GL_EYE_BASE_URL: http://reference-sut:8080
+      GL_EYE_ENVIRONMENT: local
       GL_EYE_TEST_SUPPORT_TOKEN: ${GL_EYE_TEST_SUPPORT_TOKEN:-reference-sut-service-token-local}
-      GL_EYE_ALLOWED_ORIGINS: ${GL_EYE_ALLOWED_ORIGINS:-http://reference-sut:8080}
+      GL_EYE_ALLOWED_ORIGINS: http://reference-sut:8080
     ports:
       - "3000:3000"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ${TESTY_GENERATED_HOST_ROOT:-/tmp/testy-generated}:${TESTY_GENERATED_HOST_ROOT:-/tmp/testy-generated}
     depends_on:
       postgres:
         condition: service_healthy
@@ -113,6 +123,13 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+    networks:
+      - testy-platform
 
 volumes:
   testy-postgres-data:
+
+networks:
+  testy-platform:
+    name: testy-platform
+    internal: true
