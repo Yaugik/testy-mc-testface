@@ -1,25 +1,46 @@
 import type { AssertionResult } from "@testy/assertion-engine";
 import type { Pool } from "pg";
 import type { RunId } from "@testy/shared-types";
-import type { PersistedArtifact, PersistedProviderCall, ScenarioValue } from "@testy/scenario-engine";
+import type {
+  PersistedArtifact,
+  PersistedProviderCall,
+  ScenarioValue,
+} from "@testy/scenario-engine";
+
+import type { MaintenanceClaimOptions } from "./maintenance.js";
 
 interface ArtifactRow {
-  readonly id: string; readonly run_id: string; readonly kind: string;
-  readonly media_type: string; readonly location: string; readonly sha256: string;
-  readonly metadata: Readonly<Record<string, ScenarioValue>>; readonly created_at: Date;
+  readonly id: string;
+  readonly run_id: string;
+  readonly kind: string;
+  readonly media_type: string;
+  readonly location: string;
+  readonly sha256: string;
+  readonly metadata: Readonly<Record<string, ScenarioValue>>;
+  readonly created_at: Date;
 }
 interface AssertionRow {
-  readonly run_id: string; readonly assertion_id: string;
-  readonly assertion_type: AssertionResult["type"]; readonly severity: AssertionResult["severity"];
-  readonly passed: boolean; readonly expected: ScenarioValue | null;
-  readonly actual: ScenarioValue | null; readonly message: string;
-  readonly metadata: Readonly<Record<string, ScenarioValue>>; readonly asserted_at: Date;
+  readonly run_id: string;
+  readonly assertion_id: string;
+  readonly assertion_type: AssertionResult["type"];
+  readonly severity: AssertionResult["severity"];
+  readonly passed: boolean;
+  readonly expected: ScenarioValue | null;
+  readonly actual: ScenarioValue | null;
+  readonly message: string;
+  readonly metadata: Readonly<Record<string, ScenarioValue>>;
+  readonly asserted_at: Date;
 }
 interface ProviderCallRow {
-  readonly run_id: string; readonly vendor_id: string; readonly operation_id: string | null;
-  readonly case_id: string | null; readonly correlation_id: string | null;
-  readonly sequence_index: number | null; readonly status_code: number | null;
-  readonly duration_ms: number | null; readonly metadata: Readonly<Record<string, ScenarioValue>>;
+  readonly run_id: string;
+  readonly vendor_id: string;
+  readonly operation_id: string | null;
+  readonly case_id: string | null;
+  readonly correlation_id: string | null;
+  readonly sequence_index: number | null;
+  readonly status_code: number | null;
+  readonly duration_ms: number | null;
+  readonly metadata: Readonly<Record<string, ScenarioValue>>;
   readonly occurred_at: Date;
 }
 
@@ -30,19 +51,77 @@ export class PostgresRunEvidenceStore {
     await this.pool.query(
       `INSERT INTO artifacts (id,run_id,kind,media_type,location,sha256,metadata,created_at)
        VALUES ($1,$2,$3,$4,$5,$6,$7::JSONB,$8) ON CONFLICT (id) DO NOTHING`,
-      [artifact.artifactId, artifact.runId, artifact.kind, artifact.mediaType,
-       artifact.location, artifact.sha256, JSON.stringify(artifact.metadata), artifact.createdAt]);
+      [
+        artifact.artifactId,
+        artifact.runId,
+        artifact.kind,
+        artifact.mediaType,
+        artifact.location,
+        artifact.sha256,
+        JSON.stringify(artifact.metadata),
+        artifact.createdAt,
+      ],
+    );
   }
 
   public async listArtifacts(runId: RunId): Promise<readonly PersistedArtifact[]> {
     const result = await this.pool.query<ArtifactRow>(
       `SELECT id,run_id,kind,media_type,location,sha256,metadata,created_at
-       FROM artifacts WHERE run_id=$1 ORDER BY created_at ASC,id ASC`, [runId]);
-    return result.rows.map((row) => ({
-      artifactId: row.id, runId: row.run_id as RunId, kind: row.kind,
-      mediaType: row.media_type, location: row.location, sha256: row.sha256.trim(),
-      metadata: row.metadata, createdAt: row.created_at.toISOString(),
-    }));
+       FROM artifacts WHERE run_id=$1 ORDER BY created_at ASC,id ASC`,
+      [runId],
+    );
+    return result.rows.map(mapArtifact);
+  }
+
+  public async claimExpiredArtifacts(
+    options: MaintenanceClaimOptions,
+  ): Promise<readonly PersistedArtifact[]> {
+    const result = await this.pool.query<ArtifactRow>(
+      `WITH candidates AS (
+         SELECT artifacts.id
+         FROM artifacts
+         INNER JOIN test_runs ON test_runs.id = artifacts.run_id
+         WHERE artifacts.created_at <= $1
+           AND test_runs.status IN ('PASSED', 'FAILED', 'CANCELLED')
+           AND (
+             artifacts.retention_claimed_until IS NULL OR
+             artifacts.retention_claimed_until <= NOW()
+           )
+         ORDER BY artifacts.created_at ASC, artifacts.id ASC
+         FOR UPDATE OF artifacts SKIP LOCKED
+         LIMIT $2
+       )
+       UPDATE artifacts
+       SET retention_claimed_until = $3,
+           deletion_attempts = deletion_attempts + 1,
+           last_deletion_attempt_at = NOW()
+       FROM candidates
+       WHERE artifacts.id = candidates.id
+       RETURNING artifacts.id, artifacts.run_id, artifacts.kind,
+                 artifacts.media_type, artifacts.location, artifacts.sha256,
+                 artifacts.metadata, artifacts.created_at`,
+      [options.before, options.limit, options.claimUntil],
+    );
+    return result.rows.map(mapArtifact);
+  }
+
+  public async recordArtifactDeletionFailure(
+    artifactId: string,
+    attemptedAt: string,
+    errorFingerprint: string,
+  ): Promise<void> {
+    await this.pool.query(
+      `UPDATE artifacts
+       SET retention_claimed_until = NULL,
+           last_deletion_attempt_at = $2,
+           last_deletion_error_fingerprint = $3
+       WHERE id = $1`,
+      [artifactId, attemptedAt, errorFingerprint],
+    );
+  }
+
+  public async deleteArtifactRecord(artifactId: string): Promise<void> {
+    await this.pool.query("DELETE FROM artifacts WHERE id = $1", [artifactId]);
   }
 
   public async recordAssertionResult(result: AssertionResult): Promise<void> {
@@ -54,21 +133,39 @@ export class PostgresRunEvidenceStore {
         assertion_type=EXCLUDED.assertion_type,severity=EXCLUDED.severity,
         passed=EXCLUDED.passed,expected=EXCLUDED.expected,actual=EXCLUDED.actual,
         message=EXCLUDED.message,metadata=EXCLUDED.metadata,asserted_at=EXCLUDED.asserted_at`,
-      [result.runId,result.assertionId,result.type,result.severity,result.passed,
-       result.expected===undefined?null:JSON.stringify(result.expected),
-       result.actual===undefined?null:JSON.stringify(result.actual),result.message,
-       JSON.stringify(result.metadata),result.assertedAt]);
+      [
+        result.runId,
+        result.assertionId,
+        result.type,
+        result.severity,
+        result.passed,
+        result.expected === undefined ? null : JSON.stringify(result.expected),
+        result.actual === undefined ? null : JSON.stringify(result.actual),
+        result.message,
+        JSON.stringify(result.metadata),
+        result.assertedAt,
+      ],
+    );
   }
 
-  public async listAssertionResults(runId: RunId): Promise<readonly AssertionResult[]> {
+  public async listAssertionResults(
+    runId: RunId,
+  ): Promise<readonly AssertionResult[]> {
     const result = await this.pool.query<AssertionRow>(
       `SELECT run_id,assertion_id,assertion_type,severity,passed,expected,actual,message,metadata,asserted_at
-       FROM assertion_results WHERE run_id=$1 ORDER BY asserted_at ASC,assertion_id ASC`, [runId]);
+       FROM assertion_results WHERE run_id=$1 ORDER BY asserted_at ASC,assertion_id ASC`,
+      [runId],
+    );
     return result.rows.map((row) => ({
-      runId: row.run_id as RunId, assertionId: row.assertion_id, type: row.assertion_type,
-      severity: row.severity, passed: row.passed, message: row.message,
-      ...(row.expected===null?{}:{expected:row.expected}),
-      ...(row.actual===null?{}:{actual:row.actual}), metadata: row.metadata,
+      runId: row.run_id as RunId,
+      assertionId: row.assertion_id,
+      type: row.assertion_type,
+      severity: row.severity,
+      passed: row.passed,
+      message: row.message,
+      ...(row.expected === null ? {} : { expected: row.expected }),
+      ...(row.actual === null ? {} : { actual: row.actual }),
+      metadata: row.metadata,
       assertedAt: row.asserted_at.toISOString(),
     }));
   }
@@ -78,24 +175,53 @@ export class PostgresRunEvidenceStore {
       `INSERT INTO provider_calls (
         run_id,vendor_id,operation_id,case_id,correlation_id,sequence_index,status_code,duration_ms,metadata,occurred_at
        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9::JSONB,$10)`,
-      [record.runId,record.vendorId,record.operationId??null,record.caseId??null,
-       record.correlationId??null,record.sequenceIndex??null,record.statusCode??null,
-       record.durationMs??null,JSON.stringify(record.metadata),record.occurredAt]);
+      [
+        record.runId,
+        record.vendorId,
+        record.operationId ?? null,
+        record.caseId ?? null,
+        record.correlationId ?? null,
+        record.sequenceIndex ?? null,
+        record.statusCode ?? null,
+        record.durationMs ?? null,
+        JSON.stringify(record.metadata),
+        record.occurredAt,
+      ],
+    );
   }
 
-  public async listProviderCalls(runId: RunId): Promise<readonly PersistedProviderCall[]> {
+  public async listProviderCalls(
+    runId: RunId,
+  ): Promise<readonly PersistedProviderCall[]> {
     const result = await this.pool.query<ProviderCallRow>(
       `SELECT run_id,vendor_id,operation_id,case_id,correlation_id,sequence_index,status_code,duration_ms,metadata,occurred_at
-       FROM provider_calls WHERE run_id=$1 ORDER BY occurred_at ASC,id ASC`, [runId]);
+       FROM provider_calls WHERE run_id=$1 ORDER BY occurred_at ASC,id ASC`,
+      [runId],
+    );
     return result.rows.map((row) => ({
-      runId: row.run_id as RunId, vendorId: row.vendor_id,
-      ...(row.operation_id?{operationId:row.operation_id}:{}),
-      ...(row.case_id?{caseId:row.case_id}:{}),
-      ...(row.correlation_id?{correlationId:row.correlation_id}:{}),
-      ...(row.sequence_index===null?{}:{sequenceIndex:row.sequence_index}),
-      ...(row.status_code===null?{}:{statusCode:row.status_code}),
-      ...(row.duration_ms===null?{}:{durationMs:row.duration_ms}),
-      metadata:row.metadata,occurredAt:row.occurred_at.toISOString(),
+      runId: row.run_id as RunId,
+      vendorId: row.vendor_id,
+      ...(row.operation_id ? { operationId: row.operation_id } : {}),
+      ...(row.case_id ? { caseId: row.case_id } : {}),
+      ...(row.correlation_id ? { correlationId: row.correlation_id } : {}),
+      ...(row.sequence_index === null ? {} : { sequenceIndex: row.sequence_index }),
+      ...(row.status_code === null ? {} : { statusCode: row.status_code }),
+      ...(row.duration_ms === null ? {} : { durationMs: row.duration_ms }),
+      metadata: row.metadata,
+      occurredAt: row.occurred_at.toISOString(),
     }));
   }
+}
+
+function mapArtifact(row: ArtifactRow): PersistedArtifact {
+  return {
+    artifactId: row.id,
+    runId: row.run_id as RunId,
+    kind: row.kind,
+    mediaType: row.media_type,
+    location: row.location,
+    sha256: row.sha256.trim(),
+    metadata: row.metadata,
+    createdAt: row.created_at.toISOString(),
+  };
 }

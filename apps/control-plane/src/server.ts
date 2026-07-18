@@ -2,6 +2,10 @@ import { buildApp } from "./app.js";
 import { closeDatabase, databasePool } from "./database.js";
 import { loadConfig } from "./config.js";
 import { sanitizeError } from "./errors.js";
+import {
+  ControlPlaneMaintenance,
+  LocalArtifactCleaner,
+} from "./maintenance.js";
 import { createPlatformActions } from "./platform-actions.js";
 import { PostgresScenarioRunRepository } from "./run-repository.js";
 import { FileScenarioCatalog } from "./scenario-catalog.js";
@@ -16,7 +20,20 @@ const runs = new ScenarioRunService(
   platform.resourceCleaners,
   new FileScenarioCatalog(config.scenariosDirectory),
 );
-const app = buildApp({ logger: { level: config.logLevel }, runs });
+const maintenance = new ControlPlaneMaintenance(
+  repository,
+  platform.resourceCleaners,
+  new LocalArtifactCleaner(config.generatedRunsDirectory),
+  config.maintenance,
+);
+const app = buildApp({
+  logger: { level: config.logLevel },
+  runs,
+  maintenance,
+  ...(config.maintenance.adminToken
+    ? { maintenanceAdminToken: config.maintenance.adminToken }
+    : {}),
+});
 
 let shuttingDown = false;
 
@@ -41,6 +58,13 @@ process.once("SIGTERM", () => void shutdown("SIGTERM"));
 
 try {
   await runs.recoverInterruptedRuns();
+  await maintenance.run();
+  maintenance.start((error) => {
+    app.log.error(
+      { error: sanitizeError(error) },
+      "Scheduled maintenance cycle failed",
+    );
+  });
   await app.listen({ host: config.host, port: config.port });
 } catch (error) {
   app.log.error(

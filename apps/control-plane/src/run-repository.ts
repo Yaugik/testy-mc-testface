@@ -14,11 +14,18 @@ import type {
   ScenarioTimelineRecord,
   ScenarioValue,
 } from "@testy/scenario-engine";
+
+import type {
+  MaintenanceClaimOptions,
+  RunMaintenanceRepository,
+} from "./maintenance.js";
 import { PostgresRunEvidenceStore } from "./run-repository-evidence.js";
 import { PostgresRunLifecycleStore } from "./run-repository-lifecycle.js";
 import { PostgresRunObservationStore } from "./run-repository-observations.js";
 
-export class PostgresScenarioRunRepository implements ScenarioRunRepository {
+export class PostgresScenarioRunRepository
+  implements ScenarioRunRepository, RunMaintenanceRepository
+{
   private readonly lifecycle: PostgresRunLifecycleStore;
   private readonly evidence: PostgresRunEvidenceStore;
   private readonly observations: PostgresRunObservationStore;
@@ -82,6 +89,28 @@ export class PostgresScenarioRunRepository implements ScenarioRunRepository {
     return this.evidence.listArtifacts(runId);
   }
 
+  public claimExpiredArtifacts(
+    options: MaintenanceClaimOptions,
+  ): Promise<readonly PersistedArtifact[]> {
+    return this.evidence.claimExpiredArtifacts(options);
+  }
+
+  public recordArtifactDeletionFailure(
+    artifactId: string,
+    attemptedAt: string,
+    errorFingerprint: string,
+  ): Promise<void> {
+    return this.evidence.recordArtifactDeletionFailure(
+      artifactId,
+      attemptedAt,
+      errorFingerprint,
+    );
+  }
+
+  public deleteArtifactRecord(artifactId: string): Promise<void> {
+    return this.evidence.deleteArtifactRecord(artifactId);
+  }
+
   public recordAssertionResult(record: AssertionResult): Promise<void> {
     return this.evidence.recordAssertionResult(record);
   }
@@ -122,34 +151,71 @@ export class PostgresScenarioRunRepository implements ScenarioRunRepository {
     return this.observations.releaseResourceLease(leaseId, releasedAt);
   }
 
-  public listActiveResourceLeases(runId: RunId): Promise<readonly PersistedResourceLease[]> {
+  public listActiveResourceLeases(
+    runId: RunId,
+  ): Promise<readonly PersistedResourceLease[]> {
     return this.observations.listActiveResourceLeases(runId);
   }
 
+  public claimExpiredResourceLeases(
+    options: MaintenanceClaimOptions,
+  ): Promise<readonly PersistedResourceLease[]> {
+    return this.observations.claimExpiredResourceLeases(options);
+  }
+
+  public recordResourceLeaseCleanupFailure(
+    leaseId: string,
+    attemptedAt: string,
+    errorFingerprint: string,
+  ): Promise<void> {
+    return this.observations.recordResourceLeaseCleanupFailure(
+      leaseId,
+      attemptedAt,
+      errorFingerprint,
+    );
+  }
+
   public async buildAssertionSnapshot(runId: RunId): Promise<AssertionSnapshot> {
-    const [providerCalls, browserActions, observations, steps, artifacts] = await Promise.all([
-      this.listProviderCalls(runId),
-      this.listBrowserActions(runId),
-      this.listObservations(runId),
-      this.listSteps(runId),
-      this.listArtifacts(runId),
-    ]);
+    const [providerCalls, browserActions, observations, steps, artifacts] =
+      await Promise.all([
+        this.listProviderCalls(runId),
+        this.listBrowserActions(runId),
+        this.listObservations(runId),
+        this.listSteps(runId),
+        this.listArtifacts(runId),
+      ]);
     return { runId, providerCalls, browserActions, observations, steps, artifacts };
   }
 
   public async buildReport(runId: RunId): Promise<ScenarioRunReport | undefined> {
     const run = await this.getRun(runId);
     if (!run) return undefined;
-    const [steps, timeline, artifacts, assertions, providerCalls, browserActions, observations] =
-      await Promise.all([
-        this.listSteps(runId),
-        this.listTimeline(runId),
-        this.listArtifacts(runId),
-        this.listAssertionResults(runId),
-        this.listProviderCalls(runId),
-        this.listBrowserActions(runId),
-        this.listObservations(runId),
-      ]);
-    return { run, steps, timeline, artifacts, assertions, providerCalls, browserActions, observations };
+    const [
+      steps,
+      timeline,
+      artifacts,
+      assertions,
+      providerCalls,
+      browserActions,
+      observations,
+    ] = await Promise.all([
+      this.listSteps(runId),
+      this.listTimeline(runId),
+      this.listArtifacts(runId),
+      this.listAssertionResults(runId),
+      this.listProviderCalls(runId),
+      this.listBrowserActions(runId),
+      this.listObservations(runId),
+    ]);
+    return {
+      run,
+      steps,
+      timeline,
+      artifacts,
+      assertions,
+      providerCalls,
+      browserActions,
+      observations,
+    };
   }
 }

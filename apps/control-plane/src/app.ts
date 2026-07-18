@@ -1,7 +1,12 @@
-import Fastify, { type FastifyInstance, type FastifyServerOptions } from "fastify";
+import Fastify, {
+  type FastifyInstance,
+  type FastifyServerOptions,
+} from "fastify";
 
 import { databasePool, databaseProbe, type DatabaseProbe } from "./database.js";
 import { sanitizeError } from "./errors.js";
+import { registerMaintenanceRoutes } from "./maintenance-routes.js";
+import type { MaintenanceService } from "./maintenance.js";
 import { PostgresScenarioRunRepository } from "./run-repository.js";
 import { registerRunRoutes } from "./run-routes.js";
 import { ScenarioRunService, type RunService } from "./run-service.js";
@@ -10,6 +15,8 @@ export interface BuildAppOptions {
   readonly database?: DatabaseProbe;
   readonly logger?: FastifyServerOptions["logger"];
   readonly runs?: RunService;
+  readonly maintenance?: MaintenanceService;
+  readonly maintenanceAdminToken?: string;
 }
 
 export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
@@ -37,6 +44,9 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
         dependencies: {
           database: "ready",
         },
+        ...(options.maintenance
+          ? { maintenance: options.maintenance.status() }
+          : {}),
         timestamp: new Date().toISOString(),
       };
     } catch (error) {
@@ -55,12 +65,20 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   });
 
   registerRunRoutes(app, runs);
+  if (options.maintenance) {
+    registerMaintenanceRoutes(
+      app,
+      options.maintenance,
+      options.maintenanceAdminToken,
+    );
+  }
   app.setErrorHandler((error, _request, reply) => {
     const sanitizedError = sanitizeError(error);
     app.log.error({ error: sanitizedError }, "Control Plane request failed");
     return reply.status(500).send({ error: "internal-error" });
   });
   app.addHook("onClose", async () => {
+    await options.maintenance?.stop();
     await runs.shutdown();
   });
 
