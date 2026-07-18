@@ -56,13 +56,17 @@
     "traffic:test": "pnpm --filter @testy/traffic-generator test",
     "traffic:validate": "pnpm scenario:prepare && pnpm --filter @testy/scenario-engine exec node dist/cli.js validate ../../scenarios/http-negative-suite.yaml",
     "traffic:run": "pnpm testy run http-negative-suite",
+    "reference-sut:build": "pnpm --filter @testy/reference-sut build && pnpm --filter @testy/reference-sut-adapter build",
+    "reference-sut:test": "pnpm --filter @testy/reference-sut test",
+    "reference-sut:start": "pnpm --filter @testy/reference-sut build && pnpm --filter @testy/reference-sut start",
+    "target-contract:show": "node -e \"process.stdout.write(require('node:fs').readFileSync('contracts/target-test-support-v1.openapi.yaml','utf8'))\"",
     "ci": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build",
     "testy:prepare": "pnpm --filter @testy/cli build",
     "testy": "pnpm testy:prepare && pnpm --filter @testy/cli exec node dist/cli.js",
     "gateway:prepare": "pnpm --filter @testy/traffic-gateway build && pnpm --filter @testy/traffic-gateway-app build",
     "gateway:start": "pnpm gateway:prepare && pnpm --filter @testy/traffic-gateway-app start",
     "gateway:test": "pnpm --filter @testy/traffic-gateway test",
-    "target:test": "pnpm --filter @testy/target-adapter test && pnpm --filter @testy/gl-eye-adapter test"
+    "target:test": "pnpm --filter @testy/target-adapter test && pnpm --filter @testy/gl-eye-adapter test && pnpm --filter @testy/reference-sut-adapter typecheck && pnpm reference-sut:test"
   },
   "devDependencies": {
     "@eslint/js": "^9.0.0",

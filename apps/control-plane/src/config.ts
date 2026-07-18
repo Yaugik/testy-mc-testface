@@ -1,4 +1,7 @@
+export type TargetAdapterKind = "gl-eye" | "reference-sut";
+
 export interface TargetIntegrationConfig {
+  readonly adapter: TargetAdapterKind;
   readonly gatewayAdminUrl: string;
   readonly gatewayAdminToken: string;
   readonly glEyeBaseUrl: string;
@@ -126,7 +129,7 @@ function loadTargetIntegration(
   if (present === 0) return undefined;
   if (present !== Object.keys(values).length) {
     throw new Error(
-      "Gateway and GL-EYE integration must be configured completely or omitted entirely.",
+      "Gateway and target test-support integration must be configured completely or omitted entirely.",
     );
   }
   const allowedOrigins = splitCsv(values.glEyeAllowedOrigins ?? "");
@@ -134,6 +137,7 @@ function loadTargetIntegration(
     throw new Error("GL_EYE_ALLOWED_ORIGINS must contain at least one origin.");
   }
   return {
+    adapter: parseTargetAdapter(environment.TESTY_TARGET_ADAPTER),
     gatewayAdminUrl: values.gatewayAdminUrl ?? "",
     gatewayAdminToken: values.gatewayAdminToken ?? "",
     glEyeBaseUrl: values.glEyeBaseUrl ?? "",
@@ -141,6 +145,14 @@ function loadTargetIntegration(
     glEyeAuthToken: values.glEyeAuthToken ?? "",
     glEyeAllowedOrigins: allowedOrigins,
   };
+}
+
+function parseTargetAdapter(value: string | undefined): TargetAdapterKind {
+  const normalized = nonEmpty(value) ?? "gl-eye";
+  if (normalized === "gl-eye" || normalized === "reference-sut") {
+    return normalized;
+  }
+  throw new Error("TESTY_TARGET_ADAPTER must be gl-eye or reference-sut.");
 }
 
 function parseBrowser(value: string | undefined): ConfiguredBrowser {
