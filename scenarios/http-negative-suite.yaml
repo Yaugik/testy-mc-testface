@@ -50,6 +50,9 @@ assertions:
 
 phases:
   allocate:
+    - id: prepare-target
+      kind: task
+      action: target.prepare-run
     - id: create-gateway-route
       kind: task
       action: gateway.create-route
