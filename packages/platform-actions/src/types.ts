@@ -1,4 +1,8 @@
-import type { BrowserName, BrowserJourneyReport } from "@testy/browser-runner";
+import type {
+  BrowserJourneyReport,
+  BrowserName,
+  ExpectedBrowserRequest,
+} from "@testy/browser-runner";
 import type { LoadedBrowserPackage } from "@testy/browser-schema";
 import type { LoadedVendorPackage } from "@testy/config-loader";
 import type {
@@ -65,8 +69,14 @@ export interface PlatformActionDependencies {
       readonly artifactRoot: string;
       readonly runNamespace: string;
       readonly signal?: AbortSignal;
+      readonly externalScripts?: readonly string[];
+      readonly expectedRequests?: readonly ExpectedBrowserRequest[];
     },
   ): Promise<BrowserJourneyReport>;
+}
+
+export interface PlatformActionDiagnostics {
+  activeRunIds(): readonly string[];
 }
 
 export interface PlatformActionBundle {
@@ -74,4 +84,5 @@ export interface PlatformActionBundle {
   readonly resourceCleaners: Readonly<
     Record<string, (lease: PersistedResourceLease) => Promise<void>>
   >;
+  readonly diagnostics: PlatformActionDiagnostics;
 }

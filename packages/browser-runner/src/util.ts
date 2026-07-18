@@ -3,7 +3,11 @@ import { createHash } from "node:crypto";
 import type { ArtifactCaptureMode, ArtifactPolicy, BrowserSelector } from "@testy/browser-schema";
 import type { Locator, Page } from "playwright";
 
-import type { BrowserRequestEntry } from "./types.js";
+import type {
+  BrowserRequestCheck,
+  BrowserRequestEntry,
+  ExpectedBrowserRequest,
+} from "./types.js";
 
 export function shouldCapture(mode: ArtifactCaptureMode, failed: boolean): boolean {
   return mode === "always" || (mode === "on-failure" && failed);
@@ -44,6 +48,34 @@ export function selectFailedRequests(
   return shouldCapture(mode, journeyFailed)
     ? entries.filter((entry) => entry.failed)
     : [];
+}
+
+export function summarizeExpectedRequests(
+  expected: readonly ExpectedBrowserRequest[],
+  entries: readonly BrowserRequestEntry[],
+): readonly BrowserRequestCheck[] {
+  const ids = new Set<string>();
+  return expected.map((item) => {
+    if (ids.has(item.id)) {
+      throw new Error(`Expected browser request ID '${item.id}' is duplicated.`);
+    }
+    ids.add(item.id);
+    const method = item.method?.toUpperCase();
+    const urlFingerprint = fingerprintUrl(item.url);
+    const matched = entries.filter(
+      (entry) =>
+        entry.urlFingerprint === urlFingerprint &&
+        (method === undefined || entry.method.toUpperCase() === method),
+    );
+    return {
+      id: item.id,
+      ...(method ? { method } : {}),
+      urlFingerprint,
+      matchedCount: matched.length,
+      successfulCount: matched.filter((entry) => !entry.failed).length,
+      failedCount: matched.filter((entry) => entry.failed).length,
+    };
+  });
 }
 
 export function locatorFor(page: Page, selector: BrowserSelector): Locator {

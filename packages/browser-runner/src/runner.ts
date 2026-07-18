@@ -37,6 +37,7 @@ import {
   sanitizePageUrl,
   selectFailedRequests,
   shouldCapture,
+  summarizeExpectedRequests,
 } from "./util.js";
 
 export async function runBrowserJourney(
@@ -45,6 +46,7 @@ export async function runBrowserJourney(
   options: BrowserRunnerOptions,
 ): Promise<BrowserJourneyReport> {
   const browserName = options.browser ?? "chromium";
+  const externalScripts = validateExternalScripts(options.externalScripts ?? []);
   const workspace = await createArtifactWorkspace(
     options.artifactRoot,
     options.runNamespace,
@@ -74,6 +76,7 @@ export async function runBrowserJourney(
       colorScheme: journey.persona.browser.colorScheme,
       viewport: journey.persona.browser.viewport,
       serviceWorkers: "block",
+      bypassCSP: externalScripts.length > 0,
     });
     context.setDefaultTimeout(journey.timeoutMs);
     journeyTimer = setTimeout(() => {
@@ -109,6 +112,7 @@ export async function runBrowserJourney(
         observedRequests,
         site,
         workspace.screenshotPath(step.id),
+        externalScripts,
       );
       page = executed.page;
       actions.push(executed.result);
@@ -178,6 +182,7 @@ export async function runBrowserJourney(
       failed,
       requests,
     ),
+    requestChecks: summarizeExpectedRequests(options.expectedRequests ?? [], requests),
     artifacts: {
       rootDirectory: workspace.rootDirectory,
       ...(tracePath ? { tracePath } : {}),
@@ -198,6 +203,7 @@ async function executeStep(
   observedRequests: readonly Request[],
   site: SyntheticSiteBinding,
   screenshotPath: string,
+  externalScripts: readonly string[],
 ): Promise<{ readonly page: Page; readonly result: BrowserActionResult }> {
   const startedAt = new Date();
   let page = currentPage;
@@ -295,6 +301,7 @@ async function executeStep(
         screenshot = await captureScreenshot(page, screenshotPath);
         break;
     }
+    await ensureExternalScripts(page, externalScripts);
     return { page, result: actionResult(step, startedAt, "passed", page.url(), undefined, screenshot) };
   } catch (error) {
     return {
@@ -372,6 +379,50 @@ function attachObservers(
       failed: response.status() >= 400,
     });
   });
+}
+
+async function ensureExternalScripts(
+  page: Page,
+  externalScripts: readonly string[],
+): Promise<void> {
+  if (externalScripts.length === 0 || page.isClosed() || page.url() === "about:blank") return;
+  await page.waitForLoadState("domcontentloaded");
+  const marker = fingerprintText(externalScripts.join("\n"));
+  const current = await page.evaluate(() =>
+    document.documentElement.getAttribute("data-testy-external-scripts"),
+  );
+  if (current === marker) return;
+  for (const url of externalScripts) {
+    await page.addScriptTag({ url });
+  }
+  await page.evaluate((value) => {
+    document.documentElement.setAttribute("data-testy-external-scripts", value);
+  }, marker);
+}
+
+function validateExternalScripts(values: readonly string[]): readonly string[] {
+  const result: string[] = [];
+  const seen = new Set<string>();
+  for (const value of values) {
+    let url: URL;
+    try {
+      url = new URL(value);
+    } catch {
+      throw new Error("External browser scripts must use absolute URLs.");
+    }
+    if (url.protocol !== "http:" && url.protocol !== "https:") {
+      throw new Error("External browser scripts must use HTTP or HTTPS.");
+    }
+    if (url.username || url.password || url.hash) {
+      throw new Error("External browser scripts cannot contain credentials or fragments.");
+    }
+    const normalized = url.toString();
+    if (!seen.has(normalized)) {
+      result.push(normalized);
+      seen.add(normalized);
+    }
+  }
+  return result;
 }
 
 async function fillForm(

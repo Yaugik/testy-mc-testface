@@ -2,6 +2,7 @@ import { GlEyeTargetAdapter } from "@testy/gl-eye-adapter";
 import { createIntegratedPlatformActions } from "@testy/platform-actions";
 import {
   createBuiltinScenarioActions,
+  type ScenarioActionContext,
   type ScenarioActionHandler,
   type ScenarioActionRegistry,
   type ScenarioRunRepository,
@@ -16,6 +17,7 @@ import { GatewayAdminClient } from "@testy/traffic-gateway";
 
 import type { ControlPlaneConfig } from "./config.js";
 import type { ResourceLeaseCleaner } from "./run-service.js";
+import { deriveTargetOutcome } from "./target-outcome.js";
 
 export interface PlatformActions {
   readonly actions: ScenarioActionRegistry;
@@ -84,10 +86,7 @@ function createTargetActions(
     authToken: integration.glEyeAuthToken,
     allowedOrigins: integration.glEyeAllowedOrigins,
   });
-  const targetActions = createGatewayTargetScenarioActions({
-    gateway,
-    adapter,
-  });
+  const targetActions = createGatewayTargetScenarioActions({ gateway, adapter });
   return {
     actions: recordTargetObservations(targetActions, evidence),
     resourceCleaners: createGatewayTargetResourceCleaners(gateway, adapter),
@@ -118,6 +117,7 @@ function recordTargetObservations(
       evidence,
       "target-outcome",
       () => "completed",
+      (value, context) => deriveTargetOutcome(value, context.outputs),
     ),
   };
 }
@@ -127,19 +127,24 @@ function wrapObservation(
   evidence: ScenarioRunRepository,
   observationType: string,
   status: (value: ScenarioValue | undefined) => string,
+  transform?: (
+    value: ScenarioValue | undefined,
+    context: ScenarioActionContext,
+  ) => ScenarioValue | undefined,
 ): ScenarioActionHandler {
   return async (input, context) => {
     const value = await action(input, context);
+    const observed = transform ? transform(value, context) : value;
     await evidence.recordObservation({
       observationId: observationType,
       runId: context.runId,
       observationType,
-      status: status(value),
-      ...(value === undefined ? {} : { value }),
+      status: status(observed),
+      ...(observed === undefined ? {} : { value: observed }),
       metadata: { sourceAction: observationType },
       observedAt: new Date().toISOString(),
     });
-    return value;
+    return observed;
   };
 }
 
@@ -156,8 +161,15 @@ function readBoolean(
   value: ScenarioValue | undefined,
   key: string,
 ): boolean | undefined {
-  if (!value || typeof value !== "object" || Array.isArray(value))
-    return undefined;
-  const selected = (value as Readonly<Record<string, ScenarioValue>>)[key];
+  const record = readOptionalRecord(value);
+  const selected = record?.[key];
   return typeof selected === "boolean" ? selected : undefined;
+}
+
+function readOptionalRecord(
+  value: ScenarioValue | undefined,
+): Readonly<Record<string, ScenarioValue>> | undefined {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? value as Readonly<Record<string, ScenarioValue>>
+    : undefined;
 }

@@ -3,6 +3,7 @@ import { join } from "node:path";
 import type {
   ScenarioActionContext,
   ScenarioActionRegistry,
+  ScenarioValue,
 } from "@testy/scenario-engine";
 
 import { persistBrowserEvidence } from "./evidence.js";
@@ -57,7 +58,10 @@ export function createBrowserActions(
           "synthetic-site",
           `${site.hostname}:${String(site.port)}`,
           new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString(),
-          async () => site.stop(),
+          async () => {
+            await site.stop();
+            if (state.site === site) state.site = undefined;
+          },
         );
         state.siteLeaseRegistered = true;
       }
@@ -110,6 +114,14 @@ export function createBrowserActions(
     "browser.run-journey": async (input, context) => {
       const value = readObject(input);
       const journeyId = readString(value, "journeyId");
+      const executionId = readOptionalString(value, "executionId") ?? "default";
+      const targetPreparationStepId = readOptionalString(
+        value,
+        "targetPreparationStepId",
+      );
+      const trackingScriptUrl = targetPreparationStepId
+        ? readTrackingScriptUrl(context.outputs[targetPreparationStepId])
+        : undefined;
       const state = stateFor(context);
       const report = await dependencies.runBrowserJourney(
         journeyId,
@@ -125,20 +137,36 @@ export function createBrowserActions(
             safeSegment(context.runId as string),
             "browser",
           ),
-          runNamespace: context.runId as string,
+          runNamespace: `${context.runId as string}-${safeSegment(executionId)}`,
           signal: context.signal,
+          ...(trackingScriptUrl
+            ? {
+                externalScripts: [trackingScriptUrl],
+                expectedRequests: [
+                  {
+                    id: "target-tracking-script",
+                    url: trackingScriptUrl,
+                    method: "GET",
+                  },
+                ],
+              }
+            : {}),
         },
       );
-      state.browserReports.set(journeyId, report);
-      await persistBrowserEvidence(options.evidence, context, report);
+      state.browserReports.set(executionId, report);
+      await persistBrowserEvidence(options.evidence, context, report, {
+        executionId,
+      });
       return {
         journeyId,
+        executionId,
         status: report.status,
         actionCount: report.actions.length,
         failedActionCount: report.actions.filter(
           (action) => action.status === "failed",
         ).length,
         requestCount: report.requests.length,
+        requestCheckCount: report.requestChecks?.length ?? 0,
         artifactCount:
           report.artifacts.screenshots.length +
           (report.artifacts.tracePath ? 1 : 0) +
@@ -179,4 +207,30 @@ export function createBrowserActions(
       return { eventCount: events.length, counts };
     },
   };
+}
+
+function readOptionalString(
+  value: Readonly<Record<string, ScenarioValue>>,
+  key: string,
+): string | undefined {
+  const selected = value[key];
+  return typeof selected === "string" && selected.length > 0
+    ? selected
+    : undefined;
+}
+
+function readTrackingScriptUrl(value: ScenarioValue | undefined): string {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error("Target preparation output is unavailable.");
+  }
+  const record = value as Readonly<Record<string, ScenarioValue>>;
+  const selected = record.trackingScriptUrl;
+  if (typeof selected !== "string" || selected.length === 0) {
+    throw new Error("Target preparation output did not include a tracking script URL.");
+  }
+  const url = new URL(selected);
+  if ((url.protocol !== "http:" && url.protocol !== "https:") || url.username || url.password || url.hash) {
+    throw new Error("Target tracking script URL must be an HTTP(S) URL without credentials or a fragment.");
+  }
+  return url.toString();
 }

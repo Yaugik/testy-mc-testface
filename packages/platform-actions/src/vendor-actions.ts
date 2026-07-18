@@ -94,7 +94,10 @@ export function createVendorActions(
           "vendor-runtime",
           runtime.containerId,
           new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-          async () => runtime.stop(),
+          async () => {
+            await runtime.stop();
+            if (vendor.runtime === runtime) vendor.runtime = undefined;
+          },
         );
         vendor.runtimeLeaseRegistered = true;
       }
