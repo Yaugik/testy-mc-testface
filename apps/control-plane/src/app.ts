@@ -1,11 +1,15 @@
 import Fastify, { type FastifyInstance, type FastifyServerOptions } from "fastify";
 
-import { databaseProbe, type DatabaseProbe } from "./database.js";
+import { databasePool, databaseProbe, type DatabaseProbe } from "./database.js";
 import { sanitizeError } from "./errors.js";
+import { PostgresScenarioRunRepository } from "./run-repository.js";
+import { registerRunRoutes } from "./run-routes.js";
+import { ScenarioRunService, type RunService } from "./run-service.js";
 
 export interface BuildAppOptions {
   readonly database?: DatabaseProbe;
   readonly logger?: FastifyServerOptions["logger"];
+  readonly runs?: RunService;
 }
 
 export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
@@ -13,6 +17,9 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
     logger: options.logger ?? false,
   });
   const database = options.database ?? databaseProbe;
+  const runs =
+    options.runs ??
+    new ScenarioRunService(new PostgresScenarioRunRepository(databasePool));
 
   app.get("/v1/health", async () => ({
     status: "ok",
@@ -45,6 +52,16 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
         timestamp: new Date().toISOString(),
       });
     }
+  });
+
+  registerRunRoutes(app, runs);
+  app.setErrorHandler((error, _request, reply) => {
+    const sanitizedError = sanitizeError(error);
+    app.log.error({ error: sanitizedError }, "Control Plane request failed");
+    return reply.status(500).send({ error: "internal-error" });
+  });
+  app.addHook("onClose", async () => {
+    await runs.shutdown();
   });
 
   return app;

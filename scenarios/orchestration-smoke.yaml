@@ -1,0 +1,75 @@
+schemaVersion: "1.0"
+scenario:
+  id: orchestration-smoke
+  displayName: Scenario lifecycle smoke
+target: local
+timeoutMs: 5000
+variables:
+  enabled: true
+fragments:
+  common-cleanup:
+    - id: register
+      kind: task
+      action: lease
+      input:
+        resourceType: synthetic
+        resourceKey: smoke-resource
+        ttlMs: 60000
+phases:
+  allocate:
+    - id: allocate-resource
+      kind: fragment
+      useFragment: common-cleanup
+  compile:
+    - id: compile-placeholder
+      kind: task
+      action: noop
+  configure:
+    - id: configure-placeholder
+      kind: task
+      action: noop
+  run:
+    - id: parallel-work
+      kind: parallel
+      steps:
+        - id: left
+          kind: task
+          action: delay
+          input:
+            ms: 5
+        - id: right
+          kind: task
+          action: value
+          input: completed
+    - id: condition
+      kind: condition
+      when:
+        path: $.variables.enabled
+        equals: true
+      then:
+        - id: selected
+          kind: task
+          action: value
+          input: enabled
+    - id: repeat
+      kind: repeat
+      times: 2
+      steps:
+        - id: repeated
+          kind: task
+          action: noop
+  observe:
+    - id: observation
+      kind: poll
+      action: value
+      input: ready
+      intervalMs: 10
+      timeoutMs: 100
+      until:
+        path: $
+        equals: ready
+  assert:
+    - id: assertion
+      kind: task
+      action: value
+      input: passed

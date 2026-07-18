@@ -1,0 +1,191 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://testy-mctestface.dev/schemas/scenario/v1/scenario.schema.json",
+  "title": "Testy McTestface scenario",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "scenario", "target", "phases"],
+  "properties": {
+    "schemaVersion": { "const": "1.0" },
+    "scenario": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "displayName"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "displayName": { "type": "string", "minLength": 1, "maxLength": 200 }
+      }
+    },
+    "target": { "$ref": "#/$defs/id" },
+    "timeoutMs": { "type": "integer", "minimum": 1, "maximum": 86400000 },
+    "variables": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/jsonValue" }
+    },
+    "fragments": {
+      "type": "object",
+      "propertyNames": { "$ref": "#/$defs/id" },
+      "additionalProperties": { "$ref": "#/$defs/steps" }
+    },
+    "phases": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["run"],
+      "properties": {
+        "allocate": { "$ref": "#/$defs/steps" },
+        "compile": { "$ref": "#/$defs/steps" },
+        "configure": { "$ref": "#/$defs/steps" },
+        "run": { "$ref": "#/$defs/steps" },
+        "observe": { "$ref": "#/$defs/steps" },
+        "assert": { "$ref": "#/$defs/steps" }
+      }
+    }
+  },
+  "$defs": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+    },
+    "jsonValue": {
+      "oneOf": [
+        { "type": ["string", "number", "boolean", "null"] },
+        { "type": "array", "items": { "$ref": "#/$defs/jsonValue" } },
+        {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/jsonValue" }
+        }
+      ]
+    },
+    "retry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["attempts"],
+      "properties": {
+        "attempts": { "type": "integer", "minimum": 1, "maximum": 20 },
+        "delayMs": { "type": "integer", "minimum": 0, "maximum": 600000 },
+        "backoffFactor": { "type": "number", "minimum": 1, "maximum": 10 }
+      }
+    },
+    "condition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "equals"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1, "maxLength": 300 },
+        "equals": { "$ref": "#/$defs/jsonValue" }
+      }
+    },
+    "base": {
+      "type": "object",
+      "required": ["id", "kind"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "kind": { "type": "string" },
+        "timeoutMs": { "type": "integer", "minimum": 1, "maximum": 86400000 }
+      }
+    },
+    "task": {
+      "allOf": [
+        { "$ref": "#/$defs/base" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["id", "kind", "action"],
+          "properties": {
+            "id": { "$ref": "#/$defs/id" },
+            "kind": { "const": "task" },
+            "action": { "$ref": "#/$defs/id" },
+            "input": { "$ref": "#/$defs/jsonValue" },
+            "timeoutMs": { "type": "integer", "minimum": 1, "maximum": 86400000 },
+            "retry": { "$ref": "#/$defs/retry" },
+            "compensate": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["action"],
+              "properties": {
+                "action": { "$ref": "#/$defs/id" },
+                "input": { "$ref": "#/$defs/jsonValue" }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "parallel": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "kind", "steps"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "kind": { "const": "parallel" },
+        "timeoutMs": { "type": "integer", "minimum": 1, "maximum": 86400000 },
+        "steps": { "$ref": "#/$defs/steps" }
+      }
+    },
+    "repeat": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "kind", "times", "steps"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "kind": { "const": "repeat" },
+        "timeoutMs": { "type": "integer", "minimum": 1, "maximum": 86400000 },
+        "times": { "type": "integer", "minimum": 1, "maximum": 1000 },
+        "steps": { "$ref": "#/$defs/steps" }
+      }
+    },
+    "conditional": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "kind", "when", "then"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "kind": { "const": "condition" },
+        "timeoutMs": { "type": "integer", "minimum": 1, "maximum": 86400000 },
+        "when": { "$ref": "#/$defs/condition" },
+        "then": { "$ref": "#/$defs/steps" },
+        "else": { "$ref": "#/$defs/steps" }
+      }
+    },
+    "poll": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "kind", "action", "until", "intervalMs"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "kind": { "const": "poll" },
+        "action": { "$ref": "#/$defs/id" },
+        "input": { "$ref": "#/$defs/jsonValue" },
+        "until": { "$ref": "#/$defs/condition" },
+        "intervalMs": { "type": "integer", "minimum": 1, "maximum": 600000 },
+        "timeoutMs": { "type": "integer", "minimum": 1, "maximum": 86400000 },
+        "retry": { "$ref": "#/$defs/retry" }
+      }
+    },
+    "fragment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "kind", "useFragment"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "kind": { "const": "fragment" },
+        "useFragment": { "$ref": "#/$defs/id" },
+        "timeoutMs": { "type": "integer", "minimum": 1, "maximum": 86400000 }
+      }
+    },
+    "step": {
+      "oneOf": [
+        { "$ref": "#/$defs/task" },
+        { "$ref": "#/$defs/parallel" },
+        { "$ref": "#/$defs/repeat" },
+        { "$ref": "#/$defs/conditional" },
+        { "$ref": "#/$defs/poll" },
+        { "$ref": "#/$defs/fragment" }
+      ]
+    },
+    "steps": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/step" }
+    }
+  }
+}

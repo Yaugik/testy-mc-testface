@@ -1,13 +1,23 @@
 import { buildApp } from "./app.js";
-import { closeDatabase } from "./database.js";
+import { closeDatabase, databasePool } from "./database.js";
 import { loadConfig } from "./config.js";
 import { sanitizeError } from "./errors.js";
+import { PostgresScenarioRunRepository } from "./run-repository.js";
+import { FileScenarioCatalog } from "./scenario-catalog.js";
+import { ScenarioRunService } from "./run-service.js";
 
 const config = loadConfig();
+const runs = new ScenarioRunService(
+  new PostgresScenarioRunRepository(databasePool),
+  undefined,
+  undefined,
+  new FileScenarioCatalog(config.scenariosDirectory),
+);
 const app = buildApp({
   logger: {
     level: config.logLevel,
   },
+  runs,
 });
 
 let shuttingDown = false;
@@ -37,12 +47,14 @@ process.once("SIGTERM", () => {
 });
 
 try {
+  await runs.recoverInterruptedRuns();
   await app.listen({
     host: config.host,
     port: config.port,
   });
 } catch (error) {
   app.log.error({ error: sanitizeError(error) }, "Control plane failed to start");
+  await app.close().catch(() => undefined);
   await closeDatabase();
   process.exitCode = 1;
 }
