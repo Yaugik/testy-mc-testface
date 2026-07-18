@@ -13,7 +13,7 @@ afterEach(async () => {
 });
 
 describe("hardened reference SUT entrypoint", () => {
-  it("proxies the canonical contract and returns a proper authentication error", async () => {
+  it("proxies the canonical contract and serves a browser-safe tracking script", async () => {
     const binding = await startReferenceSut({ serviceToken });
     bindings.push(binding);
 
@@ -43,6 +43,14 @@ describe("hardened reference SUT entrypoint", () => {
       }),
     });
     expect(authorized.status).toBe(201);
+    const prepared = (await authorized.json()) as Record<string, unknown>;
+
+    const tracking = await fetch(String(prepared.trackingScriptUrl));
+    expect(tracking.status).toBe(200);
+    const script = await tracking.text();
+    expect(script).toContain(`${binding.origin}/test-support/v1/traffic/events?token=`);
+    expect(script).toContain('"content-type": "text/plain"');
+    expect(script).not.toContain("idempotency-key");
   });
 
   it("supports browser preflight and deterministic HTTP negative probes", async () => {
