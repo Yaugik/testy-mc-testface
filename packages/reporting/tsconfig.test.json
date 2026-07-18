@@ -9,6 +9,7 @@
   "include": ["src/**/*.ts", "test/**/*.ts"],
   "references": [
     { "path": "../shared-types" },
-    { "path": "../assertion-engine" }
+    { "path": "../assertion-engine" },
+    { "path": "../scenario-engine" }
   ]
 }

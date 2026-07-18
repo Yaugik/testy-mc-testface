@@ -1,0 +1,22 @@
+schemaVersion: "1.0"
+scenario:
+  id: assertion-reporting-smoke
+  displayName: Assertion and reporting smoke
+target: local
+timeoutMs: 5000
+phases:
+  run:
+    - id: execute
+      kind: task
+      action: noop
+      input:
+        result: ok
+assertions:
+  - id: execution-passed
+    type: step-passed
+    stepId: execute
+  - id: trace-optional
+    type: artifact-present
+    kind: browser-trace
+    severity: warning
+    description: Trace is optional for the deterministic smoke scenario.

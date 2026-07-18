@@ -7,7 +7,8 @@
   },
   "references": [
     { "path": "../shared-types" },
-    { "path": "../assertion-engine" }
+    { "path": "../assertion-engine" },
+    { "path": "../scenario-engine" }
   ],
   "include": ["src/**/*.ts"]
 }

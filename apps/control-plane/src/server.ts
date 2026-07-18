@@ -8,30 +8,22 @@ import { FileScenarioCatalog } from "./scenario-catalog.js";
 import { ScenarioRunService } from "./run-service.js";
 
 const config = loadConfig();
-const platform = createPlatformActions(config.targetIntegration);
+const repository = new PostgresScenarioRunRepository(databasePool);
+const platform = createPlatformActions(config.targetIntegration, repository);
 const runs = new ScenarioRunService(
-  new PostgresScenarioRunRepository(databasePool),
+  repository,
   platform.actions,
   platform.resourceCleaners,
   new FileScenarioCatalog(config.scenariosDirectory),
 );
-const app = buildApp({
-  logger: {
-    level: config.logLevel,
-  },
-  runs,
-});
+const app = buildApp({ logger: { level: config.logLevel }, runs });
 
 let shuttingDown = false;
 
 async function shutdown(signal: string): Promise<void> {
-  if (shuttingDown) {
-    return;
-  }
-
+  if (shuttingDown) return;
   shuttingDown = true;
   app.log.info({ signal }, "Shutting down control plane");
-
   try {
     await app.close();
     await closeDatabase();
@@ -41,19 +33,12 @@ async function shutdown(signal: string): Promise<void> {
   }
 }
 
-process.once("SIGINT", () => {
-  void shutdown("SIGINT");
-});
-process.once("SIGTERM", () => {
-  void shutdown("SIGTERM");
-});
+process.once("SIGINT", () => void shutdown("SIGINT"));
+process.once("SIGTERM", () => void shutdown("SIGTERM"));
 
 try {
   await runs.recoverInterruptedRuns();
-  await app.listen({
-    host: config.host,
-    port: config.port,
-  });
+  await app.listen({ host: config.host, port: config.port });
 } catch (error) {
   app.log.error({ error: sanitizeError(error) }, "Control plane failed to start");
   await app.close().catch(() => undefined);

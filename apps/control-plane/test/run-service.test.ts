@@ -26,10 +26,52 @@ describe("ScenarioRunService", () => {
     const report = await service.report(run.id);
 
     expect(completed.status).toBe("PASSED");
-    expect(report?.run.resolvedScenarioHash).toBe(run.resolvedScenarioHash);
+    expect(report?.run.scenarioHash).toBe(run.resolvedScenarioHash);
     expect(report?.steps.length).toBeGreaterThan(0);
-    expect(report?.timeline.some((event) => event.name === "cleanup")).toBe(true);
+    expect(report?.timeline.some((event) => event.name === "cleanup")).toBe(
+      true,
+    );
     expect(await repository.listActiveResourceLeases(run.id)).toEqual([]);
+    await service.shutdown();
+  });
+
+  it("fails a run when a required declarative assertion fails", async () => {
+    const repository = new MemoryScenarioRunRepository();
+    const service = new ScenarioRunService(repository);
+    const { run } = await service.create({
+      schemaVersion: "1.0",
+      scenario: { id: "assertion-failure", displayName: "Assertion failure" },
+      target: "local",
+      phases: {
+        run: [{ id: "execute", kind: "task", action: "noop" }],
+      },
+      assertions: [
+        {
+          id: "missing-provider",
+          type: "provider-call-count",
+          vendorId: "ipinfo",
+          equals: 1,
+        },
+        {
+          id: "warning-only",
+          type: "artifact-present",
+          kind: "trace",
+          severity: "warning",
+        },
+      ],
+    });
+    const completed = await waitForTerminal(repository, run.id);
+    const results = await repository.listAssertionResults(run.id);
+    const report = await service.report(run.id);
+
+    expect(completed.status).toBe("FAILED");
+    expect(results).toHaveLength(2);
+    expect(
+      results.find((result) => result.assertionId === "missing-provider")
+        ?.passed,
+    ).toBe(false);
+    expect(report?.summary.failedAssertions).toBe(1);
+    expect(report?.summary.warningFailures).toBe(1);
     await service.shutdown();
   });
 
@@ -42,9 +84,13 @@ describe("ScenarioRunService", () => {
           cleaned = true;
         });
         await new Promise<void>((_resolve, reject) => {
-          context.signal.addEventListener("abort", () => reject(context.signal.reason), {
-            once: true,
-          });
+          context.signal.addEventListener(
+            "abort",
+            () => reject(context.signal.reason),
+            {
+              once: true,
+            },
+          );
         });
         return undefined;
       },
@@ -74,7 +120,8 @@ async function waitForTerminal(
 ): Promise<PersistedRun> {
   for (let attempt = 0; attempt < 200; attempt += 1) {
     const run = await repository.getRun(runId);
-    if (run && ["PASSED", "FAILED", "CANCELLED"].includes(run.status)) return run;
+    if (run && ["PASSED", "FAILED", "CANCELLED"].includes(run.status))
+      return run;
     await new Promise((resolveWait) => setTimeout(resolveWait, 5));
   }
   throw new Error(`Run '${runId}' did not reach a terminal state.`);

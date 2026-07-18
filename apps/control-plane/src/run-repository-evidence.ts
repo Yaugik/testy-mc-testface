@@ -1,0 +1,101 @@
+import type { AssertionResult } from "@testy/assertion-engine";
+import type { Pool } from "pg";
+import type { RunId } from "@testy/shared-types";
+import type { PersistedArtifact, PersistedProviderCall, ScenarioValue } from "@testy/scenario-engine";
+
+interface ArtifactRow {
+  readonly id: string; readonly run_id: string; readonly kind: string;
+  readonly media_type: string; readonly location: string; readonly sha256: string;
+  readonly metadata: Readonly<Record<string, ScenarioValue>>; readonly created_at: Date;
+}
+interface AssertionRow {
+  readonly run_id: string; readonly assertion_id: string;
+  readonly assertion_type: AssertionResult["type"]; readonly severity: AssertionResult["severity"];
+  readonly passed: boolean; readonly expected: ScenarioValue | null;
+  readonly actual: ScenarioValue | null; readonly message: string;
+  readonly metadata: Readonly<Record<string, ScenarioValue>>; readonly asserted_at: Date;
+}
+interface ProviderCallRow {
+  readonly run_id: string; readonly vendor_id: string; readonly operation_id: string | null;
+  readonly case_id: string | null; readonly correlation_id: string | null;
+  readonly sequence_index: number | null; readonly status_code: number | null;
+  readonly duration_ms: number | null; readonly metadata: Readonly<Record<string, ScenarioValue>>;
+  readonly occurred_at: Date;
+}
+
+export class PostgresRunEvidenceStore {
+  public constructor(private readonly pool: Pool) {}
+
+  public async addArtifact(artifact: PersistedArtifact): Promise<void> {
+    await this.pool.query(
+      `INSERT INTO artifacts (id,run_id,kind,media_type,location,sha256,metadata,created_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7::JSONB,$8) ON CONFLICT (id) DO NOTHING`,
+      [artifact.artifactId, artifact.runId, artifact.kind, artifact.mediaType,
+       artifact.location, artifact.sha256, JSON.stringify(artifact.metadata), artifact.createdAt]);
+  }
+
+  public async listArtifacts(runId: RunId): Promise<readonly PersistedArtifact[]> {
+    const result = await this.pool.query<ArtifactRow>(
+      `SELECT id,run_id,kind,media_type,location,sha256,metadata,created_at
+       FROM artifacts WHERE run_id=$1 ORDER BY created_at ASC,id ASC`, [runId]);
+    return result.rows.map((row) => ({
+      artifactId: row.id, runId: row.run_id as RunId, kind: row.kind,
+      mediaType: row.media_type, location: row.location, sha256: row.sha256.trim(),
+      metadata: row.metadata, createdAt: row.created_at.toISOString(),
+    }));
+  }
+
+  public async recordAssertionResult(result: AssertionResult): Promise<void> {
+    await this.pool.query(
+      `INSERT INTO assertion_results (
+        run_id,assertion_id,assertion_type,severity,passed,expected,actual,message,metadata,asserted_at
+       ) VALUES ($1,$2,$3,$4,$5,$6::JSONB,$7::JSONB,$8,$9::JSONB,$10)
+       ON CONFLICT (run_id,assertion_id) DO UPDATE SET
+        assertion_type=EXCLUDED.assertion_type,severity=EXCLUDED.severity,
+        passed=EXCLUDED.passed,expected=EXCLUDED.expected,actual=EXCLUDED.actual,
+        message=EXCLUDED.message,metadata=EXCLUDED.metadata,asserted_at=EXCLUDED.asserted_at`,
+      [result.runId,result.assertionId,result.type,result.severity,result.passed,
+       result.expected===undefined?null:JSON.stringify(result.expected),
+       result.actual===undefined?null:JSON.stringify(result.actual),result.message,
+       JSON.stringify(result.metadata),result.assertedAt]);
+  }
+
+  public async listAssertionResults(runId: RunId): Promise<readonly AssertionResult[]> {
+    const result = await this.pool.query<AssertionRow>(
+      `SELECT run_id,assertion_id,assertion_type,severity,passed,expected,actual,message,metadata,asserted_at
+       FROM assertion_results WHERE run_id=$1 ORDER BY asserted_at ASC,assertion_id ASC`, [runId]);
+    return result.rows.map((row) => ({
+      runId: row.run_id as RunId, assertionId: row.assertion_id, type: row.assertion_type,
+      severity: row.severity, passed: row.passed, message: row.message,
+      ...(row.expected===null?{}:{expected:row.expected}),
+      ...(row.actual===null?{}:{actual:row.actual}), metadata: row.metadata,
+      assertedAt: row.asserted_at.toISOString(),
+    }));
+  }
+
+  public async recordProviderCall(record: PersistedProviderCall): Promise<void> {
+    await this.pool.query(
+      `INSERT INTO provider_calls (
+        run_id,vendor_id,operation_id,case_id,correlation_id,sequence_index,status_code,duration_ms,metadata,occurred_at
+       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9::JSONB,$10)`,
+      [record.runId,record.vendorId,record.operationId??null,record.caseId??null,
+       record.correlationId??null,record.sequenceIndex??null,record.statusCode??null,
+       record.durationMs??null,JSON.stringify(record.metadata),record.occurredAt]);
+  }
+
+  public async listProviderCalls(runId: RunId): Promise<readonly PersistedProviderCall[]> {
+    const result = await this.pool.query<ProviderCallRow>(
+      `SELECT run_id,vendor_id,operation_id,case_id,correlation_id,sequence_index,status_code,duration_ms,metadata,occurred_at
+       FROM provider_calls WHERE run_id=$1 ORDER BY occurred_at ASC,id ASC`, [runId]);
+    return result.rows.map((row) => ({
+      runId: row.run_id as RunId, vendorId: row.vendor_id,
+      ...(row.operation_id?{operationId:row.operation_id}:{}),
+      ...(row.case_id?{caseId:row.case_id}:{}),
+      ...(row.correlation_id?{correlationId:row.correlation_id}:{}),
+      ...(row.sequence_index===null?{}:{sequenceIndex:row.sequence_index}),
+      ...(row.status_code===null?{}:{statusCode:row.status_code}),
+      ...(row.duration_ms===null?{}:{durationMs:row.duration_ms}),
+      metadata:row.metadata,occurredAt:row.occurred_at.toISOString(),
+    }));
+  }
+}

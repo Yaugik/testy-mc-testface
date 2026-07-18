@@ -6,25 +6,14 @@
     "composite": false,
     "noEmit": true
   },
-  "include": [
-    "src/**/*.ts",
-    "test/**/*.ts"
-  ],
+  "include": ["src/**/*.ts", "test/**/*.ts"],
   "references": [
-    {
-      "path": "../../packages/shared-types"
-    },
-    {
-      "path": "../../packages/scenario-engine"
-    },
-    {
-      "path": "../../packages/traffic-gateway"
-    },
-    {
-      "path": "../../packages/target-adapter"
-    },
-    {
-      "path": "../../adapters/gl-eye"
-    }
+    { "path": "../../packages/shared-types" },
+    { "path": "../../packages/assertion-engine" },
+    { "path": "../../packages/scenario-engine" },
+    { "path": "../../packages/reporting" },
+    { "path": "../../packages/traffic-gateway" },
+    { "path": "../../packages/target-adapter" },
+    { "path": "../../adapters/gl-eye" }
   ]
 }

@@ -8,6 +8,10 @@ interface RunParams {
   readonly runId: string;
 }
 
+interface ReportQuery {
+  readonly format?: "json" | "html";
+}
+
 export function registerRunRoutes(app: FastifyInstance, runs: RunService): void {
   app.get("/v1/scenarios", async () => ({
     scenarios: (await runs.listScenarios()).map((scenario) => ({
@@ -72,10 +76,7 @@ export function registerRunRoutes(app: FastifyInstance, runs: RunService): void 
       if (!existing) return reply.status(404).send({ error: "run-not-found" });
       const accepted = await runs.cancel(runId);
       if (!accepted) {
-        return reply.status(409).send({
-          error: "run-not-cancellable",
-          status: existing.status,
-        });
+        return reply.status(409).send({ error: "run-not-cancellable", status: existing.status });
       }
       return reply.status(202).send({ runId, cancellationRequested: true });
     },
@@ -92,10 +93,19 @@ export function registerRunRoutes(app: FastifyInstance, runs: RunService): void 
     },
   );
 
-  app.get<{ Params: RunParams }>(
+  app.get<{ Params: RunParams; Querystring: ReportQuery }>(
     "/v1/runs/:runId/report",
     async (request, reply) => {
-      const report = await runs.report(request.params.runId as RunId);
+      const runId = request.params.runId as RunId;
+      const wantsHtml =
+        request.query.format === "html" || request.headers.accept?.includes("text/html") === true;
+      if (wantsHtml) {
+        const html = await runs.reportHtml(runId);
+        return html === undefined
+          ? reply.status(404).send({ error: "run-not-found" })
+          : reply.type("text/html; charset=utf-8").send(html);
+      }
+      const report = await runs.report(runId);
       return report ?? reply.status(404).send({ error: "run-not-found" });
     },
   );
