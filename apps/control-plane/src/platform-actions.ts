@@ -1,4 +1,5 @@
 import { GlEyeTargetAdapter } from "@testy/gl-eye-adapter";
+import { createIntegratedPlatformActions } from "@testy/platform-actions";
 import {
   createBuiltinScenarioActions,
   type ScenarioActionHandler,
@@ -13,7 +14,7 @@ import {
 } from "@testy/target-adapter";
 import { GatewayAdminClient } from "@testy/traffic-gateway";
 
-import type { TargetIntegrationConfig } from "./config.js";
+import type { ControlPlaneConfig } from "./config.js";
 import type { ResourceLeaseCleaner } from "./run-service.js";
 
 export interface PlatformActions {
@@ -22,16 +23,57 @@ export interface PlatformActions {
 }
 
 export function createPlatformActions(
-  integration: TargetIntegrationConfig | undefined,
-  evidence?: ScenarioRunRepository,
+  config: ControlPlaneConfig,
+  evidence: ScenarioRunRepository,
 ): PlatformActions {
   const builtins = createBuiltinScenarioActions();
-  if (!integration) {
-    return {
-      actions: builtins,
-      resourceCleaners: { synthetic: async () => undefined },
-    };
-  }
+  const target = config.targetIntegration
+    ? createTargetActions(config, evidence)
+    : undefined;
+  const integrated = createIntegratedPlatformActions({
+    vendorPackagesRoot: config.vendorPackagesDirectory,
+    browserPackagesRoot: config.browserPackagesDirectory,
+    generatedRoot: config.generatedRunsDirectory,
+    evidence,
+    browser: config.browser,
+    headless: config.browserHeadless,
+    ...(config.runtimeImage ? { runtimeImage: config.runtimeImage } : {}),
+    ...(target
+      ? {
+          delegates: {
+            configureVendorEndpoints: requireAction(
+              target.actions,
+              "target.configure-vendors",
+            ),
+            configureSyntheticSite: requireAction(
+              target.actions,
+              "target.configure-site",
+            ),
+          },
+        }
+      : {}),
+  });
+
+  return {
+    actions: mergeScenarioActionRegistries(
+      builtins,
+      integrated.actions,
+      ...(target ? [target.actions] : []),
+    ),
+    resourceCleaners: {
+      synthetic: async () => undefined,
+      ...integrated.resourceCleaners,
+      ...(target?.resourceCleaners ?? {}),
+    },
+  };
+}
+
+function createTargetActions(
+  config: ControlPlaneConfig,
+  evidence: ScenarioRunRepository,
+): PlatformActions {
+  const integration = config.targetIntegration;
+  if (!integration) throw new Error("Target integration is not configured.");
   const gateway = new GatewayAdminClient({
     baseUrl: integration.gatewayAdminUrl,
     adminToken: integration.gatewayAdminToken,
@@ -42,14 +84,13 @@ export function createPlatformActions(
     authToken: integration.glEyeAuthToken,
     allowedOrigins: integration.glEyeAllowedOrigins,
   });
-  const targetActions = createGatewayTargetScenarioActions({ gateway, adapter });
-  const actions = evidence ? recordTargetObservations(targetActions, evidence) : targetActions;
+  const targetActions = createGatewayTargetScenarioActions({
+    gateway,
+    adapter,
+  });
   return {
-    actions: mergeScenarioActionRegistries(builtins, actions),
-    resourceCleaners: {
-      synthetic: async () => undefined,
-      ...createGatewayTargetResourceCleaners(gateway, adapter),
-    },
+    actions: recordTargetObservations(targetActions, evidence),
+    resourceCleaners: createGatewayTargetResourceCleaners(gateway, adapter),
   };
 }
 
@@ -69,7 +110,8 @@ function recordTargetObservations(
       requireAction(actions, "target.wait-for-completion"),
       evidence,
       "target-completion",
-      (value) => readBoolean(value, "completed") === true ? "completed" : "pending",
+      (value) =>
+        readBoolean(value, "completed") === true ? "completed" : "pending",
     ),
     "target.collect-outcome": wrapObservation(
       requireAction(actions, "target.collect-outcome"),
@@ -101,14 +143,21 @@ function wrapObservation(
   };
 }
 
-function requireAction(actions: ScenarioActionRegistry, name: string): ScenarioActionHandler {
+function requireAction(
+  actions: ScenarioActionRegistry,
+  name: string,
+): ScenarioActionHandler {
   const action = actions[name];
   if (!action) throw new Error(`Scenario action '${name}' is not registered.`);
   return action;
 }
 
-function readBoolean(value: ScenarioValue | undefined, key: string): boolean | undefined {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
+function readBoolean(
+  value: ScenarioValue | undefined,
+  key: string,
+): boolean | undefined {
+  if (!value || typeof value !== "object" || Array.isArray(value))
+    return undefined;
   const selected = (value as Readonly<Record<string, ScenarioValue>>)[key];
   return typeof selected === "boolean" ? selected : undefined;
 }

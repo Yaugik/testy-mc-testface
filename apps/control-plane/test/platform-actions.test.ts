@@ -4,9 +4,11 @@ import { loadConfig } from "../src/config.js";
 import { createPlatformActions } from "../src/platform-actions.js";
 
 describe("platform target integration", () => {
-  it("keeps target actions disabled when integration is absent", () => {
-    const platform = createPlatformActions(undefined);
+  it("keeps target actions disabled while retaining vendor and browser actions", () => {
+    const platform = createPlatformActions(loadConfig({}), {} as never);
     expect(platform.actions["target.prepare-run"]).toBeUndefined();
+    expect(platform.actions["vendor.compile"]).toBeDefined();
+    expect(platform.actions["browser.run-journey"]).toBeDefined();
     expect(platform.actions.noop).toBeDefined();
   });
 
@@ -23,18 +25,21 @@ describe("platform target integration", () => {
   });
 
   it("rejects a non-empty partial integration mixed with empty values", () => {
-    expect(() => loadConfig({
-      TESTY_GATEWAY_ADMIN_URL: "http://127.0.0.1:3100",
-      TESTY_GATEWAY_ADMIN_TOKEN: "",
-      GL_EYE_BASE_URL: "",
-      GL_EYE_ENVIRONMENT: "",
-      GL_EYE_TEST_SUPPORT_TOKEN: "",
-      GL_EYE_ALLOWED_ORIGINS: "",
-    })).toThrow(/completely/u);
+    expect(() =>
+      loadConfig({
+        TESTY_GATEWAY_ADMIN_URL: "http://127.0.0.1:3100",
+        TESTY_GATEWAY_ADMIN_TOKEN: "",
+        GL_EYE_BASE_URL: "",
+        GL_EYE_ENVIRONMENT: "",
+        GL_EYE_TEST_SUPPORT_TOKEN: "",
+        GL_EYE_ALLOWED_ORIGINS: "",
+      }),
+    ).toThrow(/completely/u);
   });
 
   it("rejects partial target configuration", () => {
-    expect(() => loadConfig({ TESTY_GATEWAY_ADMIN_URL: "http://127.0.0.1:3100" }))
-      .toThrow(/completely/u);
+    expect(() =>
+      loadConfig({ TESTY_GATEWAY_ADMIN_URL: "http://127.0.0.1:3100" }),
+    ).toThrow(/completely/u);
   });
 });

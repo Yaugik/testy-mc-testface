@@ -52,6 +52,12 @@ services:
       DATABASE_URL: postgresql://testy:testy@postgres:5432/testy
       LOG_LEVEL: info
       SCENARIOS_DIR: scenarios
+      VENDOR_PACKAGES_DIR: vendors
+      BROWSER_PACKAGES_DIR: customers
+      GENERATED_RUNS_DIR: generated/runs
+      TESTY_IMPOSTER_IMAGE: ${TESTY_IMPOSTER_IMAGE:-outofcoffee/imposter:5}
+      TESTY_BROWSER: ${TESTY_BROWSER:-chromium}
+      TESTY_HEADLESS: ${TESTY_HEADLESS:-true}
       TESTY_GATEWAY_ADMIN_URL: ${TESTY_GATEWAY_ADMIN_URL:-}
       TESTY_GATEWAY_ADMIN_TOKEN: ${TESTY_CONTROL_GATEWAY_ADMIN_TOKEN:-}
       GL_EYE_BASE_URL: ${GL_EYE_BASE_URL:-}

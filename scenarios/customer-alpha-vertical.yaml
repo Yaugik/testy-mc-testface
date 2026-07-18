@@ -1,0 +1,170 @@
+schemaVersion: "1.0"
+scenario:
+  id: customer-alpha-vertical
+  displayName: Customer Alpha complete black-box vertical slice
+
+target: gl-eye
+timeoutMs: 600000
+
+variables:
+  targetOrigin: http://127.0.0.1:8080
+  syntheticIp: 198.51.100.25
+
+assertions:
+  - id: browser-journey-passed
+    type: browser-journey-passed
+    journeyId: lead-capture
+  - id: ipinfo-called
+    type: provider-call-count
+    vendorId: ipinfo
+    minimum: 1
+  - id: apollo-called
+    type: provider-call-count
+    vendorId: apollo
+    minimum: 1
+  - id: hunter-called
+    type: provider-call-count
+    vendorId: hunter
+    minimum: 1
+  - id: provider-order
+    type: provider-call-order
+    severity: warning
+    sequence:
+      - vendorId: ipinfo
+      - vendorId: apollo
+      - vendorId: hunter
+  - id: target-created-score
+    type: observation
+    observationType: target-outcome
+    path: scoreCount
+    operator: greater-than-or-equal
+    expected: 1
+  - id: form-was-submitted
+    type: observation
+    observationType: synthetic-site-events
+    path: counts.form-submit
+    operator: greater-than-or-equal
+    expected: 1
+  - id: browser-report-present
+    type: artifact-present
+    kind: browser-report
+  - id: no-unexpected-external-calls
+    type: no-unexpected-external-calls
+
+phases:
+  allocate:
+    - id: create-gateway-route
+      kind: task
+      action: gateway.create-route
+      input:
+        targetOrigin: "{{targetOrigin}}"
+        syntheticIp: "{{syntheticIp}}"
+        ttlMs: 900000
+    - id: prepare-target
+      kind: task
+      action: target.prepare-run
+
+  compile:
+    - id: compile-vendors
+      kind: parallel
+      steps:
+        - id: ipinfo
+          kind: task
+          action: vendor.compile
+          input:
+            package: ipinfo
+        - id: apollo
+          kind: task
+          action: vendor.compile
+          input:
+            package: apollo
+        - id: hunter
+          kind: task
+          action: vendor.compile
+          input:
+            package: hunter
+    - id: load-customer-alpha
+      kind: task
+      action: browser.load-package
+      input:
+        package: customer-alpha
+
+  configure:
+    - id: start-vendor-runtimes
+      kind: parallel
+      steps:
+        - id: ipinfo
+          kind: task
+          action: vendor.start-runtime
+          input:
+            vendorId: ipinfo
+        - id: apollo
+          kind: task
+          action: vendor.start-runtime
+          input:
+            vendorId: apollo
+        - id: hunter
+          kind: task
+          action: vendor.start-runtime
+          input:
+            vendorId: hunter
+    - id: start-site
+      kind: task
+      action: site.start
+    - id: configure-target-vendors
+      kind: task
+      action: platform.configure-target-vendors
+    - id: configure-target-site
+      kind: task
+      action: platform.configure-target-site
+    - id: start-target-observation
+      kind: task
+      action: target.start-observation
+
+  run:
+    - id: run-lead-capture
+      kind: task
+      action: browser.run-journey
+      input:
+        journeyId: lead-capture
+
+  observe:
+    - id: collect-local-evidence
+      kind: parallel
+      steps:
+        - id: site-events
+          kind: task
+          action: browser.collect-site-events
+        - id: ipinfo-ledger
+          kind: task
+          action: vendor.collect-ledger
+          input:
+            vendorId: ipinfo
+        - id: apollo-ledger
+          kind: task
+          action: vendor.collect-ledger
+          input:
+            vendorId: apollo
+        - id: hunter-ledger
+          kind: task
+          action: vendor.collect-ledger
+          input:
+            vendorId: hunter
+        - id: ipinfo-state
+          kind: task
+          action: vendor.collect-state
+          input:
+            vendorId: ipinfo
+    - id: wait-for-target
+      kind: task
+      action: target.wait-for-completion
+      input:
+        timeoutMs: 120000
+        pollIntervalMs: 2000
+        expectedState: completed
+    - id: collect-target-outcome
+      kind: task
+      action: target.collect-outcome
+    - id: collect-gateway-ledger
+      kind: task
+      action: gateway.collect-ledger

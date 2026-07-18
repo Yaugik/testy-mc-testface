@@ -1,0 +1,21 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "dist",
+    "composite": true
+  },
+  "references": [
+    { "path": "../shared-types" },
+    { "path": "../scenario-engine" },
+    { "path": "../privacy-validation" },
+    { "path": "../config-loader" },
+    { "path": "../vendor-compiler" },
+    { "path": "../vendor-runtime" },
+    { "path": "../browser-schema" },
+    { "path": "../browser-config" },
+    { "path": "../synthetic-site-host" },
+    { "path": "../browser-runner" }
+  ],
+  "include": ["src/**/*.ts"]
+}

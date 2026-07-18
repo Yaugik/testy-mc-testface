@@ -9,7 +9,7 @@ import { ScenarioRunService } from "./run-service.js";
 
 const config = loadConfig();
 const repository = new PostgresScenarioRunRepository(databasePool);
-const platform = createPlatformActions(config.targetIntegration, repository);
+const platform = createPlatformActions(config, repository);
 const runs = new ScenarioRunService(
   repository,
   platform.actions,
@@ -28,7 +28,10 @@ async function shutdown(signal: string): Promise<void> {
     await app.close();
     await closeDatabase();
   } catch (error) {
-    app.log.error({ error: sanitizeError(error) }, "Control plane shutdown failed");
+    app.log.error(
+      { error: sanitizeError(error) },
+      "Control plane shutdown failed",
+    );
     process.exitCode = 1;
   }
 }
@@ -40,7 +43,10 @@ try {
   await runs.recoverInterruptedRuns();
   await app.listen({ host: config.host, port: config.port });
 } catch (error) {
-  app.log.error({ error: sanitizeError(error) }, "Control plane failed to start");
+  app.log.error(
+    { error: sanitizeError(error) },
+    "Control plane failed to start",
+  );
   await app.close().catch(() => undefined);
   await closeDatabase();
   process.exitCode = 1;
