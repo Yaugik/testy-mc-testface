@@ -33,6 +33,8 @@
     "browser:prepare": "pnpm --filter @testy/browser-config build",
     "browser:validate": "pnpm browser:prepare && pnpm --filter @testy/browser-config exec node dist/cli.js ../../customers/customer-alpha",
     "site:serve": "pnpm --filter @testy/synthetic-site-host build && pnpm --filter @testy/synthetic-site-host exec node dist/cli.js ../../customers/customer-alpha",
+    "browser:install": "pnpm --filter @testy/browser-runner exec playwright install chromium",
+    "browser:run": "pnpm --filter @testy/browser-runner build && pnpm --filter @testy/browser-runner exec node dist/cli.js ../../customers/customer-alpha lead-capture ../../generated/browser",
     "ci": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build"
   },
   "devDependencies": {
