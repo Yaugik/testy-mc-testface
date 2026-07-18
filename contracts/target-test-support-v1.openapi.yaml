@@ -1,0 +1,211 @@
+openapi: 3.1.0
+info:
+  title: Testy Target Test Support API
+  version: 1.0.0
+  description: Authenticated black-box test-support contract implemented by the reference SUT and future target adapters.
+servers:
+  - url: http://reference-sut.test
+security:
+  - bearerAuth: []
+paths:
+  /test-support/v1/runs:
+    post:
+      operationId: prepareRun
+      summary: Prepare an isolated target run
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PrepareRunRequest' }
+      responses:
+        '201':
+          description: Run prepared or idempotently returned
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PreparedRun' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /test-support/v1/runs/{targetRunId}/vendor-endpoints:
+    put:
+      operationId: configureVendorEndpoints
+      parameters: [{ $ref: '#/components/parameters/TargetRunId' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/VendorEndpointsRequest' }
+      responses:
+        '204': { description: Endpoints configured idempotently }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/RunNotFound' }
+  /test-support/v1/runs/{targetRunId}/site:
+    put:
+      operationId: configureSyntheticSite
+      parameters: [{ $ref: '#/components/parameters/TargetRunId' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SiteBinding' }
+      responses:
+        '204': { description: Site configured idempotently }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/RunNotFound' }
+  /test-support/v1/runs/{targetRunId}/observations:
+    post:
+      operationId: startObservation
+      parameters: [{ $ref: '#/components/parameters/TargetRunId' }]
+      responses:
+        '201':
+          description: Observation started or idempotently returned
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ObservationHandle' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/RunNotFound' }
+  /test-support/v1/runs/{targetRunId}/observations/{observationId}:
+    get:
+      operationId: getObservation
+      parameters:
+        - { $ref: '#/components/parameters/TargetRunId' }
+        - name: observationId
+          in: path
+          required: true
+          schema: { type: string, minLength: 1, maxLength: 300 }
+      responses:
+        '200':
+          description: Sanitized processing status
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ObservationStatus' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/RunNotFound' }
+  /test-support/v1/runs/{targetRunId}/outcome:
+    get:
+      operationId: collectOutcome
+      parameters: [{ $ref: '#/components/parameters/TargetRunId' }]
+      responses:
+        '200':
+          description: Sanitized externally observable business outcome
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TargetOutcome' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/RunNotFound' }
+  /test-support/v1/runs/{targetRunId}:
+    delete:
+      operationId: cleanupRun
+      parameters: [{ $ref: '#/components/parameters/TargetRunId' }]
+      responses:
+        '204': { description: Cleanup completed or resource already absent }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { description: Cleanup is idempotent; implementations may return 404 }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+  parameters:
+    TargetRunId:
+      name: targetRunId
+      in: path
+      required: true
+      schema: { type: string, minLength: 1, maxLength: 300 }
+  responses:
+    Unauthorized:
+      description: Missing or invalid service credential
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    RunNotFound:
+      description: Target run does not exist
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+  schemas:
+    PrepareRunRequest:
+      type: object
+      additionalProperties: false
+      required: [runId, scenarioId, target, environment]
+      properties:
+        runId: { type: string, format: uuid }
+        scenarioId: { type: string, minLength: 1, maxLength: 200 }
+        target: { type: string, minLength: 1, maxLength: 100 }
+        environment: { type: string, minLength: 1, maxLength: 100 }
+    PreparedRun:
+      type: object
+      additionalProperties: false
+      required: [targetRunId, tenantId, controlTenantId, trackingScriptUrl, siteId, targetOrigin, contractVersion]
+      properties:
+        targetRunId: { type: string }
+        tenantId: { type: string }
+        controlTenantId: { type: string }
+        trackingScriptUrl: { type: string, format: uri }
+        siteId: { type: string }
+        targetOrigin: { type: string, format: uri }
+        contractVersion: { const: '1.0' }
+    VendorEndpointsRequest:
+      type: object
+      additionalProperties: false
+      required: [endpoints]
+      properties:
+        endpoints:
+          type: object
+          minProperties: 1
+          additionalProperties: { type: string, format: uri }
+    SiteBinding:
+      type: object
+      additionalProperties: true
+      required: [siteId, hostname]
+      properties:
+        siteId: { type: string }
+        hostname: { type: string }
+    ObservationHandle:
+      type: object
+      additionalProperties: false
+      required: [observationId]
+      properties:
+        observationId: { type: string }
+    ObservationStatus:
+      type: object
+      additionalProperties: false
+      required: [completed, state, processedEventCount]
+      properties:
+        completed: { type: boolean }
+        state: { enum: [processing, completed, failed] }
+        processedEventCount: { type: integer, minimum: 0 }
+        terminalFailureCode: { type: string }
+    TargetOutcome:
+      type: object
+      additionalProperties: false
+      required:
+        - targetRunId
+        - visibleTenantIds
+        - companyCount
+        - scoreCount
+        - duplicateEventCount
+        - companyFingerprint
+        - scoreRuleVersion
+        - enrichmentStatus
+        - providerSequence
+      properties:
+        targetRunId: { type: string }
+        visibleTenantIds:
+          type: array
+          uniqueItems: true
+          items: { type: string }
+        companyCount: { type: integer, minimum: 0 }
+        scoreCount: { type: integer, minimum: 0 }
+        duplicateEventCount: { type: integer, minimum: 0 }
+        companyFingerprint: { type: string, pattern: '^[a-f0-9]{64}$' }
+        scoreRuleVersion: { type: string }
+        enrichmentStatus: { enum: [completed, skipped, failed] }
+        providerSequence:
+          type: array
+          items: { type: string }
+        maximumBurstConcurrency: { type: integer, minimum: 0 }
+    Error:
+      type: object
+      additionalProperties: false
+      required: [error]
+      properties:
+        error: { type: string }
