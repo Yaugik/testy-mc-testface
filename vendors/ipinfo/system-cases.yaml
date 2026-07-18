@@ -1,0 +1,10 @@
+schemaVersion: "1.0"
+cases:
+  - id: corporate-ip
+    operation: lookup
+    match:
+      path:
+        ip: 203.0.113.10
+    response:
+      status: 200
+      fixture: ./responses/corporate.json
