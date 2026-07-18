@@ -1,0 +1,23 @@
+schemaVersion: "1.0"
+persona:
+  id: corporate-visitor
+  displayName: Corporate visitor
+browser:
+  locale: en-GB
+  timezoneId: Europe/Berlin
+  colorScheme: light
+  viewport:
+    width: 1440
+    height: 900
+variables:
+  visitorEmail: qa@nordlicht.example
+session:
+  cookies:
+    - name: testy_returning
+      value: "false"
+      domain: customer-alpha.test
+      path: /
+      sameSite: Lax
+  localStorage:
+    http://customer-alpha.test:
+      testy_persona: corporate-visitor

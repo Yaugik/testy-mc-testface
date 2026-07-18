@@ -1,0 +1,34 @@
+{
+  "name": "@testy/synthetic-site-host",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "bin": {
+    "testy-synthetic-site": "./dist/cli.js"
+  },
+  "scripts": {
+    "prebuild": "pnpm --filter @testy/browser-schema build && pnpm --filter @testy/browser-config build",
+    "build": "tsc -p tsconfig.json",
+    "pretypecheck": "pnpm --filter @testy/browser-schema build && pnpm --filter @testy/browser-config build",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json --noEmit",
+    "pretest": "pnpm run build",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@testy/browser-config": "workspace:*",
+    "@testy/browser-schema": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "typescript": "^5.0.0",
+    "vitest": "^3.0.0"
+  }
+}

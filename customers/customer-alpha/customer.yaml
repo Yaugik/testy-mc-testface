@@ -1,0 +1,17 @@
+schemaVersion: "1.0"
+customer:
+  id: customer-alpha
+  displayName: Customer Alpha
+site: site.yaml
+personas:
+  - personas/corporate-visitor.yaml
+journeys:
+  - journeys/lead-capture.yaml
+fragments:
+  - fragments/accept-consent.yaml
+artifactPolicy:
+  screenshot: on-failure
+  trace: on-failure
+  console: always
+  failedRequests: always
+  selectedHar: on-failure

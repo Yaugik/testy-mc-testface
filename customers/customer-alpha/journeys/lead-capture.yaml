@@ -1,0 +1,66 @@
+schemaVersion: "1.0"
+journey:
+  id: lead-capture
+  displayName: Corporate visitor submits a lead
+persona: corporate-visitor
+startPath: /
+timeoutMs: 60000
+networkFixtures:
+  - id: synthetic-telemetry
+    match:
+      url: https://telemetry.example/collect
+      method: POST
+    response:
+      status: 204
+      delayMs: 25
+artifactPolicy:
+  screenshot: on-failure
+  trace: always
+steps:
+  - id: open-home
+    action: open
+    path: /
+  - id: verify-home
+    action: expectVisible
+    selector:
+      testId: hero-heading
+  - id: consent
+    useFragment: accept-consent
+  - id: open-pricing
+    action: click
+    selector:
+      testId: pricing-link
+  - id: verify-pricing
+    action: expectText
+    selector:
+      testId: pricing-heading
+    text: Pricing
+  - id: open-contact
+    action: click
+    selector:
+      testId: pricing-contact-link
+  - id: fill-email
+    action: fill
+    selector:
+      testId: work-email
+    value: "{{visitorEmail}}"
+  - id: select-size
+    action: select
+    selector:
+      testId: company-size
+    option: medium
+  - id: opt-in
+    action: check
+    selector:
+      testId: product-updates
+  - id: submit
+    action: submit
+    selector:
+      testId: lead-form
+  - id: verify-thanks
+    action: expectVisible
+    selector:
+      testId: thanks-heading
+  - id: capture-success
+    action: screenshot
+    value: lead-capture-success

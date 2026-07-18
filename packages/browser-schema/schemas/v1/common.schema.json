@@ -1,0 +1,329 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://testy-mctestface.dev/schemas/browser/v1/common.schema.json",
+  "title": "Testy browser DSL common definitions",
+  "$defs": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+    },
+    "relativePath": {
+      "type": "string",
+      "minLength": 1,
+      "not": {
+        "pattern": "^(?:/|[A-Za-z]:|.*(?:^|/)\\.\\.(?:/|$))"
+      }
+    },
+    "routePath": {
+      "type": "string",
+      "pattern": "^/"
+    },
+    "stringMap": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "captureMode": {
+      "enum": [
+        "never",
+        "on-failure",
+        "always"
+      ]
+    },
+    "artifactPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "screenshot",
+        "trace",
+        "console",
+        "failedRequests",
+        "selectedHar"
+      ],
+      "properties": {
+        "screenshot": {
+          "$ref": "#/$defs/captureMode"
+        },
+        "trace": {
+          "$ref": "#/$defs/captureMode"
+        },
+        "console": {
+          "$ref": "#/$defs/captureMode"
+        },
+        "failedRequests": {
+          "$ref": "#/$defs/captureMode"
+        },
+        "selectedHar": {
+          "$ref": "#/$defs/captureMode"
+        }
+      }
+    },
+    "partialArtifactPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "screenshot": {
+          "$ref": "#/$defs/captureMode"
+        },
+        "trace": {
+          "$ref": "#/$defs/captureMode"
+        },
+        "console": {
+          "$ref": "#/$defs/captureMode"
+        },
+        "failedRequests": {
+          "$ref": "#/$defs/captureMode"
+        },
+        "selectedHar": {
+          "$ref": "#/$defs/captureMode"
+        }
+      }
+    },
+    "selector": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "testId"
+          ],
+          "properties": {
+            "testId": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "role",
+            "name"
+          ],
+          "properties": {
+            "role": {
+              "type": "string",
+              "minLength": 1
+            },
+            "name": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "label"
+          ],
+          "properties": {
+            "label": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "placeholder"
+          ],
+          "properties": {
+            "placeholder": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "css"
+          ],
+          "properties": {
+            "css": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        }
+      ]
+    },
+    "networkFixture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "match",
+        "response"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "match": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "url"
+          ],
+          "properties": {
+            "url": {
+              "type": "string",
+              "minLength": 1
+            },
+            "method": {
+              "type": "string",
+              "pattern": "^[A-Z]+$"
+            }
+          }
+        },
+        "response": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "status"
+          ],
+          "properties": {
+            "status": {
+              "type": "integer",
+              "minimum": 100,
+              "maximum": 599
+            },
+            "headers": {
+              "$ref": "#/$defs/stringMap"
+            },
+            "body": {
+              "type": "string"
+            },
+            "delayMs": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 120000
+            }
+          }
+        }
+      }
+    },
+    "step": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "id",
+            "useFragment"
+          ],
+          "properties": {
+            "id": {
+              "$ref": "#/$defs/id"
+            },
+            "useFragment": {
+              "$ref": "#/$defs/id"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "id",
+            "action"
+          ],
+          "properties": {
+            "id": {
+              "$ref": "#/$defs/id"
+            },
+            "action": {
+              "enum": [
+                "open",
+                "navigate",
+                "reload",
+                "goBack",
+                "goForward",
+                "click",
+                "doubleClick",
+                "hover",
+                "fill",
+                "fillForm",
+                "select",
+                "check",
+                "uncheck",
+                "submit",
+                "wait",
+                "waitForRequest",
+                "waitForResponse",
+                "waitForEvent",
+                "expectVisible",
+                "expectHidden",
+                "expectText",
+                "expectUrl",
+                "expectAttribute",
+                "expectRequest",
+                "setCookie",
+                "setLocalStorage",
+                "openTab",
+                "switchTab",
+                "closeTab",
+                "screenshot"
+              ]
+            },
+            "selector": {
+              "$ref": "#/$defs/selector"
+            },
+            "path": {
+              "type": "string"
+            },
+            "value": {
+              "type": [
+                "string",
+                "boolean",
+                "number"
+              ]
+            },
+            "values": {
+              "type": "object",
+              "additionalProperties": {
+                "type": [
+                  "string",
+                  "boolean"
+                ]
+              }
+            },
+            "option": {
+              "type": "string"
+            },
+            "text": {
+              "type": "string"
+            },
+            "attribute": {
+              "type": "string"
+            },
+            "url": {
+              "type": "string"
+            },
+            "method": {
+              "type": "string"
+            },
+            "event": {
+              "type": "string"
+            },
+            "tab": {
+              "type": "string"
+            },
+            "timeoutMs": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 120000
+            }
+          }
+        }
+      ]
+    }
+  }
+}
