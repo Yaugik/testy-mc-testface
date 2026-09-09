@@ -57,10 +57,14 @@ export class GlEyeTargetAdapter implements TargetAdapter {
   public constructor(private readonly options: GlEyeTargetAdapterOptions) {
     this.baseOrigin = normalizeAllowedOrigin(options.baseUrl, options.allowedOrigins);
     const approved = new Set(
-      (options.approvedEnvironments ?? ["local", "test", "testing", "qa", "staging"])
-        .map((value) => value.toLowerCase()),
+      (options.approvedEnvironments ?? ["local", "test", "testing", "qa", "staging"]).map((value) =>
+        value.toLowerCase(),
+      ),
     );
-    if (!approved.has(options.environment.toLowerCase()) || options.environment.toLowerCase() === "production") {
+    if (
+      !approved.has(options.environment.toLowerCase()) ||
+      options.environment.toLowerCase() === "production"
+    ) {
       throw new Error("GL-EYE adapter is restricted to explicitly approved test environments.");
     }
     if (options.authToken.length < 12) throw new Error("GL-EYE test-support token is too short.");
@@ -84,8 +88,10 @@ export class GlEyeTargetAdapter implements TargetAdapter {
         target: context.target,
         environment: this.options.environment,
       },
+      [200, 201],
     );
     const controlTenantId = optionalString(value, "controlTenantId");
+    const ingestionToken = optionalString(value, "ingestionToken");
     const prepared: PreparedTarget = {
       targetRunId: requireString(value, "targetRunId"),
       tenantId: requireString(value, "tenantId"),
@@ -93,6 +99,7 @@ export class GlEyeTargetAdapter implements TargetAdapter {
       trackingScriptUrl: requireString(value, "trackingScriptUrl"),
       siteId: requireString(value, "siteId"),
       targetOrigin: this.baseOrigin,
+      ...(ingestionToken ? { ingestionToken } : {}),
     };
     this.prepared.set(context.runId, prepared);
     return prepared;
@@ -164,7 +171,8 @@ export class GlEyeTargetAdapter implements TargetAdapter {
         context,
       );
       const state = requireString(value, "state");
-      const completed = value.completed === true ||
+      const completed =
+        value.completed === true ||
         (condition.expectedState !== undefined && state === condition.expectedState);
       if (completed) {
         return {
@@ -320,10 +328,14 @@ function fingerprintJson(value: unknown): string {
 }
 
 function throwIfAborted(signal: AbortSignal | undefined): void {
-  if (signal?.aborted) throw signal.reason instanceof Error ? signal.reason : new Error("Target operation cancelled.");
+  if (signal?.aborted)
+    throw signal.reason instanceof Error ? signal.reason : new Error("Target operation cancelled.");
 }
 
-async function abortableDelay(milliseconds: number, signal: AbortSignal | undefined): Promise<void> {
+async function abortableDelay(
+  milliseconds: number,
+  signal: AbortSignal | undefined,
+): Promise<void> {
   throwIfAborted(signal);
   await new Promise<void>((resolveDelay, rejectDelay) => {
     const timer = setTimeout(() => {
@@ -332,7 +344,9 @@ async function abortableDelay(milliseconds: number, signal: AbortSignal | undefi
     }, milliseconds);
     const abort = (): void => {
       clearTimeout(timer);
-      rejectDelay(signal?.reason instanceof Error ? signal.reason : new Error("Target operation cancelled."));
+      rejectDelay(
+        signal?.reason instanceof Error ? signal.reason : new Error("Target operation cancelled."),
+      );
     };
     signal?.addEventListener("abort", abort, { once: true });
   });

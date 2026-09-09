@@ -7,4 +7,5 @@ coverage/
 artifacts/
 generated/
 *.log
+*.tsbuildinfo
 .DS_Store

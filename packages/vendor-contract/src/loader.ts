@@ -2,7 +2,7 @@ import { readFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 
 import type { AnySchema, ValidateFunction } from "ajv";
-import Ajv2020 from "ajv/dist/2020.js";
+import { Ajv2020 } from "ajv/dist/2020.js";
 import { parseDocument } from "yaml";
 
 import { VendorContractValidationError } from "./errors.js";
@@ -11,9 +11,7 @@ import type { VendorContractSuite } from "./types.js";
 const CONTRACT_SCHEMA_ID =
   "https://testy-mctestface.dev/schemas/vendor-contract/v1/contract.schema.json";
 
-export async function loadVendorContractSuite(
-  packagePath: string,
-): Promise<VendorContractSuite> {
+export async function loadVendorContractSuite(packagePath: string): Promise<VendorContractSuite> {
   const filePath = join(resolve(packagePath), "contract.yaml");
   const content = await readFile(filePath, "utf8");
   const document = parseDocument(content, {
@@ -34,8 +32,7 @@ export async function loadVendorContractSuite(
   if (!validator(value)) {
     throw new VendorContractValidationError(
       (validator.errors ?? []).map(
-        (error) =>
-          `${error.instancePath || "/"} ${error.message ?? "is invalid"}`,
+        (error) => `${error.instancePath || "/"} ${error.message ?? "is invalid"}`,
       ),
     );
   }
@@ -56,9 +53,7 @@ function validateIdentifiers(value: VendorContractSuite): void {
     const stepIds = new Set<string>();
     for (const step of contractCase.steps) {
       if (stepIds.has(step.id)) {
-        issues.push(
-          `Duplicate step ID '${step.id}' in contract case '${contractCase.id}'.`,
-        );
+        issues.push(`Duplicate step ID '${step.id}' in contract case '${contractCase.id}'.`);
       }
       stepIds.add(step.id);
     }
@@ -69,9 +64,7 @@ function validateIdentifiers(value: VendorContractSuite): void {
   }
 }
 
-async function createValidator(): Promise<
-  ValidateFunction<VendorContractSuite>
-> {
+async function createValidator(): Promise<ValidateFunction<VendorContractSuite>> {
   const schemaContent = await readFile(
     new URL("../schemas/v1/contract.schema.json", import.meta.url),
     "utf8",
