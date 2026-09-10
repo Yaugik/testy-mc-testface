@@ -223,7 +223,7 @@ async function executeStep(
       case "hover": await required(locator, step).hover(); break;
       case "fill": await required(locator, step).fill(String(step.value ?? "")); break;
       case "fillForm": await fillForm(page, step.values ?? {}); break;
-      case "select": await required(locator, step).selectOption(step.option); break;
+      case "select": await required(locator, step).selectOption(requiredOption(step)); break;
       case "check": await required(locator, step).check(); break;
       case "uncheck": await required(locator, step).uncheck(); break;
       case "submit":
@@ -453,6 +453,11 @@ async function expectAttribute(locator: Locator, name: string, expected: string)
 function required(locator: Locator | undefined, step: JourneyActionDefinition): Locator {
   if (!locator) throw new Error(`Action '${step.action}' requires a selector.`);
   return locator;
+}
+
+function requiredOption(step: JourneyActionDefinition): string {
+  if (step.option === undefined) throw new Error(`Action '${step.action}' requires an option.`);
+  return step.option;
 }
 
 function actionResult(
