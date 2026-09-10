@@ -40,7 +40,7 @@ export async function installNetworkFixtures(
       }
       await route.fulfill({
         status: fixture.response.status,
-        headers: fixture.response.headers,
+        ...(fixture.response.headers === undefined ? {} : { headers: fixture.response.headers }),
         body: fixture.response.body ?? "",
       });
     });
