@@ -1,0 +1,45 @@
+schemaVersion: "1.0"
+operationId: ip-lookup-json
+request:
+  method: GET
+  path: /{ip}/json
+cases:
+  - id: corporate-json
+    priority: 100
+    when:
+      path.ip: "198.51.100.10"
+    respond:
+      status: 200
+      body: responses/corporate.json
+
+  - id: residential-json
+    priority: 100
+    when:
+      path.ip: "198.51.100.20"
+    respond:
+      status: 200
+      body: responses/residential.json
+
+  - id: vpn-json
+    priority: 100
+    when:
+      path.ip: "198.51.100.30"
+    respond:
+      status: 200
+      body: responses/vpn.json
+
+  - id: hosting-json
+    priority: 100
+    when:
+      path.ip: "198.51.100.40"
+    respond:
+      status: 200
+      body: responses/hosting.json
+
+  - id: unknown-json
+    priority: 100
+    when:
+      path.ip: "198.51.100.50"
+    respond:
+      status: 200
+      body: responses/unknown.json
