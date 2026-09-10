@@ -1,0 +1,13 @@
+schemaVersion: "1.0"
+operationId: gl-eye-people-search
+request:
+  method: POST
+  path: /api/v1/mixed_people/api_search
+cases:
+  - id: nordlicht-people
+    priority: 100
+    when:
+      json.page: 1
+    respond:
+      status: 200
+      body: responses/gl-eye-people-search.json
