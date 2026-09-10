@@ -1,0 +1,10 @@
+{
+  "organization": {
+    "id": "org_nordlicht_test",
+    "name": "Nordlicht Example GmbH",
+    "industry": "Software",
+    "estimated_num_employees": 240,
+    "country": "DE",
+    "linkedin_url": "https://www.linkedin.com/company/nordlicht-example"
+  }
+}
