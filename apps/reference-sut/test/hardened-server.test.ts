@@ -49,8 +49,10 @@ describe("hardened reference SUT entrypoint", () => {
     expect(tracking.status).toBe(200);
     const script = await tracking.text();
     expect(script).toContain(`${binding.origin}/test-support/v1/traffic/events?token=`);
+    expect(script).toContain(encodeURIComponent(String(prepared.ingestionToken)));
     expect(script).toContain('"content-type": "text/plain"');
     expect(script).not.toContain("idempotency-key");
+    expect(script).not.toContain(serviceToken);
   });
 
   it("supports browser preflight and deterministic HTTP negative probes", async () => {
