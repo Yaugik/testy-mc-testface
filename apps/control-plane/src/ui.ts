@@ -147,6 +147,7 @@ const CONTROL_PLANE_HTML = `<!doctype html>
     const terminalStatuses = new Set(["PASSED", "FAILED", "CANCELLED"]);
     const statusOrder = ["CREATED","VALIDATING","ALLOCATING","COMPILING","CONFIGURING","RUNNING","OBSERVING","ASSERTING","CLEANUP","PASSED"];
     let scenarios = [];
+    let glEyeReady = false;
     let currentRunId = localStorage.getItem("testy.currentRunId") || "";
     let pollTimer;
 
@@ -189,14 +190,28 @@ const CONTROL_PLANE_HTML = `<!doctype html>
       }
       try {
         const result = await requestJson("/v1/target-readiness");
+        glEyeReady = result.status === "ready";
         setBadge(target, (result.target || "Target") + " · ready", "ok");
         target.title = result.contractVersion ? "Contract " + result.contractVersion : "";
       } catch (error) {
+        glEyeReady = false;
         const detail = error.body || {};
         const code = detail.error ? " · " + detail.error : "";
         setBadge(target, (detail.target || "Target") + " · not ready" + code, "bad");
         target.title = "health=" + (detail.healthStatus ?? "?") + ", capabilities=" + (detail.capabilitiesStatus ?? "?");
       }
+      updateScenarioAvailability();
+    }
+
+    function updateScenarioAvailability() {
+      document.querySelectorAll(".run-scenario").forEach(function (button) {
+        const blocked = button.dataset.target === "gl-eye" && !glEyeReady;
+        button.disabled = blocked;
+        button.title = blocked ? "GL-EYE target is not ready." : "";
+        const scenario = button.closest(".scenario");
+        const note = scenario ? scenario.querySelector(".target-readiness-note") : null;
+        if (note) note.hidden = !blocked;
+      });
     }
 
     async function loadScenarios() {
@@ -209,21 +224,31 @@ const CONTROL_PLANE_HTML = `<!doctype html>
           return;
         }
         list.innerHTML = scenarios.map(function (scenario) {
+          const blocked = scenario.target === "gl-eye" && !glEyeReady;
           return '<div class="scenario">' +
             '<div class="scenario-title">' + escapeHtml(scenario.displayName) + '</div>' +
             '<div class="meta">' + escapeHtml(scenario.scenarioId) + '<br>Target: ' + escapeHtml(scenario.target) + '</div>' +
-            '<div class="scenario-actions"><button class="btn primary run-scenario" data-scenario="' + escapeHtml(scenario.scenarioId) + '">Run</button></div>' +
+            '<div class="meta target-readiness-note" ' + (blocked ? '' : 'hidden') + ' style="margin-top:6px;color:#b45309">GL-EYE target is not ready.</div>' +
+            '<div class="scenario-actions"><button class="btn primary run-scenario" data-scenario="' + escapeHtml(scenario.scenarioId) +
+              '" data-target="' + escapeHtml(scenario.target) + '"' + (blocked ? ' disabled' : '') + '>Run</button></div>' +
             '</div>';
         }).join("");
         document.querySelectorAll(".run-scenario").forEach(function (button) {
           button.addEventListener("click", function () { void startRun(button.dataset.scenario); });
         });
+        updateScenarioAvailability();
       } catch (error) {
         list.innerHTML = '<div class="error-box">Unable to load scenarios: ' + escapeHtml(error.message) + '</div>';
       }
     }
 
     async function startRun(scenarioId) {
+      const scenario = scenarios.find(function (candidate) { return candidate.scenarioId === scenarioId; });
+      if (scenario && scenario.target === "gl-eye" && !glEyeReady) {
+        alert("GL-EYE is not ready yet. Wait for the target badge to turn green before running this scenario.");
+        return;
+      }
+
       document.querySelectorAll(".run-scenario").forEach(function (button) { button.disabled = true; });
       try {
         const run = await requestJson("/v1/runs", {
@@ -237,7 +262,7 @@ const CONTROL_PLANE_HTML = `<!doctype html>
       } catch (error) {
         alert("Unable to start run: " + error.message);
       } finally {
-        document.querySelectorAll(".run-scenario").forEach(function (button) { button.disabled = false; });
+        updateScenarioAvailability();
       }
     }
 
