@@ -85,6 +85,30 @@ assertions:
     path: controlTenantVisible
     operator: equals
     expected: false
+  - id: gl-eye-recorded-ipinfo
+    type: observation
+    observationType: target-outcome
+    path: providerProvenance
+    operator: contains
+    expected: ipinfo
+  - id: gl-eye-recorded-apollo
+    type: observation
+    observationType: target-outcome
+    path: providerProvenance
+    operator: contains
+    expected: apollo
+  - id: gl-eye-recorded-hunter
+    type: observation
+    observationType: target-outcome
+    path: providerProvenance
+    operator: contains
+    expected: hunter
+  - id: identification-confidence-high
+    type: observation
+    observationType: target-outcome
+    path: confidence
+    operator: equals
+    expected: high
   - id: form-submitted-twice
     type: observation
     observationType: synthetic-site-events
