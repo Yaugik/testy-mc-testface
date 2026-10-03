@@ -106,7 +106,11 @@ export function createBrowserActions(
       }
       const site = requireSite(stateFor(context));
       return delegate(
-        { siteId: site.siteId, hostname: site.hostname, origin: site.origin },
+        {
+          siteId: site.siteId,
+          hostname: site.hostname,
+          origin: secureSyntheticOrigin(site.origin),
+        },
         context,
       );
     },
@@ -171,6 +175,7 @@ export function createBrowserActions(
                     path: "/t/v1/events",
                     targetBaseUrl: browserTarget.gatewayProxyBaseUrl,
                     headers: {
+                      origin: secureSyntheticOrigin(requireSite(state).origin),
                       "x-testy-route-token": browserTarget.gatewayRouteToken,
                       "x-testy-run-id": browserTarget.runIdHeader,
                     },
@@ -260,4 +265,17 @@ function readTrackingScriptUrl(value: ScenarioValue | undefined): string {
     throw new Error("Target tracking script URL must be an HTTP(S) URL without credentials or a fragment.");
   }
   return url.toString();
+}
+
+
+function secureSyntheticOrigin(value: string): string {
+  const url = new URL(value);
+  if (url.protocol !== "http:" && url.protocol !== "https:") {
+    throw new Error("Synthetic site origin must use HTTP or HTTPS.");
+  }
+  url.protocol = "https:";
+  url.pathname = "/";
+  url.search = "";
+  url.hash = "";
+  return url.origin;
 }
