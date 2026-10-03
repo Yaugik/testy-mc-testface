@@ -158,12 +158,11 @@ export function createGatewayTargetScenarioActionBundle(
       const prepared = requirePrepared(state);
       const value = readObject(input);
       const gateway = requireGateway(state);
+      const origin = readOptionalString(value, "origin");
       const site: SiteDefinition = {
         siteId: readOptionalString(value, "siteId") ?? prepared.siteId,
         hostname: assertSyntheticHostname(readString(value, "hostname")),
-        ...(readOptionalString(value, "origin")
-          ? { origin: readOptionalString(value, "origin") }
-          : {}),
+        ...(origin ? { origin } : {}),
         trackingScriptUrl:
           readOptionalString(value, "trackingScriptUrl") ??
           prepared.trackingScriptUrl,
