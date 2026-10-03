@@ -26,11 +26,12 @@ const maintenance = new ControlPlaneMaintenance(
   new LocalArtifactCleaner(config.generatedRunsDirectory),
   config.maintenance,
 );
+const targetReadiness = createTargetReadinessProbe(config);
 const app = buildApp({
   logger: { level: config.logLevel },
   runs,
   maintenance,
-  targetReadiness: createTargetReadinessProbe(config),
+  ...(targetReadiness ? { targetReadiness } : {}),
   ...(config.maintenance.adminToken
     ? { maintenanceAdminToken: config.maintenance.adminToken }
     : {}),
