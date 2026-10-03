@@ -24,13 +24,34 @@ compose() {
 echo "Starting Testy services for the real GL-EYE integration..."
 compose up --build --detach --wait postgres reference-sut traffic-gateway control-plane
 
-if ! compose exec -T control-plane node -e "fetch('http://gl-eye-app:8000/up').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"; then
-    echo "GL-EYE is not reachable on the shared testy-gl-eye network." >&2
+if ! compose exec -T control-plane node - <<'NODE'
+const baseUrl = process.env.GL_EYE_BASE_URL ?? "http://gl-eye-app:8000";
+const token = process.env.GL_EYE_TEST_SUPPORT_TOKEN ?? "";
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+for (let attempt = 1; attempt <= 60; attempt += 1) {
+  try {
+    const [health, capabilities] = await Promise.all([
+      fetch(`${baseUrl}/up`),
+      fetch(`${baseUrl}/test-support/v1/capabilities`, {
+        headers: { authorization: `Bearer ${token}` },
+      }),
+    ]);
+    if (health.ok && capabilities.ok) process.exit(0);
+  } catch {
+    // GL-EYE may still be starting.
+  }
+  await sleep(2000);
+}
+process.exit(1);
+NODE
+then
+    echo "GL-EYE Testy mode did not become ready on the shared testy-gl-eye network." >&2
     echo "In the GL-EYE repository, run: ./bin/testy-dev" >&2
     exit 1
 fi
 
-echo "GL-EYE is reachable. Running customer-alpha-gl-eye-local..."
+echo "GL-EYE Testy mode is ready. Running customer-alpha-gl-eye-local..."
 
 compose exec -T -e TESTY_PUBLIC_CONTROL_PLANE_PORT="$TESTY_CONTROL_PLANE_HOST_PORT" control-plane node - <<'NODE'
 const baseUrl = "http://127.0.0.1:3000";
