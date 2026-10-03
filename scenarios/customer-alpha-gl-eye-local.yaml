@@ -29,10 +29,10 @@ assertions:
     type: provider-call-count
     vendorId: ipinfo
     equals: 1
-  - id: apollo-called-once
+  - id: apollo-called-three-times
     type: provider-call-count
     vendorId: apollo
-    equals: 1
+    equals: 3
   - id: hunter-called-once
     type: provider-call-count
     vendorId: hunter
@@ -42,8 +42,20 @@ assertions:
     exact: true
     sequence:
       - vendorId: ipinfo
+        operationId: ip-lookup-json
+        caseId: corporate-json
       - vendorId: apollo
+        operationId: gl-eye-organization-enrich
+        caseId: nordlicht-company
+      - vendorId: apollo
+        operationId: gl-eye-people-search
+        caseId: nordlicht-people
+      - vendorId: apollo
+        operationId: gl-eye-people-bulk-match
+        caseId: nordlicht-people-details
       - vendorId: hunter
+        operationId: gl-eye-email-verifier
+        caseId: nordlicht-email-valid
   - id: target-created-one-score
     type: observation
     observationType: target-outcome
