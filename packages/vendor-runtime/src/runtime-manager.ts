@@ -115,11 +115,15 @@ export class ImposterRuntimeManager {
         }
       }
 
-      throw new RuntimeStartError("Unable to start Imposter vendor runtime.", {
-        ...(containerId ? { containerId } : {}),
-        ...(runtimeLogs ? { runtimeLogs } : {}),
-        cause: error,
-      });
+      const detail = error instanceof Error ? error.message : String(error);
+      throw new RuntimeStartError(
+        `Unable to start Imposter vendor runtime: ${detail}`,
+        {
+          ...(containerId ? { containerId } : {}),
+          ...(runtimeLogs ? { runtimeLogs } : {}),
+          cause: error,
+        },
+      );
     }
   }
 
