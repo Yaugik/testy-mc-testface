@@ -1,0 +1,85 @@
+#!/bin/sh
+set -eu
+
+cd "$(dirname "$0")/.."
+
+if ! docker info >/dev/null 2>&1; then
+    echo "Docker is not running. Start Docker Desktop and retry." >&2
+    exit 1
+fi
+
+if ! docker network inspect testy-gl-eye >/dev/null 2>&1; then
+    docker network create testy-gl-eye >/dev/null
+fi
+
+compose() {
+    docker compose --file compose.yaml --file compose.gl-eye.yaml "$@"
+}
+
+echo "Starting Testy services for the real GL-EYE integration..."
+compose up --build --detach --wait postgres reference-sut traffic-gateway control-plane
+
+if ! compose exec -T control-plane node -e "fetch('http://gl-eye-app:8000/up').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"; then
+    echo "GL-EYE is not reachable on the shared testy-gl-eye network." >&2
+    echo "In the GL-EYE repository, run: ./bin/testy-dev" >&2
+    exit 1
+fi
+
+echo "GL-EYE is reachable. Running customer-alpha-gl-eye-local..."
+
+compose exec -T control-plane node - <<'NODE'
+const baseUrl = "http://127.0.0.1:3000";
+const scenarioId = "customer-alpha-gl-eye-local";
+const terminal = new Set(["PASSED", "FAILED", "CANCELLED"]);
+const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const createdResponse = await fetch(`${baseUrl}/v1/runs`, {
+  method: "POST",
+  headers: { "content-type": "application/json" },
+  body: JSON.stringify({ scenarioId }),
+});
+
+if (!createdResponse.ok) {
+  console.error("Failed to create Testy run:", await createdResponse.text());
+  process.exit(1);
+}
+
+let run = await createdResponse.json();
+console.log(`Testy run: ${run.id}`);
+
+const deadline = Date.now() + 11 * 60 * 1000;
+while (!terminal.has(run.status) && Date.now() < deadline) {
+  await delay(1000);
+  const response = await fetch(`${baseUrl}/v1/runs/${run.id}`);
+  if (!response.ok) {
+    console.error("Failed to read Testy run:", await response.text());
+    process.exit(1);
+  }
+  run = await response.json();
+}
+
+if (!terminal.has(run.status)) {
+  console.error("Testy run did not reach a terminal state before the local timeout.");
+  process.exit(1);
+}
+
+const reportResponse = await fetch(`${baseUrl}/v1/runs/${run.id}/report`);
+const report = reportResponse.ok ? await reportResponse.json() : undefined;
+
+if (run.status !== "PASSED") {
+  const failedAssertions = Array.isArray(report?.assertions)
+    ? report.assertions.filter((assertion) => assertion.passed === false)
+    : [];
+  console.error(JSON.stringify({
+    runId: run.id,
+    status: run.status,
+    metadata: run.metadata,
+    failedAssertions,
+  }, null, 2));
+  console.error(`Report: http://127.0.0.1:3000/v1/runs/${run.id}/report`);
+  process.exit(1);
+}
+
+console.log(`PASS: ${scenarioId}`);
+console.log(`Report: http://127.0.0.1:3000/v1/runs/${run.id}/report`);
+NODE
