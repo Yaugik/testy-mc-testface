@@ -131,6 +131,15 @@ describe("target adapter contract", () => {
 
     expect(JSON.stringify(publicResult)).not.toContain(binding.routeToken);
     expect(bundle.routeFor(context)).toBe(binding);
+
+    const prepare = bundle.actions["target.prepare-run"];
+    if (!prepare) throw new Error("target.prepare-run was not registered");
+    const preparedOutput = await prepare(undefined, context);
+    expect(JSON.stringify(preparedOutput)).not.toContain("fake-ingestion-");
+
+    const browserTarget = bundle.browserTargetFor(context);
+    expect(browserTarget.gateway).toBe(binding);
+    expect(browserTarget.ingestionToken).toMatch(/^fake-ingestion-/u);
   });
 
   it("cleans target runs idempotently", async () => {
