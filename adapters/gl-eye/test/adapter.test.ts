@@ -40,7 +40,7 @@ describe("GL-EYE adapter", () => {
             targetRunId: "target-1",
             tenantId: "tenant-alpha",
             controlTenantId: "tenant-beta",
-            trackingScriptUrl: "https://gl-eye.example.test/tracker.js",
+            trackingScriptUrl: "https://gl-eye.example.test/sdk/track.v1.min.js",
             siteId: "site-alpha",
             ingestionToken: "test-ingestion-token-at-least-32-characters",
           }),
@@ -57,7 +57,7 @@ describe("GL-EYE adapter", () => {
     await adapter.configureSyntheticSite(context, {
       siteId: "site-alpha",
       hostname: "run.customer-alpha.example.test",
-      origin: "http://run.customer-alpha.example.test:42001",
+      origin: "https://run.customer-alpha.example.test:42001",
       trackingScriptUrl: "https://gl-eye.example.test/sdk/track.v1.min.js",
       gateway: {
         proxyBaseUrl: "http://gateway.example.test/v1/proxy/route-1",
@@ -86,7 +86,7 @@ describe("GL-EYE adapter", () => {
     });
     expect(JSON.parse(calls[2]?.body ?? "null")).toEqual({
       hostname: "run.customer-alpha.example.test",
-      origin: "http://run.customer-alpha.example.test:42001",
+      origin: "https://run.customer-alpha.example.test:42001",
     });
     expect(calls[2]?.body).not.toContain("secret-route-token");
   });
