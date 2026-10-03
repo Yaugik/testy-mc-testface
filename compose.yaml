@@ -80,9 +80,9 @@ services:
       CONTROL_PLANE_PORT: 3000
       DATABASE_URL: postgresql://testy:testy@postgres:5432/testy
       LOG_LEVEL: info
-      SCENARIOS_DIR: scenarios
-      VENDOR_PACKAGES_DIR: vendors
-      BROWSER_PACKAGES_DIR: customers
+      SCENARIOS_DIR: /workspace/scenarios
+      VENDOR_PACKAGES_DIR: /workspace/vendors
+      BROWSER_PACKAGES_DIR: /workspace/customers
       GENERATED_RUNS_DIR: ${TESTY_GENERATED_HOST_ROOT:-/tmp/testy-generated}/runs
       TESTY_IMPOSTER_IMAGE: ${TESTY_IMPOSTER_IMAGE:-outofcoffee/imposter:5}
       TESTY_DOCKER_NETWORK: testy-platform
