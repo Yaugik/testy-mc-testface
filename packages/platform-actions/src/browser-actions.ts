@@ -60,7 +60,7 @@ export function createBrowserActions(
           new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString(),
           async () => {
             await site.stop();
-            if (state.site === site) state.site = undefined;
+            if (state.site === site) delete state.site;
           },
         );
         state.siteLeaseRegistered = true;
