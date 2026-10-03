@@ -20,6 +20,7 @@ export type {
   VendorEndpoints,
 } from "./types.js";
 export type {
+  BrowserTargetRunContext,
   GatewayTargetScenarioActionBundle,
   GatewayTargetScenarioActionsOptions,
 } from "./scenario-actions.js";
