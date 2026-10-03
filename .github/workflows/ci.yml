@@ -32,4 +32,9 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Run quality gates
-        run: pnpm ci
+        run: pnpm run ci
+
+      - name: Validate GL-EYE integration scenario
+        run: |
+          pnpm run scenario:prepare
+          pnpm --filter @testy/scenario-engine exec node dist/cli.js validate ../../scenarios/customer-alpha-gl-eye-local.yaml
