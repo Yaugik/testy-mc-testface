@@ -123,7 +123,7 @@ describe("createIntegratedPlatformActions", () => {
           ({
             hostname: "run.customer-alpha.example.test",
             port: 42001,
-            origin: "http://run.customer-alpha.example.test:42001",
+            origin: "https://run.customer-alpha.example.test:42001",
             localOrigin: "http://127.0.0.1:42001",
             siteId: "alpha-site",
             events: () => [
@@ -234,6 +234,7 @@ describe("createIntegratedPlatformActions", () => {
           path: "/t/v1/events",
           targetBaseUrl: "http://gateway.test/v1/proxy/route-1",
           headers: {
+            origin: "https://run.customer-alpha.example.test:42001",
             "x-testy-route-token": "integration-route-token",
             "x-testy-run-id": "00000000-0000-4000-8000-000000000100",
           },
