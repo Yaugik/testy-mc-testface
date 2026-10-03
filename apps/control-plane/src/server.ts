@@ -30,6 +30,7 @@ const app = buildApp({
   logger: { level: config.logLevel },
   runs,
   maintenance,
+  targetReadiness: createTargetReadinessProbe(config),
   ...(config.maintenance.adminToken
     ? { maintenanceAdminToken: config.maintenance.adminToken }
     : {}),
@@ -74,4 +75,54 @@ try {
   await app.close().catch(() => undefined);
   await closeDatabase();
   process.exitCode = 1;
+}
+
+
+function createTargetReadinessProbe(config: ReturnType<typeof loadConfig>) {
+  const integration = config.targetIntegration;
+  if (!integration) return undefined;
+
+  if (integration.adapter !== "gl-eye") {
+    return async () => ({
+      status: "unconfigured" as const,
+      target: integration.adapter,
+    });
+  }
+
+  return async () => {
+    const baseUrl = integration.glEyeBaseUrl.replace(/\/$/u, "");
+    const [health, capabilities] = await Promise.all([
+      fetch(baseUrl + "/up"),
+      fetch(baseUrl + "/test-support/v1/capabilities", {
+        headers: {
+          authorization: "Bearer " + integration.glEyeAuthToken,
+        },
+      }),
+    ]);
+
+    let contractVersion: string | undefined;
+    let errorCode: string | undefined;
+
+    try {
+      const payload = (await capabilities.json()) as Record<string, unknown>;
+      if (typeof payload.contractVersion === "string") {
+        contractVersion = payload.contractVersion;
+      }
+      if (typeof payload.error === "string") {
+        errorCode = payload.error;
+      }
+    } catch {
+      // Status codes remain sufficient for operator diagnostics.
+    }
+
+    const ready = health.ok && capabilities.ok;
+    return {
+      status: ready ? "ready" as const : "not-ready" as const,
+      target: "gl-eye",
+      healthStatus: health.status,
+      capabilitiesStatus: capabilities.status,
+      ...(contractVersion ? { contractVersion } : {}),
+      ...(!ready && errorCode ? { error: errorCode } : {}),
+    };
+  };
 }
