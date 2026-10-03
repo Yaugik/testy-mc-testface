@@ -1,0 +1,22 @@
+{
+  "ip": "198.51.100.80",
+  "city": "Hamburg",
+  "region": "Hamburg",
+  "country": "DE",
+  "company": {
+    "name": "Hamburg Synthetic Example GmbH",
+    "domain": "hamburg-example.test",
+    "type": "business"
+  },
+  "privacy": {
+    "vpn": false,
+    "proxy": false,
+    "hosting": false
+  },
+  "asn": {
+    "asn": "AS64502",
+    "name": "Hamburg Synthetic Network",
+    "type": "business"
+  },
+  "classification": "corporate"
+}
