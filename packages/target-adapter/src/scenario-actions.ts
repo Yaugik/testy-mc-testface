@@ -229,6 +229,28 @@ export function createGatewayTargetScenarioActionBundle(
         visibleTenantIds: outcome.visibleTenantIds,
         scoreCount: outcome.scoreCount,
         companyCount: outcome.companyCount,
+        ...(outcome.processedEventCount === undefined
+          ? {}
+          : { processedEventCount: outcome.processedEventCount }),
+        ...(outcome.duplicateEventCount === undefined
+          ? {}
+          : { duplicateEventCount: outcome.duplicateEventCount }),
+        ...(outcome.companyFingerprint
+          ? { companyFingerprint: outcome.companyFingerprint }
+          : {}),
+        ...(outcome.scoreFingerprints
+          ? { scoreFingerprints: outcome.scoreFingerprints }
+          : {}),
+        ...(outcome.providerProvenance
+          ? { providerProvenance: outcome.providerProvenance }
+          : {}),
+        ...(outcome.confidence ? { confidence: outcome.confidence } : {}),
+        ...(outcome.suppressionStatus
+          ? { suppressionStatus: outcome.suppressionStatus }
+          : {}),
+        ...(outcome.processingWarnings
+          ? { processingWarnings: outcome.processingWarnings }
+          : {}),
         ...(outcome.detailsFingerprint
           ? { detailsFingerprint: outcome.detailsFingerprint }
           : {}),
