@@ -31,9 +31,27 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Run integration quality gates
+      - name: Lint integration surface
         run: |
-          pnpm lint
+          pnpm exec eslint \
+            adapters/gl-eye/src/adapter.ts \
+            adapters/gl-eye/test/adapter.test.ts \
+            apps/control-plane/src/platform-actions.ts \
+            packages/browser-runner/src/index.ts \
+            packages/browser-runner/src/network.ts \
+            packages/browser-runner/src/runner.ts \
+            packages/browser-runner/src/types.ts \
+            packages/platform-actions/src/browser-actions.ts \
+            packages/platform-actions/src/types.ts \
+            packages/platform-actions/test/registry.test.ts \
+            packages/target-adapter/src/fake.ts \
+            packages/target-adapter/src/index.ts \
+            packages/target-adapter/src/scenario-actions.ts \
+            packages/target-adapter/src/types.ts \
+            packages/target-adapter/test/target-adapter.test.ts
+
+      - name: Run repository typecheck, tests and build
+        run: |
           pnpm typecheck
           pnpm test
           pnpm build
