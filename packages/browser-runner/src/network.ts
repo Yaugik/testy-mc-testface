@@ -23,8 +23,7 @@ export async function installSiteRoute(
       );
       if (requestProxy) {
         const target = new URL(
-          source.pathname + source.search,
-          ensureTrailingSlash(requestProxy.targetBaseUrl),
+          `${requestProxy.targetBaseUrl.replace(/\/$/u, "")}${source.pathname}${source.search}`,
         );
         const fetched = await route.fetch({
           url: target.toString(),
@@ -87,7 +86,3 @@ export async function continueRoute(route: Route): Promise<void> {
   await route.continue();
 }
 
-
-function ensureTrailingSlash(value: string): string {
-  return value.endsWith("/") ? value : `${value}/`;
-}
