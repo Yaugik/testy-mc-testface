@@ -3,6 +3,15 @@ set -eu
 
 cd "$(dirname "$0")/.."
 
+mode="${1:---ui}"
+case "$mode" in
+    --ui|--headless) ;;
+    *)
+        echo "Usage: ./bin/test-gl-eye [--ui|--headless]" >&2
+        exit 2
+        ;;
+esac
+
 export TESTY_POSTGRES_HOST_PORT="${TESTY_POSTGRES_HOST_PORT:-25432}"
 export TESTY_REFERENCE_SUT_HOST_PORT="${TESTY_REFERENCE_SUT_HOST_PORT:-28080}"
 export TESTY_GATEWAY_HOST_PORT="${TESTY_GATEWAY_HOST_PORT:-23100}"
@@ -24,34 +33,43 @@ compose() {
 echo "Starting Testy services for the real GL-EYE integration..."
 compose up --build --detach --wait postgres reference-sut traffic-gateway control-plane
 
+target_ready=true
 if ! compose exec -T control-plane node - <<'NODE'
-const baseUrl = process.env.GL_EYE_BASE_URL ?? "http://gl-eye-app:8000";
-const token = process.env.GL_EYE_TEST_SUPPORT_TOKEN ?? "";
-const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-
-for (let attempt = 1; attempt <= 60; attempt += 1) {
-  try {
-    const [health, capabilities] = await Promise.all([
-      fetch(`${baseUrl}/up`),
-      fetch(`${baseUrl}/test-support/v1/capabilities`, {
-        headers: { authorization: `Bearer ${token}` },
-      }),
-    ]);
-    if (health.ok && capabilities.ok) process.exit(0);
-  } catch {
-    // GL-EYE may still be starting.
-  }
-  await sleep(2000);
-}
-process.exit(1);
+const response = await fetch("http://127.0.0.1:3000/v1/target-readiness");
+const text = await response.text();
+console.log("Target readiness: HTTP " + response.status + " " + text);
+process.exit(response.ok ? 0 : 1);
 NODE
 then
-    echo "GL-EYE Testy mode did not become ready on the shared testy-gl-eye network." >&2
-    echo "In the GL-EYE repository, run: ./bin/testy-dev" >&2
+    target_ready=false
+fi
+
+ui_url="http://127.0.0.1:$TESTY_CONTROL_PLANE_HOST_PORT/"
+
+if [ "$mode" = "--ui" ]; then
+    echo
+    echo "Testy Control Plane is running:"
+    echo "  $ui_url"
+    if [ "$target_ready" = "false" ]; then
+        echo
+        echo "GL-EYE is not ready yet. The Control Plane UI will show the exact target-readiness status."
+        echo "Keep ./bin/testy-dev running in the GL-EYE repository."
+    fi
+    if command -v open >/dev/null 2>&1; then
+        open "$ui_url" >/dev/null 2>&1 || true
+    fi
+    echo
+    echo "Choose 'GL-EYE local end-to-end' (customer-alpha-gl-eye-local) and press Run."
+    echo "Use ./bin/test-gl-eye --headless only when you want the non-UI automation path."
+    exit 0
+fi
+
+if [ "$target_ready" = "false" ]; then
+    echo "GL-EYE is not ready; headless execution cannot start." >&2
     exit 1
 fi
 
-echo "GL-EYE Testy mode is ready. Running customer-alpha-gl-eye-local..."
+echo "GL-EYE Testy mode is ready. Running customer-alpha-gl-eye-local headlessly..."
 
 compose exec -T -e TESTY_PUBLIC_CONTROL_PLANE_PORT="$TESTY_CONTROL_PLANE_HOST_PORT" control-plane node - <<'NODE'
 const baseUrl = "http://127.0.0.1:3000";
