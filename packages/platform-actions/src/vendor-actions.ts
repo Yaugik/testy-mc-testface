@@ -99,7 +99,7 @@ export function createVendorActions(
           new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
           async () => {
             await runtime.stop();
-            if (vendor.runtime === runtime) vendor.runtime = undefined;
+            if (vendor.runtime === runtime) delete vendor.runtime;
           },
         );
         vendor.runtimeLeaseRegistered = true;
