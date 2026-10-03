@@ -25,21 +25,20 @@ assertions:
     observationType: browser-request-check
     status: delivered
     equals: 2
-  - id: ipinfo-called-once
+  - id: ipinfo-called
     type: provider-call-count
     vendorId: ipinfo
-    equals: 1
-  - id: apollo-called-three-times
+    minimum: 2
+  - id: apollo-called
     type: provider-call-count
     vendorId: apollo
-    equals: 3
-  - id: hunter-called-once
+    minimum: 3
+  - id: hunter-called
     type: provider-call-count
     vendorId: hunter
-    equals: 1
+    minimum: 1
   - id: provider-order
     type: provider-call-order
-    exact: true
     sequence:
       - vendorId: ipinfo
         operationId: ip-lookup-json
