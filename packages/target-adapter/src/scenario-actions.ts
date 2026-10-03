@@ -35,9 +35,16 @@ export interface GatewayTargetScenarioActionsOptions {
   readonly defaultTargetLeaseTtlMs?: number;
 }
 
+export interface BrowserTargetRunContext {
+  readonly trackingScriptUrl: string;
+  readonly ingestionToken?: string;
+  readonly gateway: GatewayRouteBinding;
+}
+
 export interface GatewayTargetScenarioActionBundle {
   readonly actions: ScenarioActionRegistry;
   routeFor(context: ScenarioActionContext): GatewayRouteBinding;
+  browserTargetFor(context: ScenarioActionContext): BrowserTargetRunContext;
 }
 
 export function createGatewayTargetScenarioActionBundle(
@@ -154,6 +161,9 @@ export function createGatewayTargetScenarioActionBundle(
       const site: SiteDefinition = {
         siteId: readOptionalString(value, "siteId") ?? prepared.siteId,
         hostname: assertSyntheticHostname(readString(value, "hostname")),
+        ...(readOptionalString(value, "origin")
+          ? { origin: readOptionalString(value, "origin") }
+          : {}),
         trackingScriptUrl:
           readOptionalString(value, "trackingScriptUrl") ??
           prepared.trackingScriptUrl,
@@ -239,6 +249,17 @@ export function createGatewayTargetScenarioActionBundle(
   return {
     actions,
     routeFor: (context) => requireGateway(stateFor(context)),
+    browserTargetFor: (context) => {
+      const state = stateFor(context);
+      const prepared = requirePrepared(state);
+      return {
+        trackingScriptUrl: prepared.trackingScriptUrl,
+        ...(prepared.ingestionToken
+          ? { ingestionToken: prepared.ingestionToken }
+          : {}),
+        gateway: requireGateway(state),
+      };
+    },
   };
 }
 
