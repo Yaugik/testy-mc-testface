@@ -3,6 +3,11 @@ set -eu
 
 cd "$(dirname "$0")/.."
 
+export TESTY_POSTGRES_HOST_PORT="${TESTY_POSTGRES_HOST_PORT:-25432}"
+export TESTY_REFERENCE_SUT_HOST_PORT="${TESTY_REFERENCE_SUT_HOST_PORT:-28080}"
+export TESTY_GATEWAY_HOST_PORT="${TESTY_GATEWAY_HOST_PORT:-23100}"
+export TESTY_CONTROL_PLANE_HOST_PORT="${TESTY_CONTROL_PLANE_HOST_PORT:-23000}"
+
 if ! docker info >/dev/null 2>&1; then
     echo "Docker is not running. Start Docker Desktop and retry." >&2
     exit 1
@@ -27,10 +32,11 @@ fi
 
 echo "GL-EYE is reachable. Running customer-alpha-gl-eye-local..."
 
-compose exec -T control-plane node - <<'NODE'
+compose exec -T -e TESTY_PUBLIC_CONTROL_PLANE_PORT="$TESTY_CONTROL_PLANE_HOST_PORT" control-plane node - <<'NODE'
 const baseUrl = "http://127.0.0.1:3000";
 const scenarioId = "customer-alpha-gl-eye-local";
 const terminal = new Set(["PASSED", "FAILED", "CANCELLED"]);
+const publicBaseUrl = `http://127.0.0.1:${process.env.TESTY_PUBLIC_CONTROL_PLANE_PORT ?? "23000"}`;
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const createdResponse = await fetch(`${baseUrl}/v1/runs`, {
@@ -76,10 +82,10 @@ if (run.status !== "PASSED") {
     metadata: run.metadata,
     failedAssertions,
   }, null, 2));
-  console.error(`Report: http://127.0.0.1:3000/v1/runs/${run.id}/report`);
+  console.error(`Report: ${publicBaseUrl}/v1/runs/${run.id}/report`);
   process.exit(1);
 }
 
 console.log(`PASS: ${scenarioId}`);
-console.log(`Report: http://127.0.0.1:3000/v1/runs/${run.id}/report`);
+console.log(`Report: ${publicBaseUrl}/v1/runs/${run.id}/report`);
 NODE
