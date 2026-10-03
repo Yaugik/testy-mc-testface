@@ -50,11 +50,24 @@ jobs:
             packages/target-adapter/src/types.ts \
             packages/target-adapter/test/target-adapter.test.ts
 
-      - name: Run repository typecheck, tests and build
+      - name: Typecheck integration packages
         run: |
-          pnpm typecheck
-          pnpm test
-          pnpm build
+          pnpm --filter @testy/browser-runner typecheck
+          pnpm --filter @testy/target-adapter typecheck
+          pnpm --filter @testy/platform-actions typecheck
+          pnpm --filter @testy/gl-eye-adapter typecheck
+          pnpm --filter @testy/control-plane typecheck
+
+      - name: Test integration packages
+        run: |
+          pnpm --filter @testy/browser-runner test
+          pnpm --filter @testy/target-adapter test
+          pnpm --filter @testy/platform-actions test
+          pnpm --filter @testy/gl-eye-adapter test
+          pnpm --filter @testy/control-plane test
+
+      - name: Build repository
+        run: pnpm build
 
       - name: Validate GL-EYE integration scenario
         run: |
