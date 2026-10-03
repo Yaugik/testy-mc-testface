@@ -106,7 +106,7 @@ export function createBrowserActions(
       }
       const site = requireSite(stateFor(context));
       return delegate(
-        { siteId: site.siteId, hostname: site.hostname },
+        { siteId: site.siteId, hostname: site.hostname, origin: site.origin },
         context,
       );
     },
@@ -119,9 +119,11 @@ export function createBrowserActions(
         value,
         "targetPreparationStepId",
       );
-      const trackingScriptUrl = targetPreparationStepId
-        ? readTrackingScriptUrl(context.outputs[targetPreparationStepId])
-        : undefined;
+      const browserTarget = options.delegates?.resolveBrowserTarget?.(context);
+      const trackingScriptUrl = browserTarget?.trackingScriptUrl ??
+        (targetPreparationStepId
+          ? readTrackingScriptUrl(context.outputs[targetPreparationStepId])
+          : undefined);
       const state = stateFor(context);
       const report = await dependencies.runBrowserJourney(
         journeyId,
@@ -141,12 +143,37 @@ export function createBrowserActions(
           signal: context.signal,
           ...(trackingScriptUrl
             ? {
-                externalScripts: [trackingScriptUrl],
+                externalScripts: [
+                  {
+                    url: trackingScriptUrl,
+                    ...(browserTarget?.ingestionToken
+                      ? {
+                          attributes: {
+                            "data-site": browserTarget.ingestionToken,
+                          },
+                        }
+                      : {}),
+                  },
+                ],
                 expectedRequests: [
                   {
                     id: "target-tracking-script",
                     url: trackingScriptUrl,
                     method: "GET",
+                  },
+                ],
+              }
+            : {}),
+          ...(browserTarget
+            ? {
+                requestProxies: [
+                  {
+                    path: "/t/v1/events",
+                    targetBaseUrl: browserTarget.gatewayProxyBaseUrl,
+                    headers: {
+                      "x-testy-route-token": browserTarget.gatewayRouteToken,
+                      "x-testy-run-id": browserTarget.runIdHeader,
+                    },
                   },
                 ],
               }
