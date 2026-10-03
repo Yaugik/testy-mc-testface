@@ -15,5 +15,6 @@
     "asn": "AS64500",
     "name": "Nordlicht Test Network",
     "type": "business"
-  }
+  },
+  "country": "DE"
 }
