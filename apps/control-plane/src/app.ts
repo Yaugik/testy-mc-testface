@@ -10,6 +10,16 @@ import type { MaintenanceService } from "./maintenance.js";
 import { PostgresScenarioRunRepository } from "./run-repository.js";
 import { registerRunRoutes } from "./run-routes.js";
 import { ScenarioRunService, type RunService } from "./run-service.js";
+import { registerControlPlaneUi } from "./ui.js";
+
+export interface TargetReadinessResult {
+  readonly status: "ready" | "not-ready" | "unconfigured";
+  readonly target?: string;
+  readonly healthStatus?: number;
+  readonly capabilitiesStatus?: number;
+  readonly contractVersion?: string;
+  readonly error?: string;
+}
 
 export interface BuildAppOptions {
   readonly database?: DatabaseProbe;
@@ -17,6 +27,7 @@ export interface BuildAppOptions {
   readonly runs?: RunService;
   readonly maintenance?: MaintenanceService;
   readonly maintenanceAdminToken?: string;
+  readonly targetReadiness?: () => Promise<TargetReadinessResult>;
 }
 
 export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
@@ -28,11 +39,36 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
     options.runs ??
     new ScenarioRunService(new PostgresScenarioRunRepository(databasePool));
 
+  registerControlPlaneUi(app);
+
   app.get("/v1/health", async () => ({
     status: "ok",
     service: "control-plane",
     timestamp: new Date().toISOString(),
   }));
+
+  app.get("/v1/target-readiness", async (_request, reply) => {
+    if (!options.targetReadiness) {
+      return {
+        status: "unconfigured",
+        target: "none",
+      };
+    }
+
+    try {
+      const result = await options.targetReadiness();
+      return result.status === "ready"
+        ? result
+        : reply.status(503).send(result);
+    } catch (error) {
+      const sanitizedError = sanitizeError(error);
+      app.log.warn({ error: sanitizedError }, "Target readiness check failed");
+      return reply.status(503).send({
+        status: "not-ready",
+        error: sanitizedError.message,
+      });
+    }
+  });
 
   app.get("/v1/readiness", async (_request, reply) => {
     try {
