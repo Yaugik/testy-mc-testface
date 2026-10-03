@@ -10,5 +10,10 @@
     "proxy": false,
     "hosting": false
   },
-  "confidence": "high"
+  "confidence": "high",
+  "asn": {
+    "asn": "AS64500",
+    "name": "Nordlicht Test Network",
+    "type": "business"
+  }
 }
