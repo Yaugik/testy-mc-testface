@@ -197,36 +197,33 @@ export class GlEyeTargetAdapter implements TargetAdapter {
       expandEndpoint(this.endpoints.outcome, prepared.targetRunId),
       context,
     );
+    const processedEventCount = optionalNumber(value, "processedEventCount");
+    const duplicateEventCount = optionalNumber(value, "duplicateEventCount");
+    const companyFingerprint = optionalString(value, "companyFingerprint");
+    const scoreFingerprints = optionalStringArray(value, "scoreFingerprints");
+    const providerProvenance = optionalStringArray(value, "providerProvenance");
+    const confidence = optionalEnum(value, "confidence", ["low", "medium", "high"] as const);
+    const suppressionStatus = optionalEnum(
+      value,
+      "suppressionStatus",
+      ["allowed", "suppressed"] as const,
+    );
+    const processingWarnings = optionalStringArray(value, "processingWarnings");
+
     return {
       targetRunId: prepared.targetRunId,
       tenantId: prepared.tenantId,
       visibleTenantIds: requireStringArray(value, "visibleTenantIds"),
       scoreCount: requireNumber(value, "scoreCount"),
       companyCount: requireNumber(value, "companyCount"),
-      ...(optionalNumber(value, "processedEventCount") !== undefined
-        ? { processedEventCount: optionalNumber(value, "processedEventCount") }
-        : {}),
-      ...(optionalNumber(value, "duplicateEventCount") !== undefined
-        ? { duplicateEventCount: optionalNumber(value, "duplicateEventCount") }
-        : {}),
-      ...(optionalString(value, "companyFingerprint")
-        ? { companyFingerprint: optionalString(value, "companyFingerprint") }
-        : {}),
-      ...(optionalStringArray(value, "scoreFingerprints")
-        ? { scoreFingerprints: optionalStringArray(value, "scoreFingerprints") }
-        : {}),
-      ...(optionalStringArray(value, "providerProvenance")
-        ? { providerProvenance: optionalStringArray(value, "providerProvenance") }
-        : {}),
-      ...(optionalEnum(value, "confidence", ["low", "medium", "high"] as const)
-        ? { confidence: optionalEnum(value, "confidence", ["low", "medium", "high"] as const) }
-        : {}),
-      ...(optionalEnum(value, "suppressionStatus", ["allowed", "suppressed"] as const)
-        ? { suppressionStatus: optionalEnum(value, "suppressionStatus", ["allowed", "suppressed"] as const) }
-        : {}),
-      ...(optionalStringArray(value, "processingWarnings")
-        ? { processingWarnings: optionalStringArray(value, "processingWarnings") }
-        : {}),
+      ...(processedEventCount === undefined ? {} : { processedEventCount }),
+      ...(duplicateEventCount === undefined ? {} : { duplicateEventCount }),
+      ...(companyFingerprint ? { companyFingerprint } : {}),
+      ...(scoreFingerprints ? { scoreFingerprints } : {}),
+      ...(providerProvenance ? { providerProvenance } : {}),
+      ...(confidence ? { confidence } : {}),
+      ...(suppressionStatus ? { suppressionStatus } : {}),
+      ...(processingWarnings ? { processingWarnings } : {}),
       detailsFingerprint: fingerprintJson(value),
     };
   }
@@ -363,7 +360,7 @@ function optionalEnum<const T extends readonly string[]>(
   allowed: T,
 ): T[number] | undefined {
   const result = value[key];
-  return typeof result === "string" && allowed.includes(result)
+  return typeof result === "string" && allowed.includes(result as T[number])
     ? result as T[number]
     : undefined;
 }
