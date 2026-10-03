@@ -26,6 +26,7 @@ export interface GatewaySiteBinding {
 export interface SiteDefinition {
   readonly siteId: string;
   readonly hostname: string;
+  readonly origin?: string;
   readonly trackingScriptUrl?: string;
   readonly gateway?: GatewaySiteBinding;
   readonly metadata?: Readonly<Record<string, string>>;
