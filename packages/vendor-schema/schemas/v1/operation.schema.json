@@ -255,7 +255,10 @@
           "then": {
             "required": [
               "value"
-            ]
+            ],
+            "properties": {
+              "value": {}
+            }
           }
         },
         {
