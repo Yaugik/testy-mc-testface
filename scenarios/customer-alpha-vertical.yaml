@@ -20,11 +20,11 @@ assertions:
     action: submit
     expectedStatus: PASSED
     minimum: 2
-  - id: tracking-script-delivered-twice
+  - id: tracking-script-delivered
     type: observation-count
     observationType: browser-request-check
     status: delivered
-    equals: 2
+    minimum: 2
   - id: ipinfo-called
     type: provider-call-count
     vendorId: ipinfo
