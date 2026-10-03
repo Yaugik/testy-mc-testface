@@ -128,7 +128,10 @@ export class GlEyeTargetAdapter implements TargetAdapter {
       "PUT",
       expandEndpoint(this.endpoints.configureSite, prepared.targetRunId),
       context,
-      site,
+      {
+        hostname: site.hostname,
+        ...(site.origin ? { origin: site.origin } : {}),
+      },
       [200, 204],
     );
     return site;
@@ -200,6 +203,30 @@ export class GlEyeTargetAdapter implements TargetAdapter {
       visibleTenantIds: requireStringArray(value, "visibleTenantIds"),
       scoreCount: requireNumber(value, "scoreCount"),
       companyCount: requireNumber(value, "companyCount"),
+      ...(optionalNumber(value, "processedEventCount") !== undefined
+        ? { processedEventCount: optionalNumber(value, "processedEventCount") }
+        : {}),
+      ...(optionalNumber(value, "duplicateEventCount") !== undefined
+        ? { duplicateEventCount: optionalNumber(value, "duplicateEventCount") }
+        : {}),
+      ...(optionalString(value, "companyFingerprint")
+        ? { companyFingerprint: optionalString(value, "companyFingerprint") }
+        : {}),
+      ...(optionalStringArray(value, "scoreFingerprints")
+        ? { scoreFingerprints: optionalStringArray(value, "scoreFingerprints") }
+        : {}),
+      ...(optionalStringArray(value, "providerProvenance")
+        ? { providerProvenance: optionalStringArray(value, "providerProvenance") }
+        : {}),
+      ...(optionalEnum(value, "confidence", ["low", "medium", "high"] as const)
+        ? { confidence: optionalEnum(value, "confidence", ["low", "medium", "high"] as const) }
+        : {}),
+      ...(optionalEnum(value, "suppressionStatus", ["allowed", "suppressed"] as const)
+        ? { suppressionStatus: optionalEnum(value, "suppressionStatus", ["allowed", "suppressed"] as const) }
+        : {}),
+      ...(optionalStringArray(value, "processingWarnings")
+        ? { processingWarnings: optionalStringArray(value, "processingWarnings") }
+        : {}),
       detailsFingerprint: fingerprintJson(value),
     };
   }
@@ -313,6 +340,32 @@ function requireNumber(value: Record<string, unknown>, key: string): number {
     throw new Error(`GL-EYE response '${key}' must be a number.`);
   }
   return result;
+}
+
+function optionalNumber(value: Record<string, unknown>, key: string): number | undefined {
+  const result = value[key];
+  return typeof result === "number" && Number.isFinite(result) ? result : undefined;
+}
+
+function optionalStringArray(
+  value: Record<string, unknown>,
+  key: string,
+): readonly string[] | undefined {
+  const result = value[key];
+  return Array.isArray(result) && result.every((item) => typeof item === "string")
+    ? result as string[]
+    : undefined;
+}
+
+function optionalEnum<const T extends readonly string[]>(
+  value: Record<string, unknown>,
+  key: string,
+  allowed: T,
+): T[number] | undefined {
+  const result = value[key];
+  return typeof result === "string" && allowed.includes(result)
+    ? result as T[number]
+    : undefined;
 }
 
 function requireStringArray(value: Record<string, unknown>, key: string): readonly string[] {
