@@ -8,7 +8,7 @@ timeoutMs: 600000
 
 variables:
   targetOrigin: http://gl-eye-app:8000
-  syntheticIp: 198.51.100.25
+  syntheticIp: 198.51.100.10
 
 assertions:
   - id: browser-journey-passed
