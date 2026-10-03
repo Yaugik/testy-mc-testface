@@ -17,4 +17,5 @@ docker compose     --file compose.yaml     --file compose.gl-eye.yaml     config
 docker compose build
 
 echo "Testy setup is complete."
-echo "Start GL-EYE with ./bin/testy-dev in the GL-EYE repository, then run ./bin/test-gl-eye here."
+echo "Start GL-EYE with ./bin/testy-dev in the GL-EYE repository."
+echo "Then run ./bin/test-gl-eye here and control the test from the Control Plane UI."
