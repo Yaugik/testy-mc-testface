@@ -32,7 +32,7 @@ describe("GL-EYE adapter", () => {
           method: init?.method,
           body: typeof init?.body === "string" ? init.body : undefined,
         });
-        if (url.endsWith("/vendor-endpoints")) {
+        if (url.endsWith("/vendor-endpoints") || url.endsWith("/site")) {
           return new Response(null, { status: 204 });
         }
         return new Response(
@@ -54,6 +54,17 @@ describe("GL-EYE adapter", () => {
       apollo: "https://vendors.example.test/apollo",
       hunter: "https://vendors.example.test/hunter",
     });
+    await adapter.configureSyntheticSite(context, {
+      siteId: "site-alpha",
+      hostname: "run.customer-alpha.example.test",
+      origin: "http://run.customer-alpha.example.test:42001",
+      trackingScriptUrl: "https://gl-eye.example.test/sdk/track.v1.min.js",
+      gateway: {
+        proxyBaseUrl: "http://gateway.example.test/v1/proxy/route-1",
+        routeToken: "secret-route-token",
+        runIdHeader: context.runId,
+      },
+    });
 
     expect(prepared.ingestionToken).toBe("test-ingestion-token-at-least-32-characters");
     expect(calls[0]?.url).toBe("https://gl-eye.example.test/test-support/v1/runs");
@@ -69,6 +80,15 @@ describe("GL-EYE adapter", () => {
         hunter: "https://vendors.example.test/hunter",
       },
     });
+    expect(calls[2]).toMatchObject({
+      url: "https://gl-eye.example.test/test-support/v1/runs/target-1/site",
+      method: "PUT",
+    });
+    expect(JSON.parse(calls[2]?.body ?? "null")).toEqual({
+      hostname: "run.customer-alpha.example.test",
+      origin: "http://run.customer-alpha.example.test:42001",
+    });
+    expect(calls[2]?.body).not.toContain("secret-route-token");
   });
 
   it("rejects production and non-allowlisted origins", () => {
