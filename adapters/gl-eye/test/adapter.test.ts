@@ -35,6 +35,36 @@ describe("GL-EYE adapter", () => {
         if (url.endsWith("/vendor-endpoints") || url.endsWith("/site")) {
           return new Response(null, { status: 204 });
         }
+        if (url.endsWith("/observations") && init?.method === "POST") {
+          return new Response(
+            JSON.stringify({
+              observationId: "observation-1",
+              targetRunId: "target-1",
+              state: "waiting",
+            }),
+            { status: 201, headers: { "content-type": "application/json" } },
+          );
+        }
+        if (url.endsWith("/observations/observation-1")) {
+          return new Response(
+            JSON.stringify({
+              observationId: "observation-1",
+              targetRunId: "target-1",
+              state: "completed",
+            }),
+            { status: 200, headers: { "content-type": "application/json" } },
+          );
+        }
+        if (url.endsWith("/enrichment")) {
+          return new Response(
+            JSON.stringify({
+              targetRunId: "target-1",
+              processedDomains: ["nordlicht-example.test"],
+              providerProvenance: ["apollo", "hunter", "ipinfo"],
+            }),
+            { status: 200, headers: { "content-type": "application/json" } },
+          );
+        }
         return new Response(
           JSON.stringify({
             targetRunId: "target-1",
@@ -89,6 +119,20 @@ describe("GL-EYE adapter", () => {
       origin: "https://run.customer-alpha.example.test:42001",
     });
     expect(calls[2]?.body).not.toContain("secret-route-token");
+
+    await adapter.startObservation(context);
+    const completion = await adapter.waitForCompletion(context, {
+      timeoutMs: 1000,
+      pollIntervalMs: 1,
+      expectedState: "completed",
+    });
+
+    expect(completion.completed).toBe(true);
+    expect(completion.state).toBe("completed");
+    expect(calls.some((call) =>
+      call.url === "https://gl-eye.example.test/test-support/v1/runs/target-1/enrichment"
+      && call.method === "POST"
+    )).toBe(true);
   });
 
   it("rejects production and non-allowlisted origins", () => {
