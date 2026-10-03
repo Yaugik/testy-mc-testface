@@ -1,12 +1,15 @@
 import type {
   BrowserJourneyReport,
   BrowserName,
+  BrowserRequestProxy,
   ExpectedBrowserRequest,
+  ExternalBrowserScript,
 } from "@testy/browser-runner";
 import type { LoadedBrowserPackage } from "@testy/browser-schema";
 import type { LoadedVendorPackage } from "@testy/config-loader";
 import type {
   PersistedResourceLease,
+  ScenarioActionContext,
   ScenarioActionRegistry,
   ScenarioRunRepository,
 } from "@testy/scenario-engine";
@@ -21,6 +24,14 @@ import type {
   RuntimeStartOptions,
 } from "@testy/vendor-runtime";
 
+export interface BrowserTargetContext {
+  readonly trackingScriptUrl: string;
+  readonly ingestionToken?: string;
+  readonly gatewayProxyBaseUrl: string;
+  readonly gatewayRouteToken: string;
+  readonly runIdHeader: string;
+}
+
 export interface PlatformActionOptions {
   readonly vendorPackagesRoot: string;
   readonly browserPackagesRoot: string;
@@ -34,6 +45,9 @@ export interface PlatformActionOptions {
   readonly delegates?: {
     readonly configureVendorEndpoints?: ScenarioActionRegistry[string];
     readonly configureSyntheticSite?: ScenarioActionRegistry[string];
+    readonly resolveBrowserTarget?: (
+      context: ScenarioActionContext,
+    ) => BrowserTargetContext;
   };
   readonly dependencies?: Partial<PlatformActionDependencies>;
 }
@@ -70,7 +84,8 @@ export interface PlatformActionDependencies {
       readonly artifactRoot: string;
       readonly runNamespace: string;
       readonly signal?: AbortSignal;
-      readonly externalScripts?: readonly string[];
+      readonly externalScripts?: readonly ExternalBrowserScript[];
+      readonly requestProxies?: readonly BrowserRequestProxy[];
       readonly expectedRequests?: readonly ExpectedBrowserRequest[];
     },
   ): Promise<BrowserJourneyReport>;
