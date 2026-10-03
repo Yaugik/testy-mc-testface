@@ -26,7 +26,16 @@ export class GatewayAdminClient {
   }
 
   public async createRoute(input: CreateGatewayRouteInput): Promise<GatewayRouteBinding> {
-    return this.request<GatewayRouteBinding>("POST", "/v1/routes", input);
+    const route = await this.request<GatewayRouteBinding>("POST", "/v1/routes", input);
+    const proxy = new URL(route.proxyBaseUrl);
+    const reachable = new URL(this.baseUrl);
+    proxy.protocol = reachable.protocol;
+    proxy.host = reachable.host;
+
+    return {
+      ...route,
+      proxyBaseUrl: proxy.toString().replace(/\/$/u, ""),
+    };
   }
 
   public async deleteRoute(routeId: string): Promise<void> {
