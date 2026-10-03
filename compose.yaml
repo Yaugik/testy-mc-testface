@@ -6,7 +6,7 @@ services:
       POSTGRES_USER: testy
       POSTGRES_PASSWORD: testy
     ports:
-      - "5432:5432"
+      - "127.0.0.1:${TESTY_POSTGRES_HOST_PORT:-5432}:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U testy -d testy"]
       interval: 5s
@@ -29,7 +29,7 @@ services:
       REFERENCE_SUT_ENVIRONMENT: local
       REFERENCE_SUT_SERVICE_TOKEN: ${REFERENCE_SUT_SERVICE_TOKEN:-reference-sut-service-token-local}
     ports:
-      - "8080:8080"
+      - "127.0.0.1:${TESTY_REFERENCE_SUT_HOST_PORT:-8080}:8080"
     healthcheck:
       test:
         [
@@ -56,7 +56,7 @@ services:
       TESTY_GATEWAY_ALLOWED_TARGET_ORIGINS: http://reference-sut:8080
       TESTY_GATEWAY_BLOCKED_PROVIDER_HOSTS: ${TESTY_GATEWAY_BLOCKED_PROVIDER_HOSTS:-}
     ports:
-      - "3100:3100"
+      - "127.0.0.1:${TESTY_GATEWAY_HOST_PORT:-3100}:3100"
     healthcheck:
       test:
         [
@@ -101,7 +101,7 @@ services:
       GL_EYE_TEST_SUPPORT_TOKEN: ${GL_EYE_TEST_SUPPORT_TOKEN:-reference-sut-service-token-local}
       GL_EYE_ALLOWED_ORIGINS: http://reference-sut:8080
     ports:
-      - "3000:3000"
+      - "127.0.0.1:${TESTY_CONTROL_PLANE_HOST_PORT:-3000}:3000"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ${TESTY_GENERATED_HOST_ROOT:-/tmp/testy-generated}:${TESTY_GENERATED_HOST_ROOT:-/tmp/testy-generated}
