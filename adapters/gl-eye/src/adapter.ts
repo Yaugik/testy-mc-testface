@@ -19,6 +19,7 @@ export interface GlEyeEndpointTemplates {
   readonly configureSite: string;
   readonly startObservation: string;
   readonly observationStatus: string;
+  readonly triggerEnrichment: string;
   readonly outcome: string;
   readonly cleanup: string;
 }
@@ -29,6 +30,7 @@ export const defaultGlEyeTestSupportEndpoints: GlEyeEndpointTemplates = {
   configureSite: "/test-support/v1/runs/{targetRunId}/site",
   startObservation: "/test-support/v1/runs/{targetRunId}/observations",
   observationStatus: "/test-support/v1/runs/{targetRunId}/observations/{observationId}",
+  triggerEnrichment: "/test-support/v1/runs/{targetRunId}/enrichment",
   outcome: "/test-support/v1/runs/{targetRunId}/outcome",
   cleanup: "/test-support/v1/runs/{targetRunId}",
 };
@@ -53,6 +55,7 @@ export class GlEyeTargetAdapter implements TargetAdapter {
   private readonly maxResponseBytes: number;
   private readonly prepared = new Map<RunId, PreparedTarget>();
   private readonly observations = new Map<RunId, ObservationHandle>();
+  private readonly enrichmentTriggered = new Set<RunId>();
 
   public constructor(private readonly options: GlEyeTargetAdapterOptions) {
     this.baseOrigin = normalizeAllowedOrigin(options.baseUrl, options.allowedOrigins);
@@ -178,6 +181,17 @@ export class GlEyeTargetAdapter implements TargetAdapter {
         value.completed === true ||
         (condition.expectedState !== undefined && state === condition.expectedState);
       if (completed) {
+        if (!this.enrichmentTriggered.has(context.runId)) {
+          await this.requestJson(
+            "POST",
+            expandEndpoint(this.endpoints.triggerEnrichment, prepared.targetRunId),
+            context,
+            {},
+            [200, 202],
+          );
+          this.enrichmentTriggered.add(context.runId);
+        }
+
         return {
           completed: true,
           state,
@@ -234,6 +248,7 @@ export class GlEyeTargetAdapter implements TargetAdapter {
     await this.cleanupTarget(prepared.targetRunId);
     this.prepared.delete(context.runId);
     this.observations.delete(context.runId);
+    this.enrichmentTriggered.delete(context.runId);
   }
 
   public async cleanupTarget(targetRunId: string): Promise<void> {
@@ -248,6 +263,7 @@ export class GlEyeTargetAdapter implements TargetAdapter {
       if (prepared.targetRunId === targetRunId) {
         this.prepared.delete(runId);
         this.observations.delete(runId);
+        this.enrichmentTriggered.delete(runId);
       }
     }
   }
