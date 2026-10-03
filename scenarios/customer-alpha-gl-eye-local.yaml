@@ -209,6 +209,13 @@ phases:
         targetPreparationStepId: prepare-target
 
   observe:
+    - id: wait-for-target
+      kind: task
+      action: target.wait-for-completion
+      input:
+        timeoutMs: 120000
+        pollIntervalMs: 2000
+        expectedState: completed
     - id: collect-local-evidence
       kind: parallel
       steps:
@@ -235,13 +242,6 @@ phases:
           action: vendor.collect-state
           input:
             vendorId: ipinfo
-    - id: wait-for-target
-      kind: task
-      action: target.wait-for-completion
-      input:
-        timeoutMs: 120000
-        pollIntervalMs: 2000
-        expectedState: completed
     - id: collect-target-outcome
       kind: task
       action: target.collect-outcome
