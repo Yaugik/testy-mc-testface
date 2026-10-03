@@ -1,6 +1,8 @@
 import type { NetworkFixtureDefinition } from "@testy/browser-schema";
 import type { BrowserContext, Route } from "playwright";
 
+import type { BrowserRequestProxy } from "./types.js";
+
 export interface SiteRouteBinding {
   readonly hostname: string;
   readonly port: number;
@@ -10,11 +12,31 @@ export interface SiteRouteBinding {
 export async function installSiteRoute(
   context: BrowserContext,
   binding: SiteRouteBinding,
+  requestProxies: readonly BrowserRequestProxy[] = [],
 ): Promise<void> {
   await context.route(
     (url) => url.hostname === binding.hostname && Number(url.port) === binding.port,
     async (route) => {
       const source = new URL(route.request().url());
+      const requestProxy = requestProxies.find(
+        (candidate) => candidate.path === source.pathname,
+      );
+      if (requestProxy) {
+        const target = new URL(
+          source.pathname + source.search,
+          ensureTrailingSlash(requestProxy.targetBaseUrl),
+        );
+        const fetched = await route.fetch({
+          url: target.toString(),
+          headers: {
+            ...route.request().headers(),
+            ...(requestProxy.headers ?? {}),
+          },
+        });
+        await route.fulfill({ response: fetched });
+        return;
+      }
+
       const target = new URL(source.pathname + source.search, binding.localOrigin);
       const fetched = await route.fetch({ url: target.toString() });
       await route.fulfill({ response: fetched });
@@ -63,4 +85,9 @@ async function delay(milliseconds: number): Promise<void> {
 
 export async function continueRoute(route: Route): Promise<void> {
   await route.continue();
+}
+
+
+function ensureTrailingSlash(value: string): string {
+  return value.endsWith("/") ? value : `${value}/`;
 }
