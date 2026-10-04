@@ -222,6 +222,7 @@ const CONTROL_PLANE_HTML = `<!doctype html>
             <div class="card-body">
               <div id="demoResultEmpty" class="empty">Start a demo and browse the customer site to see the actual GL-EYE outcome.</div>
               <div id="demoResult" class="result-grid" hidden>
+                <div class="result-cell"><div class="meta">Company</div><strong id="demoCompanies">—</strong></div>
                 <div class="result-cell"><div class="meta">Companies</div><strong id="demoCompanyCount">0</strong></div>
                 <div class="result-cell"><div class="meta">Scores</div><strong id="demoScoreCount">0</strong></div>
                 <div class="result-cell"><div class="meta">Confidence</div><strong id="demoConfidence">—</strong></div>
@@ -467,6 +468,8 @@ const CONTROL_PLANE_HTML = `<!doctype html>
         const outcome = result.outcome || {};
         document.getElementById("demoResultEmpty").hidden = true;
         document.getElementById("demoResult").hidden = false;
+        document.getElementById("demoCompanies").textContent =
+          (outcome.companies || []).map(function (company) { return company.displayName; }).join(", ") || "—";
         document.getElementById("demoCompanyCount").textContent = String(outcome.companyCount ?? 0);
         document.getElementById("demoScoreCount").textContent = String(outcome.scoreCount ?? 0);
         document.getElementById("demoConfidence").textContent = outcome.confidence || "—";
