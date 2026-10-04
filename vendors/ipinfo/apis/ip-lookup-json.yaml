@@ -12,6 +12,14 @@ cases:
       status: 200
       body: responses/corporate.json
 
+  - id: acme-corporate-json
+    priority: 100
+    when:
+      path.ip: "198.51.100.11"
+    respond:
+      status: 200
+      body: responses/acme-corporate.json
+
   - id: residential-json
     priority: 100
     when:
