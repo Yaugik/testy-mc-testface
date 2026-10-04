@@ -433,7 +433,7 @@ function assertSyntheticHostname(value: string): string {
   if (
     hostname === "localhost" ||
     !hostname.includes(".") ||
-    /\.(?:test|example|invalid|internal)$/iu.test(hostname)
+    /\.(?:test|example|invalid|internal|localhost)$/iu.test(hostname)
   ) {
     return value;
   }
