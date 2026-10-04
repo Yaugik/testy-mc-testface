@@ -59,7 +59,7 @@ if [ "$mode" = "--ui" ]; then
         open "$ui_url" >/dev/null 2>&1 || true
     fi
     echo
-    echo "Choose 'GL-EYE local end-to-end' (customer-alpha-gl-eye-local) and press Run."
+    echo "Use Automated Tests for customer-alpha-gl-eye-local, or choose Interactive Demo to browse manually."
     echo "Use ./bin/test-gl-eye --headless only when you want the non-UI automation path."
     exit 0
 fi
