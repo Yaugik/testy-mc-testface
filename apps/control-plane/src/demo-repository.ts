@@ -106,7 +106,8 @@ export class PostgresDemoSessionRepository implements DemoSessionRepository {
           resolved_scenario, metadata, created_at, updated_at, started_at
         ) VALUES (
           $1, 'interactive-demo', 'gl-eye', 'RUNNING',
-          repeat('0', 64), '{}'::JSONB,
+          repeat('0', 64),
+          '{"schemaVersion":"1.0","scenarioId":"interactive-demo","displayName":"Interactive Demo","target":"gl-eye","timeoutMs":86400000,"variables":{},"phases":{"allocate":[],"compile":[],"configure":[],"run":[],"observe":[],"assert":[]},"contentHash":"0000000000000000000000000000000000000000000000000000000000000000"}'::JSONB,
           '{"runKind":"interactive-demo"}'::JSONB, NOW(), NOW(), NOW()
         )`,
         [runId],
