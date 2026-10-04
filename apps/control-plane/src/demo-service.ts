@@ -44,6 +44,8 @@ export interface DemoActivity {
   readonly observations: Awaited<
     ReturnType<ScenarioRunRepository["listObservations"]>
   >;
+  readonly gatewayRequests: readonly ScenarioValue[];
+  readonly siteEvents: readonly ScenarioValue[];
 }
 
 export class InteractiveDemoService {
@@ -385,14 +387,14 @@ export class InteractiveDemoService {
         `ledger-${vendorId}-${Date.now()}`,
       );
     }
-    await this.invoke(
+    const gateway = await this.invoke(
       session,
       runtime,
       "gateway.collect-ledger",
       undefined,
       `gateway-ledger-${Date.now()}`,
     );
-    await this.invoke(
+    const site = await this.invoke(
       session,
       runtime,
       "browser.collect-site-events",
@@ -404,7 +406,13 @@ export class InteractiveDemoService {
       this.evidence.listProviderCalls(session.runId),
       this.evidence.listObservations(session.runId),
     ]);
-    return { timeline, providerCalls, observations };
+    return {
+      timeline,
+      providerCalls,
+      observations,
+      gatewayRequests: readArray(gateway, "entries"),
+      siteEvents: readArray(site, "events"),
+    };
   }
 
   public async stop(
@@ -541,18 +549,31 @@ export class InteractiveDemoService {
   ): Promise<readonly string[]> {
     const errors: string[] = [];
     const runtime = this.runtimes.get(session.id);
+    if (runtime) {
+      const cleanupAction = this.actions["target.cleanup-run"];
+      if (cleanupAction) {
+        try {
+          await cleanupAction(undefined, this.context(session, runtime));
+        } catch (error) {
+          errors.push(error instanceof Error ? error.message : String(error));
+        }
+      }
+    }
     const leases = await this.evidence.listActiveResourceLeases(session.runId);
     for (const lease of [...leases].reverse()) {
       try {
         const local = runtime?.leaseCleanups.get(lease.leaseId);
-        const cleaner = local ?? this.resourceCleaners[lease.resourceType];
-        if (!cleaner) {
-          throw new Error(
-            `No resource cleaner is registered for '${lease.resourceType}'.`,
-          );
+        if (local) {
+          await local();
+        } else {
+          const cleaner = this.resourceCleaners[lease.resourceType];
+          if (!cleaner) {
+            throw new Error(
+              `No resource cleaner is registered for '${lease.resourceType}'.`,
+            );
+          }
+          await cleaner(lease);
         }
-        if (local) await local();
-        else await cleaner(lease);
         await this.evidence.releaseResourceLease(
           lease.leaseId,
           new Date().toISOString(),
@@ -668,4 +689,14 @@ function readOptionalNumber(
   return typeof selected === "number" && Number.isFinite(selected)
     ? selected
     : undefined;
+}
+
+
+function readArray(
+  value: ScenarioValue | undefined,
+  key: string,
+): readonly ScenarioValue[] {
+  const record = readRecord(value);
+  const selected = record[key];
+  return Array.isArray(selected) ? selected : [];
 }
