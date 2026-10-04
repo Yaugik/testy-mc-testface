@@ -31,6 +31,8 @@ export interface ControlPlaneConfig {
   readonly generatedRunsDirectory: string;
   readonly browser: ConfiguredBrowser;
   readonly browserHeadless: boolean;
+  readonly publicControlPlanePort: number;
+  readonly demoSessionTtlMs: number;
   readonly maintenance: MaintenanceConfig;
   readonly runtimeImage?: string;
   readonly runtimeNetworkName?: string;
@@ -68,6 +70,20 @@ export function loadConfig(
     generatedRunsDirectory: environment.GENERATED_RUNS_DIR ?? "generated/runs",
     browser: parseBrowser(environment.TESTY_BROWSER),
     browserHeadless: parseBoolean(environment.TESTY_HEADLESS, true),
+    publicControlPlanePort: parseInteger(
+      "TESTY_PUBLIC_CONTROL_PLANE_PORT",
+      environment.TESTY_PUBLIC_CONTROL_PLANE_PORT,
+      parsePort(environment.CONTROL_PLANE_PORT),
+      1,
+      65_535,
+    ),
+    demoSessionTtlMs: parseInteger(
+      "TESTY_DEMO_SESSION_TTL_MS",
+      environment.TESTY_DEMO_SESSION_TTL_MS,
+      4 * 60 * 60 * 1000,
+      60_000,
+      24 * 60 * 60 * 1000,
+    ),
     maintenance: loadMaintenance(environment),
     ...(runtimeImage ? { runtimeImage } : {}),
     ...(runtimeNetworkName ? { runtimeNetworkName } : {}),
