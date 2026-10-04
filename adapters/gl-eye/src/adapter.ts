@@ -140,6 +140,18 @@ export class GlEyeTargetAdapter implements TargetAdapter {
     return site;
   }
 
+  public async triggerEnrichment(context: AdapterRunContext): Promise<void> {
+    const prepared = this.requirePrepared(context.runId);
+    await this.requestJson(
+      "POST",
+      expandEndpoint(this.endpoints.triggerEnrichment, prepared.targetRunId),
+      context,
+      {},
+      [200, 202],
+    );
+    this.enrichmentTriggered.add(context.runId);
+  }
+
   public async startObservation(context: AdapterRunContext): Promise<ObservationHandle> {
     const prepared = this.requirePrepared(context.runId);
     const value = await this.requestJson(
