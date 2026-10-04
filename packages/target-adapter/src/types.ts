@@ -86,6 +86,7 @@ export interface TargetAdapter {
     site: SiteDefinition,
   ): Promise<SiteDefinition>;
   startObservation(context: AdapterRunContext): Promise<ObservationHandle>;
+  triggerEnrichment?(context: AdapterRunContext): Promise<void>;
   waitForCompletion(
     context: AdapterRunContext,
     condition: CompletionCondition,
