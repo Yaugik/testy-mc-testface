@@ -140,11 +140,17 @@ export class GlEyeTargetAdapter implements TargetAdapter {
     return site;
   }
 
-  public async triggerEnrichment(context: AdapterRunContext): Promise<void> {
+  public async triggerEnrichment(
+    context: AdapterRunContext,
+    options: { readonly since?: string } = {},
+  ): Promise<void> {
     const prepared = this.requirePrepared(context.runId);
     await this.requestJson(
       "POST",
-      expandEndpoint(this.endpoints.triggerEnrichment, prepared.targetRunId),
+      withSince(
+        expandEndpoint(this.endpoints.triggerEnrichment, prepared.targetRunId),
+        options.since,
+      ),
       context,
       {},
       [200, 202],
@@ -216,11 +222,17 @@ export class GlEyeTargetAdapter implements TargetAdapter {
     throw new Error(`GL-EYE observation exceeded ${condition.timeoutMs}ms.`);
   }
 
-  public async collectOutcome(context: AdapterRunContext): Promise<TargetOutcome> {
+  public async collectOutcome(
+    context: AdapterRunContext,
+    options: { readonly since?: string } = {},
+  ): Promise<TargetOutcome> {
     const prepared = this.requirePrepared(context.runId);
     const value = await this.requestJson(
       "GET",
-      expandEndpoint(this.endpoints.outcome, prepared.targetRunId),
+      withSince(
+        expandEndpoint(this.endpoints.outcome, prepared.targetRunId),
+        options.since,
+      ),
       context,
     );
     const processedEventCount = optionalNumber(value, "processedEventCount");
@@ -495,4 +507,11 @@ function optionalCompanyArray(
     });
   }
   return companies;
+}
+
+
+function withSince(endpoint: string, since: string | undefined): string {
+  if (!since) return endpoint;
+  const separator = endpoint.includes("?") ? "&" : "?";
+  return `${endpoint}${separator}since=${encodeURIComponent(since)}`;
 }
