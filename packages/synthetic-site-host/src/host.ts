@@ -352,3 +352,14 @@ form > div { display: grid; gap: 0.25rem; }
 button, input, select { font: inherit; padding: 0.5rem; }
 [data-test="consent-banner"] { position: fixed; inset: auto 1rem 1rem; padding: 1rem; background: white; border: 1px solid #777; }
 `;
+
+
+function escapeAttribute(value: string): string {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;")
+    .replaceAll("`", "&#96;");
+}
