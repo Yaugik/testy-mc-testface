@@ -11,7 +11,7 @@ cases:
       query.reveal_personal_emails: "false"
     respond:
       status: 200
-      body: responses/gl-eye-people-bulk.json
+      body: responses/interactive-nordlicht-alex-bulk.json
   - id: nordlicht-maya-details
     priority: 100
     when:
