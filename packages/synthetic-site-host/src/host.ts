@@ -16,6 +16,16 @@ export interface SyntheticSiteEvent {
   readonly bodyFingerprint?: string;
 }
 
+export interface ManualTrackingBridge {
+  readonly trackingScriptUrl: string;
+  readonly ingestionToken: string;
+  readonly gatewayProxyBaseUrl: string;
+  readonly gatewayRouteToken: string;
+  readonly runId: string;
+  readonly publicOrigin: string;
+  readonly resetVersion: number;
+}
+
 export interface SyntheticSiteBinding {
   readonly hostname: string;
   readonly port: number;
@@ -25,12 +35,15 @@ export interface SyntheticSiteBinding {
   readonly runNamespace: string;
   events(): readonly SyntheticSiteEvent[];
   resetEvents(): void;
+  configureManualTracking(bridge: ManualTrackingBridge): void;
+  clearManualTracking(): void;
   stop(): Promise<void>;
 }
 
 export interface StartSyntheticSiteOptions {
   readonly hostAddress?: string;
   readonly runNamespace: string;
+  readonly hostname?: string;
 }
 
 export async function startSyntheticSite(
@@ -38,17 +51,26 @@ export async function startSyntheticSite(
   options: StartSyntheticSiteOptions,
 ): Promise<SyntheticSiteBinding> {
   const hostAddress = options.hostAddress ?? "127.0.0.1";
-  const hostname = `${sanitizeSegment(options.runNamespace)}.${loaded.site.site.hostname}`;
+  const hostname =
+    options.hostname ?? `${sanitizeSegment(options.runNamespace)}.${loaded.site.site.hostname}`;
   const pages = new Map(renderSitePages(loaded.site).map((page) => [page.path, page]));
   const events: SyntheticSiteEvent[] = [];
   let sequence = 0;
+  let manualTracking: ManualTrackingBridge | undefined;
 
   const record = (event: Omit<SyntheticSiteEvent, "sequence">): void => {
     events.push({ sequence: (sequence += 1), ...event });
   };
 
   const server = createServer((request, response) => {
-    void handleRequest(request, response, loaded.site, pages, record).catch((error) => {
+    void handleRequest(
+      request,
+      response,
+      loaded.site,
+      pages,
+      record,
+      () => manualTracking,
+    ).catch((error) => {
       response.statusCode = 500;
       response.setHeader("content-type", "application/json; charset=utf-8");
       response.end(JSON.stringify({ error: error instanceof Error ? error.message : String(error) }));
@@ -80,6 +102,12 @@ export async function startSyntheticSite(
       events.splice(0, events.length);
       sequence = 0;
     },
+    configureManualTracking: (bridge) => {
+      manualTracking = validateManualTrackingBridge(bridge);
+    },
+    clearManualTracking: () => {
+      manualTracking = undefined;
+    },
     stop: async () =>
       new Promise<void>((resolveClose, rejectClose) => {
         server.close((error) => (error ? rejectClose(error) : resolveClose()));
@@ -93,12 +121,31 @@ async function handleRequest(
   site: SiteConfig,
   pages: ReadonlyMap<string, { readonly pageId: string; readonly html: string }>,
   record: (event: Omit<SyntheticSiteEvent, "sequence">) => void,
+  manualTracking: () => ManualTrackingBridge | undefined,
 ): Promise<void> {
   const url = new URL(request.url ?? "/", "http://synthetic.test");
   const trackingEndpoint = site.tracking?.endpoint ?? "/__testy/events";
 
   if (request.method === "GET" && url.pathname === "/__testy/health") {
     sendJson(response, 200, { status: "ok", siteId: site.site.id });
+    return;
+  }
+  if (request.method === "GET" && url.pathname === "/sdk/track.v1.min.js") {
+    const bridge = manualTracking();
+    if (!bridge) {
+      sendJson(response, 404, { error: "manual-tracking-not-configured" });
+      return;
+    }
+    await proxyTrackingScript(response, bridge);
+    return;
+  }
+  if (request.method === "POST" && url.pathname === "/t/v1/events") {
+    const bridge = manualTracking();
+    if (!bridge) {
+      sendJson(response, 409, { error: "manual-tracking-not-configured" });
+      return;
+    }
+    await proxyTrackingEvent(request, response, bridge);
     return;
   }
   if (request.method === "GET" && url.pathname === "/__testy/style.css") {
@@ -158,7 +205,90 @@ async function handleRequest(
     "content-security-policy",
     "default-src 'self'; script-src 'unsafe-inline'; style-src 'self'; connect-src 'self'; form-action 'self'; base-uri 'none'",
   );
-  response.end(page.html);
+  response.end(injectManualTracking(page.html, manualTracking()));
+}
+
+function validateManualTrackingBridge(
+  bridge: ManualTrackingBridge,
+): ManualTrackingBridge {
+  const script = new URL(bridge.trackingScriptUrl);
+  const gateway = new URL(bridge.gatewayProxyBaseUrl);
+  const origin = new URL(bridge.publicOrigin);
+  if (!["http:", "https:"].includes(script.protocol) || script.username || script.password) {
+    throw new Error("Manual tracking script URL must be a safe HTTP(S) URL.");
+  }
+  if (!["http:", "https:"].includes(gateway.protocol) || gateway.username || gateway.password) {
+    throw new Error("Manual gateway URL must be a safe HTTP(S) URL.");
+  }
+  if (origin.protocol !== "https:" || origin.username || origin.password || origin.pathname !== "/") {
+    throw new Error("Manual public origin must be an HTTPS origin.");
+  }
+  if (!Number.isInteger(bridge.resetVersion) || bridge.resetVersion < 0) {
+    throw new Error("Manual reset version must be a non-negative integer.");
+  }
+  return { ...bridge };
+}
+
+async function proxyTrackingScript(
+  response: ServerResponse,
+  bridge: ManualTrackingBridge,
+): Promise<void> {
+  const upstream = await fetch(bridge.trackingScriptUrl, { redirect: "manual" });
+  if (!upstream.ok) {
+    sendJson(response, 502, { error: "tracking-script-unavailable" });
+    return;
+  }
+  const body = Buffer.from(await upstream.arrayBuffer());
+  if (body.byteLength > 2 * 1024 * 1024) {
+    sendJson(response, 502, { error: "tracking-script-too-large" });
+    return;
+  }
+  response.statusCode = 200;
+  response.setHeader(
+    "content-type",
+    upstream.headers.get("content-type") ?? "application/javascript; charset=utf-8",
+  );
+  response.setHeader("cache-control", "no-store");
+  response.end(body);
+}
+
+async function proxyTrackingEvent(
+  request: IncomingMessage,
+  response: ServerResponse,
+  bridge: ManualTrackingBridge,
+): Promise<void> {
+  const body = await readTextBody(request);
+  const upstream = await fetch(
+    `${bridge.gatewayProxyBaseUrl.replace(/\/$/u, "")}/t/v1/events`,
+    {
+      method: "POST",
+      headers: {
+        "content-type": String(request.headers["content-type"] ?? "application/json"),
+        origin: bridge.publicOrigin,
+        "x-testy-route-token": bridge.gatewayRouteToken,
+        "x-testy-run-id": bridge.runId,
+        ...(request.headers["user-agent"]
+          ? { "user-agent": String(request.headers["user-agent"]) }
+          : {}),
+      },
+      body,
+      redirect: "manual",
+    },
+  );
+  response.statusCode = upstream.status;
+  response.setHeader("cache-control", "no-store");
+  response.end();
+}
+
+function injectManualTracking(
+  html: string,
+  bridge: ManualTrackingBridge | undefined,
+): string {
+  if (!bridge) return html;
+  const marker = JSON.stringify(String(bridge.resetVersion));
+  const reset = `<script>(()=>{try{const k="testy:demo-reset";const v=${marker};if(localStorage.getItem(k)!==v){localStorage.clear();sessionStorage.clear();document.cookie.split(";").forEach((c)=>{document.cookie=c.split("=")[0].trim()+"=; Max-Age=0; Path=/; SameSite=Lax";});localStorage.setItem(k,v);}}catch{}})();</script>`;
+  const sdk = `<script src="/sdk/track.v1.min.js" data-site="${escapeAttribute(bridge.ingestionToken)}"></script>`;
+  return html.replace("</body>", `${reset}\n${sdk}\n</body>`);
 }
 
 function findForm(site: SiteConfig, path: string, method: string) {
