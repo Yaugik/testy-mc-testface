@@ -4,6 +4,8 @@ import Fastify, {
 } from "fastify";
 
 import { databasePool, databaseProbe, type DatabaseProbe } from "./database.js";
+import { registerInteractiveDemoRoutes } from "./demo-routes.js";
+import type { InteractiveDemoService } from "./demo-service.js";
 import { sanitizeError } from "./errors.js";
 import { registerMaintenanceRoutes } from "./maintenance-routes.js";
 import type { MaintenanceService } from "./maintenance.js";
@@ -28,6 +30,7 @@ export interface BuildAppOptions {
   readonly maintenance?: MaintenanceService;
   readonly maintenanceAdminToken?: string;
   readonly targetReadiness?: () => Promise<TargetReadinessResult>;
+  readonly demos?: InteractiveDemoService;
 }
 
 export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
@@ -39,6 +42,9 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
     options.runs ??
     new ScenarioRunService(new PostgresScenarioRunRepository(databasePool));
 
+  if (options.demos) {
+    registerInteractiveDemoRoutes(app, options.demos);
+  }
   registerControlPlaneUi(app);
 
   app.get("/v1/health", async () => ({
@@ -115,6 +121,7 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   });
   app.addHook("onClose", async () => {
     await options.maintenance?.stop();
+    await options.demos?.shutdown();
     await runs.shutdown();
   });
 
