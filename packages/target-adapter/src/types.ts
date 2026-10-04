@@ -51,6 +51,14 @@ export interface ObservationResult {
   readonly detailsFingerprint?: string;
 }
 
+export interface TargetCompanyOutcome {
+  readonly domain: string;
+  readonly displayName: string;
+  readonly score: number;
+  readonly confidence: string;
+  readonly visibility: string;
+}
+
 export interface TargetOutcome {
   readonly targetRunId: string;
   readonly tenantId: string;
@@ -60,6 +68,7 @@ export interface TargetOutcome {
   readonly processedEventCount?: number;
   readonly duplicateEventCount?: number;
   readonly companyFingerprint?: string;
+  readonly companies?: readonly TargetCompanyOutcome[];
   readonly scoreFingerprints?: readonly string[];
   readonly providerProvenance?: readonly string[];
   readonly confidence?: "low" | "medium" | "high";
