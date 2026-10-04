@@ -14,9 +14,9 @@ import {
   selectDemoVisitor,
   type DemoProfileCatalog,
 } from "./demo-profiles.js";
-import {
-  PostgresDemoSessionRepository,
-  type DemoSessionRecord,
+import type {
+  DemoSessionRecord,
+  DemoSessionRepository,
 } from "./demo-repository.js";
 import type { ResourceLeaseCleaner } from "./run-service.js";
 
@@ -54,7 +54,7 @@ export class InteractiveDemoService {
 
   public constructor(
     private readonly config: ControlPlaneConfig,
-    private readonly sessions: PostgresDemoSessionRepository,
+    private readonly sessions: DemoSessionRepository,
     private readonly evidence: ScenarioRunRepository,
     private readonly actions: ScenarioActionRegistry,
     private readonly resourceCleaners: Readonly<
