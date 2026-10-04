@@ -103,6 +103,31 @@ export function createGatewayTargetScenarioActionBundle(
       }
       return safeGatewayBinding(state.gateway);
     },
+    "gateway.replace-route": async (input, context) => {
+      const state = stateFor(context);
+      const previous = requireGateway(state);
+      const value = readObject(input);
+      const syntheticIp = readString(value, "syntheticIp");
+      const ttlMs =
+        readOptionalNumber(value, "ttlMs") ??
+        options.defaultRouteTtlMs ??
+        15 * 60 * 1000;
+      const replacement = await options.gateway.createRoute({
+        runId: context.runId,
+        targetOrigin: previous.targetOrigin,
+        syntheticIp,
+        ttlMs,
+      });
+      await context.registerResourceLease(
+        "gateway-route",
+        replacement.routeId,
+        replacement.expiresAt,
+        async () => options.gateway.deleteRoute(replacement.routeId),
+      );
+      state.gateway = replacement;
+      await options.gateway.deleteRoute(previous.routeId);
+      return safeGatewayBinding(replacement);
+    },
     "gateway.collect-ledger": async (_input, context) => {
       const binding = requireGateway(stateFor(context));
       const entries = await options.gateway.getLedger(binding.routeId);
@@ -181,6 +206,15 @@ export function createGatewayTargetScenarioActionBundle(
         hostname: configured.hostname,
         gatewayRouteId: gateway.routeId,
       };
+    },
+    "target.trigger-enrichment": async (_input, context) => {
+      const state = stateFor(context);
+      requirePrepared(state);
+      if (!options.adapter.triggerEnrichment) {
+        throw new Error("Target enrichment trigger is not supported by this adapter.");
+      }
+      await options.adapter.triggerEnrichment(adapterContext(context));
+      return { triggered: true };
     },
     "target.start-observation": async (_input, context) => {
       const state = stateFor(context);
