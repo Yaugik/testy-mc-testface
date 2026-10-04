@@ -467,6 +467,7 @@ function safePreparedTarget(
       : {}),
     trackingScriptUrl: prepared.trackingScriptUrl,
     siteId: prepared.siteId,
+    targetOrigin: prepared.targetOrigin,
   };
 }
 
