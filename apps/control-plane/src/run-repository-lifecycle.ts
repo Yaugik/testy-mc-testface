@@ -116,7 +116,9 @@ export class PostgresRunLifecycleStore {
       `SELECT id, scenario_id, target, status, outcome_status,
               resolved_scenario_hash, resolved_scenario, metadata,
               cancel_requested_at, created_at, updated_at, started_at, finished_at
-       FROM test_runs WHERE status NOT IN ('PASSED', 'FAILED', 'CANCELLED')
+       FROM test_runs
+       WHERE status NOT IN ('PASSED', 'FAILED', 'CANCELLED')
+         AND COALESCE(metadata->>'runKind', '') <> 'interactive-demo'
        ORDER BY created_at ASC`,
     );
     return result.rows.map(mapRun);
