@@ -31,7 +31,23 @@ const CONTROL_PLANE_HTML = `<!doctype html>
     .badge.ok { color: #166534; background: #f0fdf4; border-color: #bbf7d0; }
     .badge.bad { color: #991b1b; background: #fef2f2; border-color: #fecaca; }
     .badge.warn { color: #92400e; background: #fffbeb; border-color: #fde68a; }
+    .mode-switch { display:flex; gap:6px; margin:0 0 20px; padding:4px; width:max-content; background:#e9ecef; border-radius:11px; }
+    .mode-button { border:0; background:transparent; color:#6b7280; padding:9px 14px; border-radius:8px; font-weight:800; cursor:pointer; }
+    .mode-button.active { background:white; color:#111827; box-shadow:0 1px 2px rgba(0,0,0,.08); }
+    .mode-view { display:none; }
+    .mode-view.active { display:block; }
     .grid { display: grid; grid-template-columns: minmax(300px, 0.8fr) minmax(480px, 1.7fr); gap: 20px; align-items: start; }
+    .demo-grid { display:grid; grid-template-columns:minmax(320px,.9fr) minmax(480px,1.5fr); gap:20px; align-items:start; }
+    .field { display:grid; gap:6px; margin-bottom:14px; }
+    .field label { font-size:12px; font-weight:800; color:#4b5563; }
+    .field select { width:100%; border:1px solid #d1d5db; border-radius:9px; padding:9px 10px; background:white; }
+    .demo-actions { display:flex; flex-wrap:wrap; gap:8px; margin-top:16px; }
+    .service-list { display:grid; gap:8px; }
+    .service-row { display:flex; justify-content:space-between; gap:12px; padding:10px 0; border-bottom:1px solid #f0f1f3; font-size:13px; }
+    .demo-activity { max-height:360px; overflow:auto; }
+    .demo-event { display:grid; grid-template-columns:92px 1fr; gap:10px; padding:8px 0; border-bottom:1px solid #f1f2f4; font-size:13px; }
+    .result-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+    .result-cell { border:1px solid #eceef1; border-radius:10px; padding:11px; }
     .card { background: white; border: 1px solid #e5e7eb; border-radius: 14px; box-shadow: 0 1px 2px rgba(0,0,0,.03); overflow: hidden; }
     .card-head { padding: 18px 20px; border-bottom: 1px solid #eef0f2; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
     .card-head h2 { margin: 0; font-size: 16px; }
@@ -70,7 +86,7 @@ const CONTROL_PLANE_HTML = `<!doctype html>
     .error-box { white-space: pre-wrap; background: #fff7ed; color: #9a3412; border: 1px solid #fed7aa; border-radius: 10px; padding: 12px; margin-top: 12px; font-size: 12px; }
     .link { color: #1d4ed8; text-decoration: none; font-size: 13px; font-weight: 700; }
     @media (max-width: 900px) {
-      .grid { grid-template-columns: 1fr; }
+      .grid, .demo-grid { grid-template-columns: 1fr; }
       .run-summary { grid-template-columns: repeat(2, 1fr); }
       .topbar { align-items: flex-start; flex-direction: column; }
       .health { justify-content: flex-start; }
@@ -90,6 +106,12 @@ const CONTROL_PLANE_HTML = `<!doctype html>
       </div>
     </header>
 
+    <div class="mode-switch">
+      <button id="automatedModeButton" class="mode-button active">Automated Tests</button>
+      <button id="interactiveModeButton" class="mode-button">Interactive Demo</button>
+    </div>
+
+    <section id="automatedMode" class="mode-view active">
     <div class="grid">
       <section class="card">
         <div class="card-head">
@@ -141,6 +163,82 @@ const CONTROL_PLANE_HTML = `<!doctype html>
         </div>
       </section>
     </div>
+    </section>
+
+    <section id="interactiveMode" class="mode-view">
+      <div class="demo-grid">
+        <div>
+          <section class="card">
+            <div class="card-head">
+              <h2>Interactive Demo</h2>
+              <span id="demoStatus" class="badge warn">Not started</span>
+            </div>
+            <div class="card-body">
+              <div class="meta" id="demoSessionMeta">Start a long-lived Testy session for manual browser QA.</div>
+              <div id="demoVisitorControls" hidden style="margin-top:18px">
+                <div class="field">
+                  <label for="demoNetwork">Network identity</label>
+                  <select id="demoNetwork"></select>
+                </div>
+                <div class="field">
+                  <label for="demoPerson">Person</label>
+                  <select id="demoPerson"></select>
+                </div>
+                <div class="field">
+                  <label for="demoBrowser">Browser identity</label>
+                  <select id="demoBrowser"></select>
+                </div>
+                <div id="demoIdentitySummary" class="meta"></div>
+              </div>
+              <div class="demo-actions">
+                <button id="startDemo" class="btn primary">Start Demo</button>
+                <button id="applyDemoVisitor" class="btn primary" hidden>Apply Visitor</button>
+                <button id="openDemoWebsite" class="btn secondary" hidden>Open Demo Website</button>
+                <button id="resetDemoVisitor" class="btn secondary" hidden>Reset Visitor</button>
+                <button id="stopDemo" class="btn danger" hidden>Stop Demo</button>
+              </div>
+              <div id="demoError" class="error-box" hidden></div>
+            </div>
+          </section>
+
+          <section class="card" style="margin-top:20px">
+            <div class="card-head"><h2>Services</h2></div>
+            <div class="card-body service-list">
+              <div class="service-row"><span>GL-EYE</span><strong id="demoGlEyeService">Checking</strong></div>
+              <div class="service-row"><span>Traffic Gateway</span><strong id="demoTrafficService">Session managed</strong></div>
+              <div class="service-row"><span>IPInfo</span><strong>Mocked</strong></div>
+              <div class="service-row"><span>Apollo</span><strong>Mocked</strong></div>
+              <div class="service-row"><span>Hunter</span><strong>Mocked</strong></div>
+            </div>
+          </section>
+        </div>
+
+        <div>
+          <section class="card">
+            <div class="card-head">
+              <h2>GL-EYE Result</h2>
+              <button id="refreshDemoResult" class="btn secondary" hidden>Refresh GL-EYE Result</button>
+            </div>
+            <div class="card-body">
+              <div id="demoResultEmpty" class="empty">Start a demo and browse the customer site to see the actual GL-EYE outcome.</div>
+              <div id="demoResult" class="result-grid" hidden>
+                <div class="result-cell"><div class="meta">Companies</div><strong id="demoCompanyCount">0</strong></div>
+                <div class="result-cell"><div class="meta">Scores</div><strong id="demoScoreCount">0</strong></div>
+                <div class="result-cell"><div class="meta">Confidence</div><strong id="demoConfidence">—</strong></div>
+                <div class="result-cell"><div class="meta">Providers</div><strong id="demoProviders">—</strong></div>
+              </div>
+            </div>
+          </section>
+
+          <section class="card" style="margin-top:20px">
+            <div class="card-head"><h2>Live Activity</h2></div>
+            <div class="card-body">
+              <div id="demoActivity" class="demo-activity"><div class="empty">No demo activity yet.</div></div>
+            </div>
+          </section>
+        </div>
+      </div>
+    </section>
   </main>
 
   <script>
@@ -150,6 +248,10 @@ const CONTROL_PLANE_HTML = `<!doctype html>
     let glEyeReady = false;
     let currentRunId = localStorage.getItem("testy.currentRunId") || "";
     let pollTimer;
+    let demoProfiles;
+    let currentDemoId = localStorage.getItem("testy.currentDemoId") || "";
+    let currentDemo;
+    let demoPollTimer;
 
     function escapeHtml(value) {
       return String(value ?? "")
@@ -172,6 +274,241 @@ const CONTROL_PLANE_HTML = `<!doctype html>
         throw error;
       }
       return body;
+    }
+
+
+    function setMode(mode) {
+      const automated = mode === "automated";
+      document.getElementById("automatedMode").classList.toggle("active", automated);
+      document.getElementById("interactiveMode").classList.toggle("active", !automated);
+      document.getElementById("automatedModeButton").classList.toggle("active", automated);
+      document.getElementById("interactiveModeButton").classList.toggle("active", !automated);
+      localStorage.setItem("testy.mode", mode);
+      if (!automated) void loadDemoProfiles();
+    }
+
+    async function loadDemoProfiles() {
+      if (demoProfiles) return demoProfiles;
+      try {
+        const result = await requestJson("/v1/demo-profiles");
+        demoProfiles = result.profiles;
+        renderDemoSelectors();
+        return demoProfiles;
+      } catch (error) {
+        showDemoError("Unable to load visitor profiles: " + error.message);
+        return undefined;
+      }
+    }
+
+    function renderDemoSelectors() {
+      if (!demoProfiles) return;
+      const network = document.getElementById("demoNetwork");
+      const browser = document.getElementById("demoBrowser");
+      network.innerHTML = demoProfiles.networks.map(function (item) {
+        return '<option value="' + escapeHtml(item.id) + '">' + escapeHtml(item.displayName) + '</option>';
+      }).join("");
+      browser.innerHTML = demoProfiles.browserIdentities.map(function (item) {
+        return '<option value="' + escapeHtml(item.id) + '">' + escapeHtml(item.displayName) + '</option>';
+      }).join("");
+      network.value = currentDemo?.networkIdentityId || demoProfiles.defaults.networkId;
+      browser.value = currentDemo?.browserIdentityId || demoProfiles.defaults.browserId;
+      renderDemoPeople();
+    }
+
+    function renderDemoPeople() {
+      if (!demoProfiles) return;
+      const networkId = document.getElementById("demoNetwork").value;
+      const selectedNetwork = demoProfiles.networks.find(function (item) { return item.id === networkId; });
+      const people = demoProfiles.people.filter(function (person) {
+        return selectedNetwork?.companyId && person.companyId === selectedNetwork.companyId;
+      });
+      const select = document.getElementById("demoPerson");
+      select.innerHTML = '<option value="">Anonymous / none</option>' + people.map(function (person) {
+        return '<option value="' + escapeHtml(person.id) + '">' + escapeHtml(person.displayName) + '</option>';
+      }).join("");
+      const desired = currentDemo?.personIdentityId || demoProfiles.defaults.personId;
+      select.value = people.some(function (person) { return person.id === desired; }) ? desired : "";
+      updateDemoIdentitySummary();
+    }
+
+    function updateDemoIdentitySummary() {
+      if (!demoProfiles) return;
+      const network = demoProfiles.networks.find(function (item) {
+        return item.id === document.getElementById("demoNetwork").value;
+      });
+      const person = demoProfiles.people.find(function (item) {
+        return item.id === document.getElementById("demoPerson").value;
+      });
+      const pieces = [];
+      if (network) {
+        pieces.push("Country: " + network.country);
+        pieces.push("Synthetic IP: " + network.syntheticIp);
+        pieces.push("Company: " + (network.companyName || "None"));
+      }
+      if (person) pieces.push("Person: " + person.name);
+      document.getElementById("demoIdentitySummary").textContent = pieces.join(" · ");
+    }
+
+    async function startInteractiveDemo() {
+      clearTimeout(demoPollTimer);
+      document.getElementById("startDemo").disabled = true;
+      showDemoError("");
+      try {
+        await loadDemoProfiles();
+        currentDemo = await requestJson("/v1/demo-sessions", { method: "POST" });
+        currentDemoId = currentDemo.id;
+        localStorage.setItem("testy.currentDemoId", currentDemoId);
+        renderDemoSession();
+        renderDemoSelectors();
+        await refreshDemoActivity();
+        scheduleDemoPoll();
+      } catch (error) {
+        showDemoError("Unable to start demo: " + error.message);
+      } finally {
+        document.getElementById("startDemo").disabled = false;
+      }
+    }
+
+    async function refreshDemoSession() {
+      if (!currentDemoId) return;
+      try {
+        currentDemo = await requestJson("/v1/demo-sessions/" + encodeURIComponent(currentDemoId));
+        renderDemoSession();
+        if (currentDemo.status === "READY" || currentDemo.status === "ACTIVE") {
+          await refreshDemoActivity();
+          await refreshDemoOutcome(false);
+          scheduleDemoPoll();
+        }
+      } catch (error) {
+        if (error.status === 404) {
+          currentDemoId = "";
+          currentDemo = undefined;
+          localStorage.removeItem("testy.currentDemoId");
+          renderDemoSession();
+          return;
+        }
+        showDemoError("Unable to refresh demo: " + error.message);
+      }
+    }
+
+    function renderDemoSession() {
+      const active = currentDemo && (currentDemo.status === "READY" || currentDemo.status === "ACTIVE");
+      const status = document.getElementById("demoStatus");
+      if (!currentDemo) {
+        setBadge(status, "Not started", "warn");
+        document.getElementById("demoSessionMeta").textContent = "Start a long-lived Testy session for manual browser QA.";
+      } else {
+        setBadge(status, currentDemo.status, currentDemo.status === "FAILED" ? "bad" : currentDemo.status === "STOPPED" ? "warn" : "ok");
+        document.getElementById("demoSessionMeta").textContent =
+          "Session " + currentDemo.id + " · Started " + new Date(currentDemo.startedAt).toLocaleString();
+      }
+      document.getElementById("demoVisitorControls").hidden = !active;
+      document.getElementById("applyDemoVisitor").hidden = !active;
+      document.getElementById("openDemoWebsite").hidden = !active;
+      document.getElementById("resetDemoVisitor").hidden = !active;
+      document.getElementById("stopDemo").hidden = !active;
+      document.getElementById("refreshDemoResult").hidden = !active;
+      document.getElementById("startDemo").hidden = !!currentDemo && currentDemo.status !== "STOPPED" && currentDemo.status !== "FAILED";
+      document.getElementById("demoGlEyeService").textContent = glEyeReady ? "Connected" : "Not ready";
+      if (demoProfiles && active) renderDemoSelectors();
+      if (currentDemo?.errorMessage) showDemoError(currentDemo.errorMessage);
+    }
+
+    async function applyDemoVisitorSelection() {
+      if (!currentDemoId) return;
+      const personId = document.getElementById("demoPerson").value;
+      try {
+        currentDemo = await requestJson("/v1/demo-sessions/" + encodeURIComponent(currentDemoId) + "/visitor", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            networkId: document.getElementById("demoNetwork").value,
+            ...(personId ? { personId: personId } : {}),
+            browserId: document.getElementById("demoBrowser").value,
+          }),
+        });
+        renderDemoSession();
+        await refreshDemoActivity();
+      } catch (error) {
+        showDemoError("Unable to apply visitor: " + error.message);
+      }
+    }
+
+    async function resetInteractiveVisitor() {
+      if (!currentDemoId) return;
+      try {
+        currentDemo = await requestJson("/v1/demo-sessions/" + encodeURIComponent(currentDemoId) + "/reset-visitor", { method: "POST" });
+        renderDemoSession();
+        await refreshDemoActivity();
+      } catch (error) {
+        showDemoError("Unable to reset visitor: " + error.message);
+      }
+    }
+
+    async function stopInteractiveDemo() {
+      if (!currentDemoId) return;
+      clearTimeout(demoPollTimer);
+      try {
+        currentDemo = await requestJson("/v1/demo-sessions/" + encodeURIComponent(currentDemoId), { method: "DELETE" });
+        renderDemoSession();
+      } catch (error) {
+        showDemoError("Unable to stop demo: " + error.message);
+      }
+    }
+
+    function openInteractiveWebsite() {
+      if (currentDemo?.websiteUrl) window.open(currentDemo.websiteUrl, "_blank", "noopener");
+    }
+
+    async function refreshDemoOutcome(showErrors) {
+      if (!currentDemoId || !currentDemo || !["READY","ACTIVE"].includes(currentDemo.status)) return;
+      try {
+        const result = await requestJson("/v1/demo-sessions/" + encodeURIComponent(currentDemoId) + "/outcome");
+        const outcome = result.outcome || {};
+        document.getElementById("demoResultEmpty").hidden = true;
+        document.getElementById("demoResult").hidden = false;
+        document.getElementById("demoCompanyCount").textContent = String(outcome.companyCount ?? 0);
+        document.getElementById("demoScoreCount").textContent = String(outcome.scoreCount ?? 0);
+        document.getElementById("demoConfidence").textContent = outcome.confidence || "—";
+        document.getElementById("demoProviders").textContent = (outcome.providerProvenance || []).join(", ") || "—";
+      } catch (error) {
+        if (showErrors) showDemoError("Unable to refresh GL-EYE result: " + error.message);
+      }
+    }
+
+    async function refreshDemoActivity() {
+      if (!currentDemoId || !currentDemo || !["READY","ACTIVE"].includes(currentDemo.status)) return;
+      try {
+        const result = await requestJson("/v1/demo-sessions/" + encodeURIComponent(currentDemoId) + "/activity");
+        const events = [];
+        (result.timeline || []).forEach(function (item) {
+          events.push({ at: item.occurredAt, text: item.name });
+        });
+        (result.providerCalls || []).forEach(function (item) {
+          events.push({ at: item.occurredAt, text: item.vendorId + " → " + (item.operationId || item.caseId || "provider call") });
+        });
+        (result.observations || []).forEach(function (item) {
+          events.push({ at: item.observedAt, text: item.observationType + " · " + item.status });
+        });
+        events.sort(function (a, b) { return new Date(b.at) - new Date(a.at); });
+        document.getElementById("demoActivity").innerHTML = events.length
+          ? events.slice(0, 80).map(function (event) {
+              return '<div class="demo-event"><div class="time">' + escapeHtml(new Date(event.at).toLocaleTimeString()) +
+                '</div><div>' + escapeHtml(event.text) + '</div></div>';
+            }).join("")
+          : '<div class="empty">No demo activity yet.</div>';
+      } catch {}
+    }
+
+    function scheduleDemoPoll() {
+      clearTimeout(demoPollTimer);
+      demoPollTimer = setTimeout(function () { void refreshDemoSession(); }, 2500);
+    }
+
+    function showDemoError(message) {
+      const box = document.getElementById("demoError");
+      box.hidden = !message;
+      box.textContent = message || "";
     }
 
     function setBadge(element, label, state) {
@@ -371,6 +708,18 @@ const CONTROL_PLANE_HTML = `<!doctype html>
       }
     }
 
+    document.getElementById("automatedModeButton").addEventListener("click", function () { setMode("automated"); });
+    document.getElementById("interactiveModeButton").addEventListener("click", function () { setMode("interactive"); });
+    document.getElementById("startDemo").addEventListener("click", function () { void startInteractiveDemo(); });
+    document.getElementById("applyDemoVisitor").addEventListener("click", function () { void applyDemoVisitorSelection(); });
+    document.getElementById("openDemoWebsite").addEventListener("click", openInteractiveWebsite);
+    document.getElementById("resetDemoVisitor").addEventListener("click", function () { void resetInteractiveVisitor(); });
+    document.getElementById("stopDemo").addEventListener("click", function () { void stopInteractiveDemo(); });
+    document.getElementById("refreshDemoResult").addEventListener("click", function () { void refreshDemoOutcome(true); });
+    document.getElementById("demoNetwork").addEventListener("change", renderDemoPeople);
+    document.getElementById("demoPerson").addEventListener("change", updateDemoIdentitySummary);
+    document.getElementById("demoBrowser").addEventListener("change", updateDemoIdentitySummary);
+
     document.getElementById("refreshScenarios").addEventListener("click", function () { void loadScenarios(); });
     document.getElementById("cancelRun").addEventListener("click", async function () {
       if (!currentRunId) return;
@@ -390,9 +739,11 @@ const CONTROL_PLANE_HTML = `<!doctype html>
       });
     });
 
+    setMode(localStorage.getItem("testy.mode") === "interactive" ? "interactive" : "automated");
     void refreshHealth();
     void loadScenarios();
     if (currentRunId) void refreshRun();
+    if (currentDemoId) void refreshDemoSession();
     setInterval(function () { void refreshHealth(); }, 3000);
   </script>
 </body>
