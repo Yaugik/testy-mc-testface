@@ -44,12 +44,17 @@ export function createBrowserActions(
       };
     },
 
-    "site.start": async (_input, context) => {
+    "site.start": async (input, context) => {
       const state = stateFor(context);
       if (!state.site) {
+        const value = input === undefined ? undefined : readObject(input);
+        const hostname = value ? readOptionalString(value, "hostname") : undefined;
         state.site = await dependencies.startSyntheticSite(
           requireBrowserPackage(state),
-          { runNamespace: context.runId as string },
+          {
+            runNamespace: context.runId as string,
+            ...(hostname ? { hostname } : {}),
+          },
         );
       }
       if (!state.siteLeaseRegistered) {
@@ -70,6 +75,33 @@ export function createBrowserActions(
         hostname: state.site.hostname,
         origin: state.site.origin,
         localOrigin: state.site.localOrigin,
+      };
+    },
+
+    "site.configure-manual-tracking": async (input, context) => {
+      const state = stateFor(context);
+      const site = requireSite(state);
+      const browserTarget = options.delegates?.resolveBrowserTarget?.(context);
+      if (!browserTarget?.ingestionToken) {
+        throw new Error("Target browser context does not include an ingestion token.");
+      }
+      const value = readObject(input);
+      const publicOrigin = readString(value, "publicOrigin");
+      const resetVersion = readOptionalNumber(value, "resetVersion") ?? 0;
+      site.configureManualTracking({
+        trackingScriptUrl: browserTarget.trackingScriptUrl,
+        ingestionToken: browserTarget.ingestionToken,
+        gatewayProxyBaseUrl: browserTarget.gatewayProxyBaseUrl,
+        gatewayRouteToken: browserTarget.gatewayRouteToken,
+        runId: browserTarget.runIdHeader,
+        publicOrigin,
+        resetVersion,
+      });
+      return {
+        hostname: site.hostname,
+        localOrigin: site.localOrigin,
+        publicOrigin,
+        resetVersion,
       };
     },
 
@@ -239,6 +271,16 @@ export function createBrowserActions(
       return { eventCount: events.length, counts };
     },
   };
+}
+
+function readOptionalNumber(
+  value: Readonly<Record<string, ScenarioValue>>,
+  key: string,
+): number | undefined {
+  const selected = value[key];
+  return typeof selected === "number" && Number.isFinite(selected)
+    ? selected
+    : undefined;
 }
 
 function readOptionalString(
