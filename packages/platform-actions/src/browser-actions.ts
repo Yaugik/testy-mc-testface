@@ -255,6 +255,18 @@ export function createBrowserActions(
         value: {
           eventCount: events.length,
           counts,
+          events: events.map((event) => ({
+            sequence: event.sequence,
+            type: event.type,
+            ...(event.pageId ? { pageId: event.pageId } : {}),
+            ...(event.event ? { event: event.event } : {}),
+            ...(event.value ? { value: event.value } : {}),
+            ...(event.formId ? { formId: event.formId } : {}),
+            ...(event.fieldNames ? { fieldNames: event.fieldNames } : {}),
+            ...(event.bodyFingerprint
+              ? { bodyFingerprint: event.bodyFingerprint }
+              : {}),
+          })),
           forms: events
             .filter((event) => event.type === "form-submit")
             .map((event) => ({
@@ -268,7 +280,17 @@ export function createBrowserActions(
         metadata: {},
         observedAt: new Date().toISOString(),
       });
-      return { eventCount: events.length, counts };
+      return {
+        eventCount: events.length,
+        counts,
+        events: events.map((event) => ({
+          sequence: event.sequence,
+          type: event.type,
+          ...(event.pageId ? { pageId: event.pageId } : {}),
+          ...(event.event ? { event: event.event } : {}),
+          ...(event.formId ? { formId: event.formId } : {}),
+        })),
+      };
     },
   };
 }
