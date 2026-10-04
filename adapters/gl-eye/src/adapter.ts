@@ -226,6 +226,7 @@ export class GlEyeTargetAdapter implements TargetAdapter {
     const processedEventCount = optionalNumber(value, "processedEventCount");
     const duplicateEventCount = optionalNumber(value, "duplicateEventCount");
     const companyFingerprint = optionalString(value, "companyFingerprint");
+    const companies = optionalCompanyArray(value, "companies");
     const scoreFingerprints = optionalStringArray(value, "scoreFingerprints");
     const providerProvenance = optionalStringArray(value, "providerProvenance");
     const confidence = optionalEnum(value, "confidence", ["low", "medium", "high"] as const);
@@ -245,6 +246,7 @@ export class GlEyeTargetAdapter implements TargetAdapter {
       ...(processedEventCount === undefined ? {} : { processedEventCount }),
       ...(duplicateEventCount === undefined ? {} : { duplicateEventCount }),
       ...(companyFingerprint ? { companyFingerprint } : {}),
+      ...(companies ? { companies } : {}),
       ...(scoreFingerprints ? { scoreFingerprints } : {}),
       ...(providerProvenance ? { providerProvenance } : {}),
       ...(confidence ? { confidence } : {}),
@@ -453,4 +455,44 @@ async function readLimitedResponseBody(response: Response, limit: number): Promi
     reader.releaseLock();
   }
   return Buffer.concat(chunks);
+}
+
+
+function optionalCompanyArray(
+  value: Record<string, unknown>,
+  key: string,
+):
+  | readonly {
+      readonly domain: string;
+      readonly displayName: string;
+      readonly score: number;
+      readonly confidence: string;
+      readonly visibility: string;
+    }[]
+  | undefined {
+  const selected = value[key];
+  if (!Array.isArray(selected)) return undefined;
+  const companies = [];
+  for (const item of selected) {
+    if (!item || typeof item !== "object" || Array.isArray(item)) return undefined;
+    const record = item as Record<string, unknown>;
+    if (
+      typeof record.domain !== "string" ||
+      typeof record.displayName !== "string" ||
+      typeof record.score !== "number" ||
+      !Number.isFinite(record.score) ||
+      typeof record.confidence !== "string" ||
+      typeof record.visibility !== "string"
+    ) {
+      return undefined;
+    }
+    companies.push({
+      domain: record.domain,
+      displayName: record.displayName,
+      score: record.score,
+      confidence: record.confidence,
+      visibility: record.visibility,
+    });
+  }
+  return companies;
 }
