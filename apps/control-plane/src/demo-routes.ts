@@ -141,7 +141,7 @@ async function proxyDemoWebsite(
     if (value) reply.header(name, value);
   }
   const bytes = Buffer.from(await response.arrayBuffer());
-  return reply.send(bytes);
+  reply.send(bytes);
 }
 
 async function readRawBody(
