@@ -95,12 +95,18 @@ export interface TargetAdapter {
     site: SiteDefinition,
   ): Promise<SiteDefinition>;
   startObservation(context: AdapterRunContext): Promise<ObservationHandle>;
-  triggerEnrichment?(context: AdapterRunContext): Promise<void>;
+  triggerEnrichment?(
+    context: AdapterRunContext,
+    options?: { readonly since?: string },
+  ): Promise<void>;
   waitForCompletion(
     context: AdapterRunContext,
     condition: CompletionCondition,
   ): Promise<ObservationResult>;
-  collectOutcome(context: AdapterRunContext): Promise<TargetOutcome>;
+  collectOutcome(
+    context: AdapterRunContext,
+    options?: { readonly since?: string },
+  ): Promise<TargetOutcome>;
   cleanupRun(context: AdapterRunContext): Promise<void>;
   cleanupTarget(targetRunId: string): Promise<void>;
 }
