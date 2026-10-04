@@ -16,6 +16,7 @@ export type {
   SiteDefinition,
   TargetAdapter,
   TargetCapabilities,
+  TargetCompanyOutcome,
   TargetOutcome,
   VendorEndpoints,
 } from "./types.js";
