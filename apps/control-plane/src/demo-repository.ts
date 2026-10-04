@@ -33,6 +33,37 @@ export interface DemoSessionRecord {
   readonly updatedAt: string;
 }
 
+export interface DemoSessionRepository {
+  create(
+    id: string,
+    runId: RunId,
+    websiteHostname: string,
+    customerPackage: string,
+    expiresAt: string,
+  ): Promise<DemoSessionRecord>;
+  get(id: string): Promise<DemoSessionRecord | undefined>;
+  getByHostname(hostname: string): Promise<DemoSessionRecord | undefined>;
+  listInterrupted(): Promise<readonly DemoSessionRecord[]>;
+  update(
+    id: string,
+    patch: {
+      readonly status?: DemoSessionStatus;
+      readonly networkIdentityId?: string | null;
+      readonly personIdentityId?: string | null;
+      readonly browserIdentityId?: string | null;
+      readonly resetVersion?: number;
+      readonly activeGatewayRouteId?: string | null;
+      readonly targetRunId?: string | null;
+      readonly tenantId?: string | null;
+      readonly siteId?: string | null;
+      readonly enrichmentTriggeredAt?: string | null;
+      readonly errorMessage?: string | null;
+      readonly stoppedAt?: string | null;
+    },
+  ): Promise<DemoSessionRecord>;
+  finishRun(runId: RunId, status: "PASSED" | "FAILED"): Promise<void>;
+}
+
 interface DemoSessionRow {
   readonly id: string;
   readonly run_id: string;
@@ -56,7 +87,7 @@ interface DemoSessionRow {
   readonly updated_at: Date;
 }
 
-export class PostgresDemoSessionRepository {
+export class PostgresDemoSessionRepository implements DemoSessionRepository {
   public constructor(private readonly pool: Pool) {}
 
   public async create(
