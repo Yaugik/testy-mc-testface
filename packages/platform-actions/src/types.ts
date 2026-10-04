@@ -72,7 +72,7 @@ export interface PlatformActionDependencies {
   loadBrowserPackage(path: string): Promise<LoadedBrowserPackage>;
   startSyntheticSite(
     loaded: LoadedBrowserPackage,
-    options: { readonly runNamespace: string },
+    options: { readonly runNamespace: string; readonly hostname?: string },
   ): Promise<SyntheticSiteBinding>;
   runBrowserJourney(
     journeyId: string,
