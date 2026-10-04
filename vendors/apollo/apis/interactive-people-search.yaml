@@ -11,7 +11,7 @@ cases:
       json.page: 1
     respond:
       status: 200
-      body: responses/gl-eye-people-search.json
+      body: responses/interactive-nordlicht-alex-search.json
   - id: nordlicht-maya-people
     priority: 100
     when:
