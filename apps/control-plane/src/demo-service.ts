@@ -199,6 +199,7 @@ export class InteractiveDemoService {
         "manual-tracking",
       );
 
+      const visitorStartedAt = new Date().toISOString();
       session = await this.sessions.update(session.id, {
         status: "READY",
         networkIdentityId: selected.network.id,
@@ -208,6 +209,7 @@ export class InteractiveDemoService {
         targetRunId,
         tenantId,
         siteId,
+        visitorStartedAt,
       });
       await this.timeline(session, "demo-session-ready", {
         networkIdentityId: selected.network.id,
@@ -295,6 +297,7 @@ export class InteractiveDemoService {
       `manual-tracking-${Date.now()}`,
     );
 
+    const visitorStartedAt = new Date().toISOString();
     const updated = await this.sessions.update(id, {
       status: "ACTIVE",
       networkIdentityId: selected.network.id,
@@ -303,6 +306,7 @@ export class InteractiveDemoService {
       resetVersion,
       activeGatewayRouteId: readString(route, "routeId"),
       enrichmentTriggeredAt: null,
+      visitorStartedAt,
     });
     await this.timeline(updated, "visitor-profile-applied", {
       networkIdentityId: selected.network.id,
@@ -327,11 +331,13 @@ export class InteractiveDemoService {
       },
       `manual-reset-${resetVersion}`,
     );
+    const visitorStartedAt = new Date().toISOString();
     const updated = await this.sessions.update(id, {
       status: "ACTIVE",
       resetVersion,
       browserIdentityId: "clean",
       enrichmentTriggeredAt: null,
+      visitorStartedAt,
     });
     await this.timeline(updated, "visitor-browser-reset-requested", {
       resetVersion,
@@ -346,7 +352,7 @@ export class InteractiveDemoService {
       session,
       runtime,
       "target.collect-outcome",
-      undefined,
+      session.visitorStartedAt ? { since: session.visitorStartedAt } : undefined,
     );
     if (
       readOptionalNumber(outcome, "companyCount") &&
@@ -356,7 +362,7 @@ export class InteractiveDemoService {
         session,
         runtime,
         "target.trigger-enrichment",
-        undefined,
+        session.visitorStartedAt ? { since: session.visitorStartedAt } : undefined,
       );
       session = await this.sessions.update(id, {
         enrichmentTriggeredAt: new Date().toISOString(),
@@ -366,7 +372,7 @@ export class InteractiveDemoService {
         session,
         runtime,
         "target.collect-outcome",
-        undefined,
+        session.visitorStartedAt ? { since: session.visitorStartedAt } : undefined,
       );
     }
     return outcome;
