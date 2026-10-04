@@ -1,0 +1,109 @@
+{
+  "schemaVersion": "1.0",
+  "networks": [
+    {
+      "id": "nordlicht-corporate",
+      "displayName": "Nordlicht Corporate",
+      "syntheticIp": "198.51.100.10",
+      "classification": "corporate",
+      "country": "DE",
+      "companyId": "nordlicht",
+      "companyName": "Nordlicht Example GmbH",
+      "description": "Synthetic German corporate network."
+    },
+    {
+      "id": "acme-corporate",
+      "displayName": "Acme Corporate",
+      "syntheticIp": "198.51.100.11",
+      "classification": "corporate",
+      "country": "GB",
+      "companyId": "acme",
+      "companyName": "Acme Synthetic Ltd",
+      "description": "Synthetic British corporate network."
+    },
+    {
+      "id": "residential-anonymous",
+      "displayName": "Residential Anonymous",
+      "syntheticIp": "198.51.100.20",
+      "classification": "residential",
+      "country": "DE"
+    },
+    {
+      "id": "vpn-anonymous",
+      "displayName": "VPN Anonymous",
+      "syntheticIp": "198.51.100.30",
+      "classification": "vpn",
+      "country": "DE"
+    },
+    {
+      "id": "hosting-anonymous",
+      "displayName": "Hosting / Datacenter",
+      "syntheticIp": "198.51.100.40",
+      "classification": "hosting",
+      "country": "DE"
+    },
+    {
+      "id": "unknown-anonymous",
+      "displayName": "Unknown / Unresolved",
+      "syntheticIp": "198.51.100.50",
+      "classification": "unknown",
+      "country": "DE"
+    }
+  ],
+  "people": [
+    {
+      "id": "alex-sales",
+      "displayName": "Alex Sales",
+      "companyId": "nordlicht",
+      "name": "Alex Sales",
+      "email": "alex.sales@nordlicht-example.test",
+      "jobTitle": "VP Sales",
+      "providerProfile": "nordlicht-alex"
+    },
+    {
+      "id": "maya-schmidt",
+      "displayName": "Maya Schmidt",
+      "companyId": "nordlicht",
+      "name": "Maya Schmidt",
+      "email": "maya.schmidt@nordlicht-example.test",
+      "jobTitle": "Revenue Operations Director",
+      "providerProfile": "nordlicht-maya"
+    },
+    {
+      "id": "sarah-demo",
+      "displayName": "Sarah Demo",
+      "companyId": "acme",
+      "name": "Sarah Demo",
+      "email": "sarah.demo@acme-synthetic.test",
+      "jobTitle": "Head of Sales",
+      "providerProfile": "acme-sarah"
+    }
+  ],
+  "browserIdentities": [
+    {
+      "id": "new",
+      "displayName": "New Visitor",
+      "reset": true
+    },
+    {
+      "id": "returning",
+      "displayName": "Returning Visitor",
+      "reset": false
+    },
+    {
+      "id": "same-session",
+      "displayName": "Same Browser / Session",
+      "reset": false
+    },
+    {
+      "id": "clean",
+      "displayName": "Clean Browser",
+      "reset": true
+    }
+  ],
+  "defaults": {
+    "networkId": "nordlicht-corporate",
+    "personId": "alex-sales",
+    "browserId": "new"
+  }
+}
