@@ -1,0 +1,30 @@
+schemaVersion: "1.0"
+operationId: interactive-people-bulk-match
+request:
+  method: POST
+  path: /profiles/{profile}/api/v1/people/bulk_match
+cases:
+  - id: nordlicht-alex-details
+    priority: 100
+    when:
+      path.profile: nordlicht-alex
+      query.reveal_personal_emails: "false"
+    respond:
+      status: 200
+      body: responses/gl-eye-people-bulk.json
+  - id: nordlicht-maya-details
+    priority: 100
+    when:
+      path.profile: nordlicht-maya
+      query.reveal_personal_emails: "false"
+    respond:
+      status: 200
+      body: responses/interactive-nordlicht-maya-bulk.json
+  - id: acme-sarah-details
+    priority: 100
+    when:
+      path.profile: acme-sarah
+      query.reveal_personal_emails: "false"
+    respond:
+      status: 200
+      body: responses/interactive-acme-bulk.json
