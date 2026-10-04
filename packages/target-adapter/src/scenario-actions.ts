@@ -218,13 +218,17 @@ export function createGatewayTargetScenarioActionBundle(
         gatewayRouteId: gateway.routeId,
       };
     },
-    "target.trigger-enrichment": async (_input, context) => {
+    "target.trigger-enrichment": async (input, context) => {
       const state = stateFor(context);
       requirePrepared(state);
       if (!options.adapter.triggerEnrichment) {
         throw new Error("Target enrichment trigger is not supported by this adapter.");
       }
-      await options.adapter.triggerEnrichment(adapterContext(context));
+      const value = input === undefined ? undefined : readObject(input);
+      const since = value ? readOptionalString(value, "since") : undefined;
+      await options.adapter.triggerEnrichment(adapterContext(context), {
+        ...(since ? { since } : {}),
+      });
       return { triggered: true };
     },
     "target.start-observation": async (_input, context) => {
@@ -264,9 +268,12 @@ export function createGatewayTargetScenarioActionBundle(
           : {}),
       };
     },
-    "target.collect-outcome": async (_input, context) => {
+    "target.collect-outcome": async (input, context) => {
+      const value = input === undefined ? undefined : readObject(input);
+      const since = value ? readOptionalString(value, "since") : undefined;
       const outcome = await options.adapter.collectOutcome(
         adapterContext(context),
+        { ...(since ? { since } : {}) },
       );
       return {
         targetRunId: outcome.targetRunId,
