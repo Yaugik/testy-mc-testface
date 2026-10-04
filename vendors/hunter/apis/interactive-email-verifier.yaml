@@ -1,0 +1,30 @@
+schemaVersion: "1.0"
+operationId: interactive-email-verifier
+request:
+  method: GET
+  path: /profiles/{profile}/v2/email-verifier
+cases:
+  - id: nordlicht-alex-valid
+    priority: 100
+    when:
+      path.profile: nordlicht-alex
+      query.email: alex.sales@nordlicht-example.test
+    respond:
+      status: 200
+      body: responses/gl-eye-verification.json
+  - id: nordlicht-maya-valid
+    priority: 100
+    when:
+      path.profile: nordlicht-maya
+      query.email: maya.schmidt@nordlicht-example.test
+    respond:
+      status: 200
+      body: responses/interactive-maya-verification.json
+  - id: acme-sarah-valid
+    priority: 100
+    when:
+      path.profile: acme-sarah
+      query.email: sarah.demo@acme-synthetic.test
+    respond:
+      status: 200
+      body: responses/interactive-sarah-verification.json
