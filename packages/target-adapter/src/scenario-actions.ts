@@ -107,6 +107,7 @@ export function createGatewayTargetScenarioActionBundle(
       const state = stateFor(context);
       const previous = requireGateway(state);
       const value = readObject(input);
+      const targetOrigin = readString(value, "targetOrigin");
       const syntheticIp = readString(value, "syntheticIp");
       const ttlMs =
         readOptionalNumber(value, "ttlMs") ??
@@ -114,7 +115,7 @@ export function createGatewayTargetScenarioActionBundle(
         15 * 60 * 1000;
       const replacement = await options.gateway.createRoute({
         runId: context.runId,
-        targetOrigin: previous.targetOrigin,
+        targetOrigin,
         syntheticIp,
         ttlMs,
       });
