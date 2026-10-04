@@ -490,6 +490,23 @@ const CONTROL_PLANE_HTML = `<!doctype html>
         (result.observations || []).forEach(function (item) {
           events.push({ at: item.observedAt, text: item.observationType + " · " + item.status });
         });
+        (result.gatewayRequests || []).forEach(function (item) {
+          events.push({
+            at: item.occurredAt || new Date().toISOString(),
+            text: "Traffic Gateway → " + (item.method || "request") + " · " + (item.outcome || "unknown") +
+              (item.statusCode ? " · HTTP " + item.statusCode : "")
+          });
+        });
+        (result.siteEvents || []).forEach(function (item) {
+          events.push({
+            at: new Date().toISOString(),
+            text: item.type === "page-view"
+              ? "Page viewed · " + (item.pageId || "page")
+              : item.type === "form-submit"
+                ? "Form submitted · " + (item.formId || "form")
+                : "Site event · " + (item.type || "event")
+          });
+        });
         events.sort(function (a, b) { return new Date(b.at) - new Date(a.at); });
         document.getElementById("demoActivity").innerHTML = events.length
           ? events.slice(0, 80).map(function (event) {
