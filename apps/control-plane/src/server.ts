@@ -1,6 +1,8 @@
 import { buildApp } from "./app.js";
 import { closeDatabase, databasePool } from "./database.js";
 import { loadConfig } from "./config.js";
+import { PostgresDemoSessionRepository } from "./demo-repository.js";
+import { InteractiveDemoService } from "./demo-service.js";
 import { sanitizeError } from "./errors.js";
 import {
   ControlPlaneMaintenance,
@@ -14,6 +16,13 @@ import { ScenarioRunService } from "./run-service.js";
 const config = loadConfig();
 const repository = new PostgresScenarioRunRepository(databasePool);
 const platform = createPlatformActions(config, repository);
+const demos = new InteractiveDemoService(
+  config,
+  new PostgresDemoSessionRepository(databasePool),
+  repository,
+  platform.actions,
+  platform.resourceCleaners,
+);
 const runs = new ScenarioRunService(
   repository,
   platform.actions,
@@ -32,6 +41,7 @@ const app = buildApp({
   runs,
   maintenance,
   ...(targetReadiness ? { targetReadiness } : {}),
+  demos,
   ...(config.maintenance.adminToken
     ? { maintenanceAdminToken: config.maintenance.adminToken }
     : {}),
@@ -60,7 +70,21 @@ process.once("SIGTERM", () => void shutdown("SIGTERM"));
 
 try {
   await runs.recoverInterruptedRuns();
+  await demos.recoverInterruptedSessions();
+  await demos.expireSessions();
   await maintenance.run();
+  const demoExpiryTimer = setInterval(() => {
+    void demos.expireSessions().catch((error) => {
+      app.log.error(
+        { error: sanitizeError(error) },
+        "Interactive Demo expiry cycle failed",
+      );
+    });
+  }, 60_000);
+  demoExpiryTimer.unref?.();
+  app.addHook("onClose", async () => {
+    clearInterval(demoExpiryTimer);
+  });
   maintenance.start((error) => {
     app.log.error(
       { error: sanitizeError(error) },
