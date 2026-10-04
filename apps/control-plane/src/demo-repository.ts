@@ -74,7 +74,8 @@ export class PostgresDemoSessionRepository {
           id, scenario_id, target, status, resolved_scenario_hash,
           resolved_scenario, metadata, created_at, updated_at, started_at
         ) VALUES (
-          $1, 'interactive-demo', 'gl-eye', 'RUNNING', NULL, NULL,
+          $1, 'interactive-demo', 'gl-eye', 'RUNNING',
+          repeat('0', 64), '{}'::JSONB,
           '{"runKind":"interactive-demo"}'::JSONB, NOW(), NOW(), NOW()
         )`,
         [runId],
