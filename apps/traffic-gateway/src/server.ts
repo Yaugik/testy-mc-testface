@@ -11,6 +11,7 @@ const gateway = await startTrafficGateway({
   ...(config.blockedProviderHosts.length > 0
     ? { blockedProviderHosts: config.blockedProviderHosts }
     : {}),
+  maxRouteTtlMs: config.maxRouteTtlMs,
 });
 
 let stopping = false;
