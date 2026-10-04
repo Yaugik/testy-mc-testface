@@ -347,7 +347,6 @@ export class InteractiveDemoService {
       runtime,
       "target.collect-outcome",
       undefined,
-      `outcome-${Date.now()}`,
     );
     if (
       readOptionalNumber(outcome, "companyCount") &&
@@ -358,7 +357,6 @@ export class InteractiveDemoService {
         runtime,
         "target.trigger-enrichment",
         undefined,
-        `enrichment-${Date.now()}`,
       );
       session = await this.sessions.update(id, {
         enrichmentTriggeredAt: new Date().toISOString(),
@@ -369,7 +367,6 @@ export class InteractiveDemoService {
         runtime,
         "target.collect-outcome",
         undefined,
-        `outcome-enriched-${Date.now()}`,
       );
     }
     return outcome;
@@ -384,7 +381,6 @@ export class InteractiveDemoService {
         runtime,
         "vendor.collect-ledger",
         { vendorId },
-        `ledger-${vendorId}-${Date.now()}`,
       );
     }
     const gateway = await this.invoke(
@@ -392,14 +388,12 @@ export class InteractiveDemoService {
       runtime,
       "gateway.collect-ledger",
       undefined,
-      `gateway-ledger-${Date.now()}`,
     );
     const site = await this.invoke(
       session,
       runtime,
       "browser.collect-site-events",
       undefined,
-      `site-events-${Date.now()}`,
     );
     const [timeline, providerCalls, observations] = await Promise.all([
       this.evidence.listTimeline(session.runId),
@@ -469,6 +463,9 @@ export class InteractiveDemoService {
   }
 
   public async shutdown(): Promise<void> {
+    for (const sessionId of [...this.runtimes.keys()]) {
+      await this.stop(sessionId, "control-plane-shutdown").catch(() => undefined);
+    }
     for (const runtime of this.runtimes.values()) {
       runtime.controller.abort(new Error("Control Plane shutdown."));
     }
@@ -500,13 +497,13 @@ export class InteractiveDemoService {
     runtime: DemoRuntime,
     name: string,
     input: ScenarioValue | undefined,
-    outputKey: string,
+    outputKey?: string,
   ): Promise<ScenarioValue | undefined> {
     const action = this.actions[name];
     if (!action) throw new Error(`Interactive Demo action '${name}' is unavailable.`);
     const context = this.context(session, runtime);
     const value = await action(input, context);
-    if (value !== undefined) runtime.outputs[outputKey] = value;
+    if (value !== undefined && outputKey) runtime.outputs[outputKey] = value;
     return value;
   }
 
