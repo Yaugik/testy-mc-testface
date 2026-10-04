@@ -25,6 +25,7 @@ export interface DemoSessionRecord {
   readonly tenantId?: string;
   readonly siteId?: string;
   readonly enrichmentTriggeredAt?: string;
+  readonly visitorStartedAt?: string;
   readonly errorMessage?: string;
   readonly startedAt: string;
   readonly expiresAt: string;
@@ -57,6 +58,7 @@ export interface DemoSessionRepository {
       readonly tenantId?: string | null;
       readonly siteId?: string | null;
       readonly enrichmentTriggeredAt?: string | null;
+      readonly visitorStartedAt?: string | null;
       readonly errorMessage?: string | null;
       readonly stoppedAt?: string | null;
     },
@@ -79,6 +81,7 @@ interface DemoSessionRow {
   readonly tenant_id: string | null;
   readonly site_id: string | null;
   readonly enrichment_triggered_at: Date | null;
+  readonly visitor_started_at: Date | null;
   readonly error_message: string | null;
   readonly started_at: Date;
   readonly expires_at: Date;
@@ -173,6 +176,7 @@ export class PostgresDemoSessionRepository implements DemoSessionRepository {
       readonly tenantId?: string | null;
       readonly siteId?: string | null;
       readonly enrichmentTriggeredAt?: string | null;
+      readonly visitorStartedAt?: string | null;
       readonly errorMessage?: string | null;
       readonly stoppedAt?: string | null;
     },
@@ -214,6 +218,10 @@ export class PostgresDemoSessionRepository implements DemoSessionRepository {
         patch.enrichmentTriggeredAt === undefined
           ? current.enrichmentTriggeredAt ?? null
           : patch.enrichmentTriggeredAt,
+      visitorStartedAt:
+        patch.visitorStartedAt === undefined
+          ? current.visitorStartedAt ?? null
+          : patch.visitorStartedAt,
       errorMessage:
         patch.errorMessage === undefined
           ? current.errorMessage ?? null
@@ -235,8 +243,9 @@ export class PostgresDemoSessionRepository implements DemoSessionRepository {
         tenant_id=$9,
         site_id=$10,
         enrichment_triggered_at=$11,
-        error_message=$12,
-        stopped_at=$13,
+        visitor_started_at=$12,
+        error_message=$13,
+        stopped_at=$14,
         updated_at=NOW()
        WHERE id=$1
        RETURNING *`,
@@ -252,6 +261,7 @@ export class PostgresDemoSessionRepository implements DemoSessionRepository {
         values.tenantId,
         values.siteId,
         values.enrichmentTriggeredAt,
+        values.visitorStartedAt,
         values.errorMessage,
         values.stoppedAt,
       ],
@@ -300,6 +310,9 @@ function mapSession(row: DemoSessionRow): DemoSessionRecord {
     ...(row.site_id ? { siteId: row.site_id } : {}),
     ...(row.enrichment_triggered_at
       ? { enrichmentTriggeredAt: row.enrichment_triggered_at.toISOString() }
+      : {}),
+    ...(row.visitor_started_at
+      ? { visitorStartedAt: row.visitor_started_at.toISOString() }
       : {}),
     ...(row.error_message ? { errorMessage: row.error_message } : {}),
     startedAt: row.started_at.toISOString(),
