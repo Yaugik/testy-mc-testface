@@ -21,6 +21,7 @@ export function registerInteractiveDemoRoutes(
     const localOrigin = await demos.localWebsiteOriginForHost(hostname);
     if (!localOrigin) return;
     await proxyDemoWebsite(request, reply, localOrigin);
+    return reply;
   });
 
   app.get("/v1/demo-profiles", async () => ({
