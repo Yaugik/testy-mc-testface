@@ -143,6 +143,16 @@ export function createGatewayTargetScenarioActionBundle(
         ).length,
         failedCount: entries.filter((entry) => entry.outcome === "failed")
           .length,
+        entries: entries.map((entry) => ({
+          sequence: entry.sequence,
+          occurredAt: entry.occurredAt,
+          method: entry.method,
+          pathFingerprint: entry.pathFingerprint,
+          statusCode: entry.statusCode ?? null,
+          durationMs: entry.durationMs,
+          outcome: entry.outcome,
+          reason: entry.reason ?? null,
+        })),
       };
     },
     "target.prepare-run": async (_input, context) => {
