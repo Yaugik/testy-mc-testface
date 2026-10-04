@@ -283,6 +283,7 @@ export function createGatewayTargetScenarioActionBundle(
         ...(outcome.companyFingerprint
           ? { companyFingerprint: outcome.companyFingerprint }
           : {}),
+        ...(outcome.companies ? { companies: outcome.companies } : {}),
         ...(outcome.scoreFingerprints
           ? { scoreFingerprints: outcome.scoreFingerprints }
           : {}),
