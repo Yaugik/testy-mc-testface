@@ -149,7 +149,7 @@ export class InteractiveDemoService {
         {
           targetOrigin: runtime.targetOrigin,
           syntheticIp: selected.network.syntheticIp,
-          ttlMs: Math.min(this.config.demoSessionTtlMs, 60 * 60 * 1000),
+          ttlMs: this.config.demoSessionTtlMs,
         },
         "gateway-route",
       );
@@ -269,7 +269,7 @@ export class InteractiveDemoService {
       {
         targetOrigin: runtime.targetOrigin,
         syntheticIp: selected.network.syntheticIp,
-        ttlMs: Math.min(this.config.demoSessionTtlMs, 60 * 60 * 1000),
+        ttlMs: this.config.demoSessionTtlMs,
       },
       `gateway-route-${Date.now()}`,
     );
