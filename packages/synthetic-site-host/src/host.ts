@@ -7,13 +7,20 @@ import { renderSitePages } from "./render.js";
 
 export interface SyntheticSiteEvent {
   readonly sequence: number;
-  readonly type: "page-view" | "button" | "consent" | "form-submit";
+  readonly type:
+    | "page-view"
+    | "button"
+    | "consent"
+    | "form-submit"
+    | "sdk-load"
+    | "tracking-forward";
   readonly pageId?: string;
   readonly event?: string;
   readonly value?: string;
   readonly formId?: string;
   readonly fieldNames?: readonly string[];
   readonly bodyFingerprint?: string;
+  readonly statusCode?: number;
 }
 
 export interface ManualTrackingBridge {
@@ -136,7 +143,7 @@ async function handleRequest(
       sendJson(response, 404, { error: "manual-tracking-not-configured" });
       return;
     }
-    await proxyTrackingScript(response, bridge);
+    await proxyTrackingScript(response, bridge, record);
     return;
   }
   if (request.method === "POST" && url.pathname === "/t/v1/events") {
@@ -145,7 +152,7 @@ async function handleRequest(
       sendJson(response, 409, { error: "manual-tracking-not-configured" });
       return;
     }
-    await proxyTrackingEvent(request, response, bridge);
+    await proxyTrackingEvent(request, response, bridge, record);
     return;
   }
   if (request.method === "GET" && url.pathname === "/__testy/style.css") {
@@ -232,9 +239,16 @@ function validateManualTrackingBridge(
 async function proxyTrackingScript(
   response: ServerResponse,
   bridge: ManualTrackingBridge,
+  record: (event: Omit<SyntheticSiteEvent, "sequence">) => void,
 ): Promise<void> {
   const upstream = await fetch(bridge.trackingScriptUrl, { redirect: "manual" });
   if (!upstream.ok) {
+    record({
+      type: "sdk-load",
+      event: "failed",
+      value: `HTTP ${upstream.status}`,
+      statusCode: upstream.status,
+    });
     sendJson(response, 502, { error: "tracking-script-unavailable" });
     return;
   }
@@ -249,6 +263,12 @@ async function proxyTrackingScript(
     upstream.headers.get("content-type") ?? "application/javascript; charset=utf-8",
   );
   response.setHeader("cache-control", "no-store");
+  record({
+    type: "sdk-load",
+    event: "loaded",
+    value: `HTTP ${upstream.status}`,
+    statusCode: upstream.status,
+  });
   response.end(body);
 }
 
@@ -256,6 +276,7 @@ async function proxyTrackingEvent(
   request: IncomingMessage,
   response: ServerResponse,
   bridge: ManualTrackingBridge,
+  record: (event: Omit<SyntheticSiteEvent, "sequence">) => void,
 ): Promise<void> {
   const body = await readTextBody(request);
   const upstream = await fetch(
@@ -275,6 +296,12 @@ async function proxyTrackingEvent(
       redirect: "manual",
     },
   );
+  record({
+    type: "tracking-forward",
+    event: upstream.ok ? "forwarded" : "rejected",
+    value: `HTTP ${upstream.status}`,
+    statusCode: upstream.status,
+  });
   response.statusCode = upstream.status;
   response.setHeader("cache-control", "no-store");
   response.end();
@@ -287,7 +314,7 @@ function injectManualTracking(
   if (!bridge) return html;
   const marker = JSON.stringify(String(bridge.resetVersion));
   const reset = `<script>(()=>{try{const k="testy:demo-reset";const v=${marker};if(localStorage.getItem(k)!==v){localStorage.clear();sessionStorage.clear();document.cookie.split(";").forEach((c)=>{document.cookie=c.split("=")[0].trim()+"=; Max-Age=0; Path=/; SameSite=Lax";});localStorage.setItem(k,v);}}catch{}})();</script>`;
-  const sdk = `<script src="/sdk/track.v1.min.js" data-site="${escapeAttribute(bridge.ingestionToken)}"></script>`;
+  const sdk = `<script async src="/sdk/track.v1.min.js" data-site="${escapeAttribute(bridge.ingestionToken)}"></script>`;
   return html.replace("</body>", `${reset}\n${sdk}\n</body>`);
 }
 
