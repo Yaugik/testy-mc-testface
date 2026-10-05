@@ -19,7 +19,14 @@ export function registerInteractiveDemoRoutes(
       return;
     }
     const localOrigin = await demos.localWebsiteOriginForHost(hostname);
-    if (!localOrigin) return;
+    if (!localOrigin) {
+      reply.status(410).send({
+        error: "demo-runtime-unavailable",
+        message:
+          "This Interactive Demo hostname does not currently have a live Testy runtime. Refresh the Control Plane or start a new demo session.",
+      });
+      return reply;
+    }
     await proxyDemoWebsite(request, reply, localOrigin);
     return reply;
   });
