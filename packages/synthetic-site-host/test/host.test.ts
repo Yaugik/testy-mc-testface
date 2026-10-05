@@ -88,7 +88,7 @@ describe("synthetic site host", () => {
 
       const home = await fetch(`${binding.localOrigin}/`);
       const html = await home.text();
-      expect(html).toContain('src="/sdk/track.v1.min.js"');
+      expect(html).toContain('async src="/sdk/track.v1.min.js"');
       expect(html).toContain('data-site="synthetic-site-token"');
       expect(html).toContain('"2"');
 
@@ -108,6 +108,20 @@ describe("synthetic site host", () => {
         runId: "manual-run",
       });
       expect(forwardedBody).toContain("page_view");
+      expect(binding.events()).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            type: "sdk-load",
+            event: "loaded",
+            statusCode: 200,
+          }),
+          expect.objectContaining({
+            type: "tracking-forward",
+            event: "forwarded",
+            statusCode: 202,
+          }),
+        ]),
+      );
     } finally {
       await binding.stop();
       await close(sdkServer);
