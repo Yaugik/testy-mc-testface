@@ -170,6 +170,455 @@ pages:
         href: /contact
         testId: final-cta-link
 
+  - id: product
+    path: /product
+    title: Product — Northstar Cloud
+    blocks:
+      - id: product-heading
+        type: heading
+        level: 1
+        text: "One workspace for turning account activity into revenue action."
+        testId: product-heading
+      - id: product-copy
+        type: text
+        text: "Northstar combines identification, intent, enrichment, scoring, and routing so your team can understand who is researching and what to do next."
+        testId: product-copy
+      - id: product-demo-link
+        type: link
+        text: "See Northstar in action"
+        href: /contact
+        testId: product-demo-link
+
+      - id: product-identification-heading
+        type: heading
+        level: 2
+        text: "Identify the companies behind meaningful website activity"
+        testId: product-identification-heading
+      - id: product-identification-copy
+        type: text
+        text: "Turn anonymous business traffic into account-level visibility with confidence, context, and privacy-aware handling."
+        testId: product-identification-copy
+      - id: product-identification-link
+        type: link
+        text: "Explore account identification"
+        href: /product/account-identification
+        testId: product-identification-link
+
+      - id: product-intent-heading
+        type: heading
+        level: 2
+        text: "Understand what an account is actually researching"
+        testId: product-intent-heading
+      - id: product-intent-copy
+        type: text
+        text: "Group visits into themes like pricing, security, integrations, product depth, and customer proof."
+        testId: product-intent-copy
+      - id: product-intent-link
+        type: link
+        text: "Explore intent signals"
+        href: /product/intent-signals
+        testId: product-intent-link
+
+      - id: product-enrichment-heading
+        type: heading
+        level: 2
+        text: "Add company and contact context when the signal is strong"
+        testId: product-enrichment-heading
+      - id: product-enrichment-copy
+        type: text
+        text: "Enrich qualified accounts without losing the behavioral context that made them relevant."
+        testId: product-enrichment-copy
+      - id: product-enrichment-link
+        type: link
+        text: "Explore enrichment"
+        href: /product/enrichment
+        testId: product-enrichment-link
+
+      - id: product-scoring-heading
+        type: heading
+        level: 2
+        text: "Prioritize accounts with transparent scoring"
+        testId: product-scoring-heading
+      - id: product-scoring-copy
+        type: text
+        text: "Combine fit, confidence, recency, and engagement so sales knows which accounts deserve attention first."
+        testId: product-scoring-copy
+      - id: product-scoring-link
+        type: link
+        text: "Explore scoring"
+        href: /product/scoring
+        testId: product-scoring-link
+
+      - id: product-routing-heading
+        type: heading
+        level: 2
+        text: "Route qualified accounts with the reason attached"
+        testId: product-routing-heading
+      - id: product-routing-copy
+        type: text
+        text: "Send the right account to the right owner with recent research, score, confidence, and enrichment context."
+        testId: product-routing-copy
+      - id: product-routing-link
+        type: link
+        text: "Explore routing and workflows"
+        href: /product/routing-workflows
+        testId: product-routing-link
+
+      - id: product-workflow-heading
+        type: heading
+        level: 2
+        text: "From first visit to sales-ready in one connected flow"
+        testId: product-workflow-heading
+      - id: product-workflow-copy
+        type: text
+        text: "Northstar keeps account history, identification evidence, intent, enrichment, score, and handoff decisions together."
+        testId: product-workflow-copy
+
+      - id: product-cta-heading
+        type: heading
+        level: 2
+        text: "See the full product workflow with a realistic buying journey."
+        testId: product-cta-heading
+      - id: product-cta-copy
+        type: text
+        text: "We’ll walk from an anonymous visit through identification, intent, enrichment, scoring, and sales handoff."
+        testId: product-cta-copy
+      - id: product-cta-link
+        type: link
+        text: "Book a product walkthrough"
+        href: /contact
+        testId: product-cta-link
+
+  - id: account-identification
+    path: /product/account-identification
+    title: Account Identification — Northstar Cloud
+    blocks:
+      - id: account-identification-heading
+        type: heading
+        level: 1
+        text: "Know which companies are researching before the form fill."
+        testId: account-identification-heading
+      - id: account-identification-copy
+        type: text
+        text: "Northstar turns eligible business traffic into account-level visibility with confidence and evidence instead of pretending every match is certain."
+        testId: account-identification-copy
+      - id: account-identification-demo-link
+        type: link
+        text: "See identification live"
+        href: /contact
+        testId: account-identification-demo-link
+
+      - id: identification-confidence-heading
+        type: heading
+        level: 2
+        text: "Confidence you can reason about"
+        testId: identification-confidence-heading
+      - id: identification-confidence-copy
+        type: text
+        text: "High, medium, and lower-confidence matches stay explicit so teams can decide how aggressively to act."
+        testId: identification-confidence-copy
+
+      - id: identification-privacy-heading
+        type: heading
+        level: 2
+        text: "Designed around account intelligence"
+        testId: identification-privacy-heading
+      - id: identification-privacy-copy
+        type: text
+        text: "Keep the focus on business-account context, consent-aware collection, and configurable retention."
+        testId: identification-privacy-copy
+
+      - id: identification-timeline-heading
+        type: heading
+        level: 2
+        text: "Every identified account gets a useful activity timeline"
+        testId: identification-timeline-heading
+      - id: identification-timeline-copy
+        type: text
+        text: "See first visit, repeat research, important pages, and recent activity instead of a single isolated company name."
+        testId: identification-timeline-copy
+
+      - id: identification-filter-heading
+        type: heading
+        level: 2
+        text: "Filter out traffic that should not become a sales signal"
+        testId: identification-filter-heading
+      - id: identification-filter-copy
+        type: text
+        text: "VPN, hosting, residential, and unsupported traffic can be handled differently from corporate traffic."
+        testId: identification-filter-copy
+
+      - id: identification-cta-heading
+        type: heading
+        level: 2
+        text: "See how Northstar separates signal from noise."
+        testId: identification-cta-heading
+      - id: identification-cta-link
+        type: link
+        text: "Book a demo"
+        href: /contact
+        testId: identification-cta-link
+
+  - id: intent-signals
+    path: /product/intent-signals
+    title: Intent Signals — Northstar Cloud
+    blocks:
+      - id: intent-signals-heading
+        type: heading
+        level: 1
+        text: "Understand what an account cares about, not just that it visited."
+        testId: intent-signals-heading
+      - id: intent-signals-copy
+        type: text
+        text: "Turn page activity into useful research themes so sales can understand the buying story without reading a raw clickstream."
+        testId: intent-signals-copy
+
+      - id: intent-pricing-heading
+        type: heading
+        level: 2
+        text: "Pricing and commercial research"
+        testId: intent-pricing-heading
+      - id: intent-pricing-copy
+        type: text
+        text: "Spot repeat visits to pricing, packaging, and contact pages that suggest active evaluation."
+        testId: intent-pricing-copy
+
+      - id: intent-technical-heading
+        type: heading
+        level: 2
+        text: "Technical and integration depth"
+        testId: intent-technical-heading
+      - id: intent-technical-copy
+        type: text
+        text: "See when an account moves from a broad overview into integrations, implementation, and product detail."
+        testId: intent-technical-copy
+
+      - id: intent-security-heading
+        type: heading
+        level: 2
+        text: "Security and risk evaluation"
+        testId: intent-security-heading
+      - id: intent-security-copy
+        type: text
+        text: "Security, privacy, and governance research can indicate a more mature evaluation stage."
+        testId: intent-security-copy
+
+      - id: intent-repeat-heading
+        type: heading
+        level: 2
+        text: "Repeat research matters more than a single click"
+        testId: intent-repeat-heading
+      - id: intent-repeat-copy
+        type: text
+        text: "Northstar keeps recency and repeat behavior visible so teams can distinguish curiosity from an active buying motion."
+        testId: intent-repeat-copy
+
+      - id: intent-cta-heading
+        type: heading
+        level: 2
+        text: "See a realistic account journey become an intent story."
+        testId: intent-cta-heading
+      - id: intent-cta-link
+        type: link
+        text: "Book an intent walkthrough"
+        href: /contact
+        testId: intent-cta-link
+
+  - id: enrichment
+    path: /product/enrichment
+    title: Enrichment — Northstar Cloud
+    blocks:
+      - id: enrichment-heading
+        type: heading
+        level: 1
+        text: "Enrich the accounts worth understanding."
+        testId: enrichment-heading
+      - id: enrichment-copy
+        type: text
+        text: "Add company and contact context after an account becomes relevant, while preserving the activity that explains why enrichment was triggered."
+        testId: enrichment-copy
+
+      - id: enrichment-company-heading
+        type: heading
+        level: 2
+        text: "Company context"
+        testId: enrichment-company-heading
+      - id: enrichment-company-copy
+        type: text
+        text: "Add firmographic and company-level context to make identified activity easier to prioritize."
+        testId: enrichment-company-copy
+
+      - id: enrichment-contact-heading
+        type: heading
+        level: 2
+        text: "Contact discovery"
+        testId: enrichment-contact-heading
+      - id: enrichment-contact-copy
+        type: text
+        text: "Reveal relevant contacts when your workflow needs a person to act on the account signal."
+        testId: enrichment-contact-copy
+
+      - id: enrichment-provenance-heading
+        type: heading
+        level: 2
+        text: "Provider provenance stays visible"
+        testId: enrichment-provenance-heading
+      - id: enrichment-provenance-copy
+        type: text
+        text: "Keep track of which providers contributed account or contact context instead of flattening everything into an unexplained profile."
+        testId: enrichment-provenance-copy
+
+      - id: enrichment-control-heading
+        type: heading
+        level: 2
+        text: "Enrich intentionally"
+        testId: enrichment-control-heading
+      - id: enrichment-control-copy
+        type: text
+        text: "Use qualification and workflow rules so enrichment follows real account interest rather than running indiscriminately."
+        testId: enrichment-control-copy
+
+      - id: enrichment-cta-heading
+        type: heading
+        level: 2
+        text: "See identification and enrichment working together."
+        testId: enrichment-cta-heading
+      - id: enrichment-cta-link
+        type: link
+        text: "Book a demo"
+        href: /contact
+        testId: enrichment-cta-link
+
+  - id: scoring
+    path: /product/scoring
+    title: Scoring & Prioritization — Northstar Cloud
+    blocks:
+      - id: scoring-heading
+        type: heading
+        level: 1
+        text: "Prioritize the accounts that deserve attention now."
+        testId: scoring-heading
+      - id: scoring-copy
+        type: text
+        text: "Use a transparent score built from recent activity, engagement, fit, and identification confidence."
+        testId: scoring-copy
+
+      - id: scoring-recency-heading
+        type: heading
+        level: 2
+        text: "Recency"
+        testId: scoring-recency-heading
+      - id: scoring-recency-copy
+        type: text
+        text: "Recent research matters more than a signal from weeks ago."
+        testId: scoring-recency-copy
+
+      - id: scoring-depth-heading
+        type: heading
+        level: 2
+        text: "Research depth"
+        testId: scoring-depth-heading
+      - id: scoring-depth-copy
+        type: text
+        text: "Deeper journeys across pricing, security, customers, and integrations can increase priority."
+        testId: scoring-depth-copy
+
+      - id: scoring-confidence-heading
+        type: heading
+        level: 2
+        text: "Identification confidence"
+        testId: scoring-confidence-heading
+      - id: scoring-confidence-copy
+        type: text
+        text: "Keep account-match certainty visible when deciding how strongly to act."
+        testId: scoring-confidence-copy
+
+      - id: scoring-fit-heading
+        type: heading
+        level: 2
+        text: "Account fit"
+        testId: scoring-fit-heading
+      - id: scoring-fit-copy
+        type: text
+        text: "Combine observed behavior with the account attributes that matter to your go-to-market motion."
+        testId: scoring-fit-copy
+
+      - id: scoring-cta-heading
+        type: heading
+        level: 2
+        text: "See why one account ranks above another."
+        testId: scoring-cta-heading
+      - id: scoring-cta-link
+        type: link
+        text: "Explore scoring in a demo"
+        href: /contact
+        testId: scoring-cta-link
+
+  - id: routing-workflows
+    path: /product/routing-workflows
+    title: Routing & Workflows — Northstar Cloud
+    blocks:
+      - id: routing-workflows-heading
+        type: heading
+        level: 1
+        text: "Move qualified accounts to the right seller with context attached."
+        testId: routing-workflows-heading
+      - id: routing-workflows-copy
+        type: text
+        text: "Turn account signals into practical handoffs using ownership, territory, score, confidence, and recent research."
+        testId: routing-workflows-copy
+
+      - id: routing-owner-heading
+        type: heading
+        level: 2
+        text: "Ownership-aware routing"
+        testId: routing-owner-heading
+      - id: routing-owner-copy
+        type: text
+        text: "Send known accounts to the seller who already owns the relationship."
+        testId: routing-owner-copy
+
+      - id: routing-territory-heading
+        type: heading
+        level: 2
+        text: "Territory and segment rules"
+        testId: routing-territory-heading
+      - id: routing-territory-copy
+        type: text
+        text: "Route new opportunities by region, segment, company size, or your existing go-to-market model."
+        testId: routing-territory-copy
+
+      - id: routing-evidence-heading
+        type: heading
+        level: 2
+        text: "Evidence travels with the handoff"
+        testId: routing-evidence-heading
+      - id: routing-evidence-copy
+        type: text
+        text: "Give sales the recent pages, intent, score, and confidence instead of a context-free notification."
+        testId: routing-evidence-copy
+
+      - id: routing-feedback-heading
+        type: heading
+        level: 2
+        text: "Close the loop with disposition"
+        testId: routing-feedback-heading
+      - id: routing-feedback-copy
+        type: text
+        text: "Capture actioned, disqualified, and other outcomes so the workflow can improve over time."
+        testId: routing-feedback-copy
+
+      - id: routing-cta-heading
+        type: heading
+        level: 2
+        text: "Map Northstar to your existing routing model."
+        testId: routing-cta-heading
+      - id: routing-cta-link
+        type: link
+        text: "Talk through your workflow"
+        href: /contact
+        testId: routing-cta-link
+
   - id: solutions
     path: /solutions
     title: Solutions — Northstar Cloud
@@ -263,6 +712,159 @@ pages:
         text: Book a tailored walkthrough
         href: /contact
         testId: solutions-cta-link
+
+  - id: sales-solution
+    path: /solutions/sales
+    title: Sales — Northstar Cloud
+    blocks:
+      - id: sales-solution-heading
+        type: heading
+        level: 1
+        text: "Give sales a better reason to reach out."
+        testId: sales-solution-heading
+      - id: sales-solution-copy
+        type: text
+        text: "Northstar helps sellers focus on accounts with recent research, useful intent, and enough context for relevant outreach."
+        testId: sales-solution-copy
+      - id: sales-priority-heading
+        type: heading
+        level: 2
+        text: "Start with the accounts showing real interest"
+        testId: sales-priority-heading
+      - id: sales-priority-copy
+        type: text
+        text: "Use score, recency, and research depth to prioritize the right conversations."
+        testId: sales-priority-copy
+      - id: sales-context-heading
+        type: heading
+        level: 2
+        text: "Open with context, not a generic sequence"
+        testId: sales-context-heading
+      - id: sales-context-copy
+        type: text
+        text: "See what the account researched before deciding how to approach it."
+        testId: sales-context-copy
+      - id: sales-repeat-heading
+        type: heading
+        level: 2
+        text: "Catch repeat interest while it is still warm"
+        testId: sales-repeat-heading
+      - id: sales-repeat-copy
+        type: text
+        text: "Know when an account returns to pricing, integrations, security, or customer proof."
+        testId: sales-repeat-copy
+      - id: sales-cta-heading
+        type: heading
+        level: 2
+        text: "See Northstar from an AE perspective."
+        testId: sales-cta-heading
+      - id: sales-cta-link
+        type: link
+        text: "Book a sales workflow demo"
+        href: /contact
+        testId: sales-cta-link
+
+  - id: revops-solution
+    path: /solutions/revops
+    title: Revenue Operations — Northstar Cloud
+    blocks:
+      - id: revops-solution-heading
+        type: heading
+        level: 1
+        text: "Give RevOps a clean system for account signals, routing, and feedback."
+        testId: revops-solution-heading
+      - id: revops-solution-copy
+        type: text
+        text: "Northstar makes identification, enrichment, prioritization, ownership, exports, and disposition easier to manage as one operational flow."
+        testId: revops-solution-copy
+      - id: revops-routing-heading
+        type: heading
+        level: 2
+        text: "Operational routing rules"
+        testId: revops-routing-heading
+      - id: revops-routing-copy
+        type: text
+        text: "Translate territory and ownership logic into a repeatable account-handoff process."
+        testId: revops-routing-copy
+      - id: revops-quality-heading
+        type: heading
+        level: 2
+        text: "Signal quality visibility"
+        testId: revops-quality-heading
+      - id: revops-quality-copy
+        type: text
+        text: "Understand confidence, provider usage, account outcomes, and how much traffic becomes actionable."
+        testId: revops-quality-copy
+      - id: revops-feedback-heading
+        type: heading
+        level: 2
+        text: "Feedback that survives beyond the notification"
+        testId: revops-feedback-heading
+      - id: revops-feedback-copy
+        type: text
+        text: "Capture sales disposition and preserve the reason accounts were actioned or disqualified."
+        testId: revops-feedback-copy
+      - id: revops-cta-heading
+        type: heading
+        level: 2
+        text: "Bring your current routing model."
+        testId: revops-cta-heading
+      - id: revops-cta-link
+        type: link
+        text: "Map it with Northstar"
+        href: /contact
+        testId: revops-cta-link
+
+  - id: marketing-solution
+    path: /solutions/marketing
+    title: Marketing — Northstar Cloud
+    blocks:
+      - id: marketing-solution-heading
+        type: heading
+        level: 1
+        text: "Understand which content and journeys create account-level interest."
+        testId: marketing-solution-heading
+      - id: marketing-solution-copy
+        type: text
+        text: "Connect website research to account outcomes so marketing can see which pages and journeys help create qualified interest."
+        testId: marketing-solution-copy
+      - id: marketing-content-heading
+        type: heading
+        level: 2
+        text: "See which content appears in serious evaluations"
+        testId: marketing-content-heading
+      - id: marketing-content-copy
+        type: text
+        text: "Compare product, pricing, integration, security, and customer-proof research across accounts."
+        testId: marketing-content-copy
+      - id: marketing-account-heading
+        type: heading
+        level: 2
+        text: "Measure account engagement, not just sessions"
+        testId: marketing-account-heading
+      - id: marketing-account-copy
+        type: text
+        text: "Group repeat activity into an account story instead of treating each visit as an isolated analytics row."
+        testId: marketing-account-copy
+      - id: marketing-sales-heading
+        type: heading
+        level: 2
+        text: "Create a clearer bridge to sales"
+        testId: marketing-sales-heading
+      - id: marketing-sales-copy
+        type: text
+        text: "Help sales understand what marketing content influenced the current account conversation."
+        testId: marketing-sales-copy
+      - id: marketing-cta-heading
+        type: heading
+        level: 2
+        text: "See a content journey become a sales signal."
+        testId: marketing-cta-heading
+      - id: marketing-cta-link
+        type: link
+        text: "Book a marketing demo"
+        href: /contact
+        testId: marketing-cta-link
 
   - id: customers
     path: /customers
@@ -591,6 +1193,334 @@ pages:
         text: Book a demo
         href: /contact
         testId: resources-cta-link
+
+  - id: about
+    path: /about
+    title: About — Northstar Cloud
+    blocks:
+      - id: about-heading
+        type: heading
+        level: 1
+        text: "We built Northstar to make website intent useful, explainable, and actionable."
+        testId: about-heading
+      - id: about-copy
+        type: text
+        text: "Northstar Cloud is a fictional SaaS company created for realistic product demos and integration testing."
+        testId: about-copy
+
+      - id: about-problem-heading
+        type: heading
+        level: 2
+        text: "The problem we care about"
+        testId: about-problem-heading
+      - id: about-problem-copy
+        type: text
+        text: "Revenue teams have plenty of website data but often lack the account context needed to decide what deserves action."
+        testId: about-problem-copy
+
+      - id: about-principle-heading
+        type: heading
+        level: 2
+        text: "Signal over noise"
+        testId: about-principle-heading
+      - id: about-principle-copy
+        type: text
+        text: "We prefer explicit confidence, recent evidence, and clear disposition over black-box claims."
+        testId: about-principle-copy
+
+      - id: about-privacy-heading
+        type: heading
+        level: 2
+        text: "Privacy-aware by design"
+        testId: about-privacy-heading
+      - id: about-privacy-copy
+        type: text
+        text: "Account intelligence should be useful without collapsing the distinction between a company signal and an individual person."
+        testId: about-privacy-copy
+
+      - id: about-team-heading
+        type: heading
+        level: 2
+        text: "A small team with a systems mindset"
+        testId: about-team-heading
+      - id: about-team-copy
+        type: text
+        text: "Product, engineering, data, and go-to-market work together around one question: what context actually helps a team make a better next decision?"
+        testId: about-team-copy
+
+      - id: about-cta-heading
+        type: heading
+        level: 2
+        text: "Want to see how the product works?"
+        testId: about-cta-heading
+      - id: about-cta-link
+        type: link
+        text: "Book a demo"
+        href: /contact
+        testId: about-cta-link
+
+  - id: careers
+    path: /careers
+    title: Careers — Northstar Cloud
+    blocks:
+      - id: careers-heading
+        type: heading
+        level: 1
+        text: "Build software that helps revenue teams make better decisions."
+        testId: careers-heading
+      - id: careers-copy
+        type: text
+        text: "Northstar is fictional, but this page behaves like a real SaaS careers page so the demo site has a believable company footprint."
+        testId: careers-copy
+
+      - id: careers-product-heading
+        type: heading
+        level: 2
+        text: "Senior Product Engineer"
+        testId: careers-product-heading
+      - id: careers-product-copy
+        type: text
+        text: "Own customer-facing workflows across account intelligence, scoring, and routing."
+        testId: careers-product-copy
+
+      - id: careers-data-heading
+        type: heading
+        level: 2
+        text: "Data & Signals Engineer"
+        testId: careers-data-heading
+      - id: careers-data-copy
+        type: text
+        text: "Work on identity, confidence, enrichment, and event-processing systems."
+        testId: careers-data-copy
+
+      - id: careers-design-heading
+        type: heading
+        level: 2
+        text: "Product Designer"
+        testId: careers-design-heading
+      - id: careers-design-copy
+        type: text
+        text: "Make complex account context feel simple, trustworthy, and easy to act on."
+        testId: careers-design-copy
+
+      - id: careers-values-heading
+        type: heading
+        level: 2
+        text: "How we work"
+        testId: careers-values-heading
+      - id: careers-values-copy
+        type: text
+        text: "Clear ownership, small teams, thoughtful defaults, direct feedback, and enough context to make good decisions."
+        testId: careers-values-copy
+
+      - id: careers-cta-heading
+        type: heading
+        level: 2
+        text: "Interested in the fictional team?"
+        testId: careers-cta-heading
+      - id: careers-cta-copy
+        type: text
+        text: "This demo does not collect job applications, but the page gives Northstar a realistic company presence."
+        testId: careers-cta-copy
+
+  - id: blog
+    path: /blog
+    title: Blog — Northstar Cloud
+    blocks:
+      - id: blog-heading
+        type: heading
+        level: 1
+        text: "Ideas for turning account research into better revenue decisions."
+        testId: blog-heading
+      - id: blog-copy
+        type: text
+        text: "Practical writing about account intelligence, intent, routing, RevOps, and privacy-aware measurement."
+        testId: blog-copy
+
+      - id: blog-account-heading
+        type: heading
+        level: 2
+        text: "A practical account-intelligence playbook"
+        testId: blog-account-heading
+      - id: blog-account-copy
+        type: text
+        text: "How to move from anonymous traffic to account context without creating a noisy alerting system."
+        testId: blog-account-copy
+      - id: blog-account-link
+        type: link
+        text: "Read article"
+        href: /blog/account-intelligence-playbook
+        testId: blog-account-link
+
+      - id: blog-intent-heading
+        type: heading
+        level: 2
+        text: "Intent signals that actually help sales"
+        testId: blog-intent-heading
+      - id: blog-intent-copy
+        type: text
+        text: "Why repeat pricing, security, integration, and customer-proof research can be more useful than generic engagement scores."
+        testId: blog-intent-copy
+      - id: blog-intent-link
+        type: link
+        text: "Read article"
+        href: /blog/intent-signals-that-matter
+        testId: blog-intent-link
+
+      - id: blog-routing-heading
+        type: heading
+        level: 2
+        text: "Designing routing rules without flooding sales"
+        testId: blog-routing-heading
+      - id: blog-routing-copy
+        type: text
+        text: "A framework for combining fit, confidence, recency, and account ownership."
+        testId: blog-routing-copy
+
+      - id: blog-privacy-heading
+        type: heading
+        level: 2
+        text: "Keeping account intelligence privacy-aware"
+        testId: blog-privacy-heading
+      - id: blog-privacy-copy
+        type: text
+        text: "How to preserve the boundary between company-level signals and individual-level tracking."
+        testId: blog-privacy-copy
+
+  - id: blog-account-intelligence-playbook
+    path: /blog/account-intelligence-playbook
+    title: Account Intelligence Playbook — Northstar Cloud
+    blocks:
+      - id: blog-account-detail-heading
+        type: heading
+        level: 1
+        text: "A practical account-intelligence playbook"
+        testId: blog-account-detail-heading
+      - id: blog-account-detail-copy
+        type: text
+        text: "A fictional field guide for moving from anonymous business traffic to a useful account-level sales signal."
+        testId: blog-account-detail-copy
+      - id: blog-account-step-one-heading
+        type: heading
+        level: 2
+        text: "1. Start with trustworthy identification"
+        testId: blog-account-step-one-heading
+      - id: blog-account-step-one-copy
+        type: text
+        text: "Treat confidence as part of the workflow instead of hiding uncertainty."
+        testId: blog-account-step-one-copy
+      - id: blog-account-step-two-heading
+        type: heading
+        level: 2
+        text: "2. Add the research story"
+        testId: blog-account-step-two-heading
+      - id: blog-account-step-two-copy
+        type: text
+        text: "A company name becomes useful when you can see what the account researched and how recently."
+        testId: blog-account-step-two-copy
+      - id: blog-account-step-three-heading
+        type: heading
+        level: 2
+        text: "3. Prioritize before routing"
+        testId: blog-account-step-three-heading
+      - id: blog-account-step-three-copy
+        type: text
+        text: "Use fit, intent, recency, and confidence to decide whether the signal deserves action."
+        testId: blog-account-step-three-copy
+      - id: blog-account-step-four-heading
+        type: heading
+        level: 2
+        text: "4. Preserve feedback"
+        testId: blog-account-step-four-heading
+      - id: blog-account-step-four-copy
+        type: text
+        text: "Actioned and disqualified outcomes are part of the system, not comments that disappear."
+        testId: blog-account-step-four-copy
+
+  - id: blog-intent-signals-that-matter
+    path: /blog/intent-signals-that-matter
+    title: Intent Signals That Matter — Northstar Cloud
+    blocks:
+      - id: blog-intent-detail-heading
+        type: heading
+        level: 1
+        text: "Intent signals that actually help sales"
+        testId: blog-intent-detail-heading
+      - id: blog-intent-detail-copy
+        type: text
+        text: "A fictional analysis of why context and repeat research matter more than a generic engagement score."
+        testId: blog-intent-detail-copy
+      - id: blog-intent-pricing-heading
+        type: heading
+        level: 2
+        text: "Pricing is stronger when it repeats"
+        testId: blog-intent-pricing-heading
+      - id: blog-intent-pricing-copy
+        type: text
+        text: "A single pricing visit can be curiosity. Repeat pricing research paired with product depth is more interesting."
+        testId: blog-intent-pricing-copy
+      - id: blog-intent-security-heading
+        type: heading
+        level: 2
+        text: "Security research can signal evaluation maturity"
+        testId: blog-intent-security-heading
+      - id: blog-intent-security-copy
+        type: text
+        text: "Security and privacy pages often appear later in a serious B2B buying journey."
+        testId: blog-intent-security-copy
+      - id: blog-intent-customers-heading
+        type: heading
+        level: 2
+        text: "Customer proof helps explain the buying question"
+        testId: blog-intent-customers-heading
+      - id: blog-intent-customers-copy
+        type: text
+        text: "Case-study research can indicate the account is looking for evidence that the product works in a similar environment."
+        testId: blog-intent-customers-copy
+
+  - id: changelog
+    path: /changelog
+    title: Changelog — Northstar Cloud
+    blocks:
+      - id: changelog-heading
+        type: heading
+        level: 1
+        text: "What’s new in Northstar Cloud"
+        testId: changelog-heading
+      - id: changelog-copy
+        type: text
+        text: "A fictional product changelog that makes the demo site feel like an actively developed SaaS product."
+        testId: changelog-copy
+
+      - id: changelog-oct-heading
+        type: heading
+        level: 2
+        text: "October 2026 — richer account timelines"
+        testId: changelog-oct-heading
+      - id: changelog-oct-copy
+        type: text
+        text: "Account history now groups recent research, score changes, and sales disposition into a clearer timeline."
+        testId: changelog-oct-copy
+
+      - id: changelog-sep-heading
+        type: heading
+        level: 2
+        text: "September 2026 — routing workflow updates"
+        testId: changelog-sep-heading
+      - id: changelog-sep-copy
+        type: text
+        text: "New workflow controls make ownership, territory, and qualification rules easier to reason about."
+        testId: changelog-sep-copy
+
+      - id: changelog-aug-heading
+        type: heading
+        level: 2
+        text: "August 2026 — enrichment provenance"
+        testId: changelog-aug-heading
+      - id: changelog-aug-copy
+        type: text
+        text: "Provider provenance is now easier to inspect alongside company and contact context."
+        testId: changelog-aug-copy
 
   - id: pricing
     path: /pricing
