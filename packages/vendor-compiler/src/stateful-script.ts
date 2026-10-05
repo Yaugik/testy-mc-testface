@@ -338,7 +338,7 @@ function applyResponse(behavior) {
   }
 
   if (behavior.body) {
-    response.withFile(behavior.body);
+    response.withFile(config.dir + "/" + behavior.body);
   } else if (!behavior.failure) {
     response.withEmpty();
   }
