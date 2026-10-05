@@ -446,13 +446,28 @@ export class InteractiveDemoService {
 
   public async recoverInterruptedSessions(): Promise<void> {
     for (const session of await this.sessions.listInterrupted()) {
+      if (Date.parse(session.expiresAt) <= Date.now()) {
+        await this.stop(session.id, "expired-during-recovery");
+        continue;
+      }
+
+      if (session.status === "READY" || session.status === "ACTIVE") {
+        try {
+          await this.resumeSession(session);
+          continue;
+        } catch (error) {
+          await this.failSession(session, error);
+          continue;
+        }
+      }
+
       const errors = await this.cleanupSession(session);
       const recovered = await this.sessions.update(session.id, {
         status: errors.length === 0 ? "STOPPED" : "FAILED",
         stoppedAt: new Date().toISOString(),
         errorMessage:
           errors.length === 0
-            ? "Session terminated during Control Plane restart recovery."
+            ? "Incomplete session terminated during Control Plane restart recovery."
             : errors.join("; "),
       });
       await this.sessions.finishRun(recovered.runId, "FAILED");
@@ -470,11 +485,227 @@ export class InteractiveDemoService {
 
   public async shutdown(): Promise<void> {
     for (const sessionId of [...this.runtimes.keys()]) {
-      await this.stop(sessionId, "control-plane-shutdown").catch(() => undefined);
+      const session = await this.sessions.get(sessionId);
+      if (!session) continue;
+      await this.suspendRuntime(session).catch(() => undefined);
     }
-    for (const runtime of this.runtimes.values()) {
-      runtime.controller.abort(new Error("Control Plane shutdown."));
+  }
+
+  private async resumeSession(
+    session: DemoSessionRecord,
+  ): Promise<DemoSessionRecord> {
+    const originalStatus = session.status === "ACTIVE" ? "ACTIVE" : "READY";
+    const catalog = await this.profiles();
+    const networkId =
+      session.networkIdentityId ?? catalog.defaults.networkId;
+    const browserId =
+      session.browserIdentityId ?? catalog.defaults.browserId;
+    const selected = selectDemoVisitor(
+      catalog,
+      networkId,
+      session.personIdentityId,
+      browserId,
+    );
+
+    const oldLeases = await this.evidence.listActiveResourceLeases(
+      session.runId,
+    );
+    const oldTargetLeaseIds = oldLeases
+      .filter((lease) => lease.resourceType === "target-run")
+      .map((lease) => lease.leaseId);
+
+    await this.cleanupRecoverableResources(session, oldLeases);
+
+    const runtime: DemoRuntime = {
+      controller: new AbortController(),
+      outputs: {},
+      cleanups: [],
+      leaseCleanups: new Map(),
+      providerBaseUrls: {},
+    };
+    this.runtimes.set(session.id, runtime);
+    await this.sessions.update(session.id, {
+      status: "PROVISIONING",
+      activeGatewayRouteId: null,
+      errorMessage: null,
+      stoppedAt: null,
+    });
+
+    const prepared = await this.invoke(
+      session,
+      runtime,
+      "target.prepare-run",
+      undefined,
+      "prepare-target",
+    );
+    runtime.targetOrigin = readString(prepared, "targetOrigin");
+    const targetRunId = readString(prepared, "targetRunId");
+    const tenantId = readString(prepared, "tenantId");
+    const siteId = readString(prepared, "siteId");
+
+    for (const leaseId of oldTargetLeaseIds) {
+      await this.evidence.releaseResourceLease(
+        leaseId,
+        new Date().toISOString(),
+      );
     }
+
+    for (const vendorId of ["ipinfo", "apollo", "hunter"] as const) {
+      const compiled = await this.invoke(
+        session,
+        runtime,
+        "vendor.compile",
+        { package: vendorId },
+        `resume-compile-${vendorId}`,
+      );
+      const compiledVendorId = readString(compiled, "vendorId");
+      const started = await this.invoke(
+        session,
+        runtime,
+        "vendor.start-runtime",
+        { vendorId: compiledVendorId },
+        `resume-runtime-${vendorId}`,
+      );
+      runtime.providerBaseUrls[vendorId] = readString(
+        started,
+        "providerBaseUrl",
+      );
+    }
+
+    const route = await this.invoke(
+      session,
+      runtime,
+      "gateway.create-route",
+      {
+        targetOrigin: runtime.targetOrigin,
+        syntheticIp: selected.network.syntheticIp,
+        ttlMs: Math.max(
+          60_000,
+          Date.parse(session.expiresAt) - Date.now(),
+        ),
+      },
+      "gateway-route",
+    );
+
+    await this.invoke(
+      session,
+      runtime,
+      "browser.load-package",
+      { package: session.customerPackage },
+      "browser-package",
+    );
+    const site = await this.invoke(
+      session,
+      runtime,
+      "site.start",
+      { hostname: session.websiteHostname },
+      "synthetic-site",
+    );
+    runtime.localSiteOrigin = readString(site, "localOrigin");
+
+    await this.configureProviders(
+      session,
+      runtime,
+      selected.person?.providerProfile,
+    );
+    const publicOrigin = this.publicSecureOrigin(session);
+    await this.invoke(
+      session,
+      runtime,
+      "target.configure-site",
+      {
+        hostname: session.websiteHostname,
+        origin: publicOrigin,
+      },
+      "configured-site",
+    );
+    await this.invoke(
+      session,
+      runtime,
+      "target.start-observation",
+      undefined,
+      "target-observation",
+    );
+    await this.invoke(
+      session,
+      runtime,
+      "site.configure-manual-tracking",
+      {
+        publicOrigin,
+        resetVersion: session.resetVersion,
+      },
+      "manual-tracking",
+    );
+
+    const resumed = await this.sessions.update(session.id, {
+      status: originalStatus,
+      networkIdentityId: selected.network.id,
+      personIdentityId: selected.person?.id ?? null,
+      browserIdentityId: selected.browser.id,
+      activeGatewayRouteId: readString(route, "routeId"),
+      targetRunId,
+      tenantId,
+      siteId,
+      errorMessage: null,
+      stoppedAt: null,
+    });
+    await this.timeline(resumed, "demo-session-resumed", {
+      networkIdentityId: selected.network.id,
+      personIdentityId: selected.person?.id ?? "none",
+      browserIdentityId: selected.browser.id,
+    });
+    return resumed;
+  }
+
+  private async cleanupRecoverableResources(
+    session: DemoSessionRecord,
+    leases: Awaited<
+      ReturnType<ScenarioRunRepository["listActiveResourceLeases"]>
+    >,
+  ): Promise<void> {
+    for (const lease of [...leases].reverse()) {
+      if (lease.resourceType === "target-run") continue;
+      const cleaner = this.resourceCleaners[lease.resourceType];
+      if (cleaner) {
+        await cleaner(lease);
+      }
+      await this.evidence.releaseResourceLease(
+        lease.leaseId,
+        new Date().toISOString(),
+      );
+    }
+  }
+
+  private async suspendRuntime(
+    session: DemoSessionRecord,
+  ): Promise<void> {
+    const runtime = this.runtimes.get(session.id);
+    if (!runtime) return;
+
+    const leases = await this.evidence.listActiveResourceLeases(session.runId);
+    for (const lease of [...leases].reverse()) {
+      if (lease.resourceType === "target-run") continue;
+      const local = runtime.leaseCleanups.get(lease.leaseId);
+      if (local) {
+        await local();
+      } else {
+        const cleaner = this.resourceCleaners[lease.resourceType];
+        if (cleaner) await cleaner(lease);
+      }
+      await this.evidence.releaseResourceLease(
+        lease.leaseId,
+        new Date().toISOString(),
+      );
+    }
+
+    for (const cleanup of [...runtime.cleanups].reverse()) {
+      await cleanup();
+    }
+    runtime.controller.abort(new Error("Control Plane shutdown."));
+    this.runtimes.delete(session.id);
+    await this.sessions.update(session.id, {
+      activeGatewayRouteId: null,
+    });
   }
 
   private async configureProviders(
