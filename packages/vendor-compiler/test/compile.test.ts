@@ -44,9 +44,13 @@ describe("compileVendorBundle", () => {
       method: "GET",
       path: "/ipinfo/{ip}",
       pathParams: { ip: "198.51.100.10" },
-      response: {
-        scriptFile: "generated/lookup-ip--corporate-high-confidence.js",
-      },
+      steps: [
+        {
+          type: "script",
+          lang: "javascript",
+          file: "generated/lookup-ip--corporate-high-confidence.js",
+        },
+      ],
     });
 
     const corporateScript = first.files.find(
@@ -60,6 +64,7 @@ describe("compileVendorBundle", () => {
     expect(corporateScript?.content.toString("utf8")).toContain(
       "Nordlicht Example GmbH",
     );
+    expect(corporate).not.toHaveProperty("response.scriptFile");
 
     const recoveryScript = first.files.find(
       (file) =>
