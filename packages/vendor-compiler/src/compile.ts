@@ -40,6 +40,7 @@ import {
 interface ImposterResource extends Record<string, unknown> {
   readonly path: string;
   readonly method?: string;
+  readonly steps?: readonly Readonly<Record<string, unknown>>[];
   readonly response?: Readonly<Record<string, unknown>>;
 }
 
@@ -151,12 +152,22 @@ export function compileVendorBundle(
     resources.push({
       path: fallbackPath,
       log: `TESTY_UNMATCHED vendor=${loaded.executionModel.vendor.id} correlation=\${context.request.headers.${TESTY_CORRELATION_HEADER}}`,
-      response: fallbackScript
-        ? { scriptFile: stripImposterPrefix(fallbackScript.relativePath) }
-        : compileStaticResponse(
-            loaded.executionModel.routing.unmatchedRequest,
-            initialStateDefinition,
-          ),
+      ...(fallbackScript
+        ? {
+            steps: [
+              {
+                type: "script",
+                lang: "javascript",
+                file: stripImposterPrefix(fallbackScript.relativePath),
+              },
+            ],
+          }
+        : {
+            response: compileStaticResponse(
+              loaded.executionModel.routing.unmatchedRequest,
+              initialStateDefinition,
+            ),
+          }),
     });
     sourceMapEntries.push({
       resourceIndex: resources.length - 1,
@@ -367,9 +378,13 @@ function compileCaseResource(
     return {
       resource: {
         ...resourceBase,
-        response: {
-          scriptFile: stripImposterPrefix(scriptRelativePath),
-        },
+        steps: [
+          {
+            type: "script",
+            lang: "javascript",
+            file: stripImposterPrefix(scriptRelativePath),
+          },
+        ],
       },
       scriptFile: makeFile(scriptRelativePath, scriptContent),
     };
