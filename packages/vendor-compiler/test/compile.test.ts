@@ -49,6 +49,15 @@ describe("compileVendorBundle", () => {
       },
     });
 
+    const corporateScript = first.files.find(
+      (file) =>
+        file.relativePath ===
+        "imposter/generated/lookup-ip-json--corporate-json.js",
+    );
+    expect(corporateScript?.content.toString("utf8")).toContain(
+      'response.withFile(config.dir + "/" + behavior.body)',
+    );
+
     const recoveryScript = first.files.find(
       (file) =>
         file.relativePath ===
