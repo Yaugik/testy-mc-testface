@@ -99,7 +99,10 @@ export class GlEyeTargetAdapter implements TargetAdapter {
       targetRunId: requireString(value, "targetRunId"),
       tenantId: requireString(value, "tenantId"),
       ...(controlTenantId ? { controlTenantId } : {}),
-      trackingScriptUrl: requireString(value, "trackingScriptUrl"),
+      trackingScriptUrl: rebaseTrackingScriptUrl(
+        requireString(value, "trackingScriptUrl"),
+        this.baseOrigin,
+      ),
       siteId: requireString(value, "siteId"),
       targetOrigin: this.baseOrigin,
       ...(ingestionToken ? { ingestionToken } : {}),
@@ -339,6 +342,18 @@ export class GlEyeTargetAdapter implements TargetAdapter {
       context?.signal?.removeEventListener("abort", forwardAbort);
     }
   }
+}
+
+function rebaseTrackingScriptUrl(value: string, baseOrigin: string): string {
+  const advertised = new URL(value);
+  if (!["http:", "https:"].includes(advertised.protocol)) {
+    throw new Error("GL-EYE tracking script URL must use HTTP(S).");
+  }
+  const target = new URL(baseOrigin);
+  target.pathname = advertised.pathname;
+  target.search = advertised.search;
+  target.hash = "";
+  return target.toString();
 }
 
 function normalizeAllowedOrigin(value: string, allowedOrigins: readonly string[]): string {
