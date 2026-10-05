@@ -25,6 +25,10 @@ describe("synthetic site host", () => {
       expect(html).toContain('class="site-content-grid"');
       expect(html).toContain('data-section-id="metric-pipeline-heading"');
       expect(html).toContain("Halcyon Systems");
+      expect(html).toContain('class="site-nav-menu"');
+      expect(html).toContain('href="/product"');
+      expect(html).toContain('href="/solutions/sales"');
+      expect(html).toContain('href="/about"');
 
       const solutions = await fetch(`${binding.localOrigin}/solutions`);
       expect(solutions.status).toBe(200);
