@@ -514,7 +514,7 @@ export class InteractiveDemoService {
       .filter((lease) => lease.resourceType === "target-run")
       .map((lease) => lease.leaseId);
 
-    await this.cleanupRecoverableResources(session, oldLeases);
+    await this.cleanupRecoverableResources(oldLeases);
 
     const runtime: DemoRuntime = {
       controller: new AbortController(),
@@ -658,7 +658,6 @@ export class InteractiveDemoService {
   }
 
   private async cleanupRecoverableResources(
-    session: DemoSessionRecord,
     leases: Awaited<
       ReturnType<ScenarioRunRepository["listActiveResourceLeases"]>
     >,
