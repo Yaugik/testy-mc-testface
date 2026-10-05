@@ -218,13 +218,13 @@ function renderBlock(
   const blockAttrs = ` id="${escapeAttribute(block.id)}" data-block-id="${escapeAttribute(block.id)}"${testId}`;
   switch (block.type) {
     case "heading":
-      return `<h${block.level}${testId}>${escapeHtml(interpolate(block.text, variables))}</h${block.level}>`;
+      return `<h${block.level}${blockAttrs}>${escapeHtml(interpolate(block.text, variables))}</h${block.level}>`;
     case "text":
-      return `<p${testId}>${escapeHtml(interpolate(block.text, variables))}</p>`;
+      return `<p${blockAttrs}>${escapeHtml(interpolate(block.text, variables))}</p>`;
     case "link":
-      return `<a${testId} href="${escapeAttribute(interpolate(block.href, variables))}"${block.target ? ` target="${block.target}"` : ""}>${escapeHtml(interpolate(block.text, variables))}</a>`;
+      return `<a${blockAttrs} href="${escapeAttribute(interpolate(block.href, variables))}"${block.target ? ` target="${block.target}"` : ""}>${escapeHtml(interpolate(block.text, variables))}</a>`;
     case "button":
-      return `<button type="button"${testId}${block.event ? ` data-test-event="${escapeAttribute(block.event)}"` : ""}>${escapeHtml(interpolate(block.text, variables))}</button>`;
+      return `<button type="button"${blockAttrs}${block.event ? ` data-test-event="${escapeAttribute(block.event)}"` : ""}>${escapeHtml(interpolate(block.text, variables))}</button>`;
     case "form":
       return renderForm(block, variables, blockAttrs);
   }
