@@ -45,7 +45,26 @@ function renderPage(
   <link rel="stylesheet" href="/__testy/style.css">
 </head>
 <body data-test-page="${escapeAttribute(page.id)}">
-  <main>${content}</main>
+  <header class="site-header">
+    <a class="site-brand" href="/" aria-label="Northstar Cloud home">
+      <span class="site-brand-mark">N</span>
+      <span>Northstar Cloud</span>
+    </a>
+    <nav class="site-nav" aria-label="Primary navigation">
+      <a href="/">Platform</a>
+      <a href="/pricing">Pricing</a>
+      <a href="/contact">Contact</a>
+      <a class="site-nav-cta" href="/contact">Book a demo</a>
+    </nav>
+  </header>
+  <main class="site-main">${content}</main>
+  <footer class="site-footer">
+    <div>
+      <strong>Northstar Cloud</strong>
+      <span>Revenue intelligence for teams that want signal, not noise.</span>
+    </div>
+    <span>© 2026 Northstar Cloud</span>
+  </footer>
   ${consent}
   ${renderGeneratedScript(page.id, site.consent, trackingEndpoint)}
 </body>
