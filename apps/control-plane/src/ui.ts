@@ -225,6 +225,7 @@ const CONTROL_PLANE_HTML = `<!doctype html>
               <div id="demoResult" class="result-grid" hidden>
                 <div class="result-cell"><div class="meta">Company</div><strong id="demoCompanies">—</strong></div>
                 <div class="result-cell"><div class="meta">Companies</div><strong id="demoCompanyCount">0</strong></div>
+                <div class="result-cell"><div class="meta">Accepted events</div><strong id="demoProcessedEventCount">0</strong></div>
                 <div class="result-cell"><div class="meta">Scores</div><strong id="demoScoreCount">0</strong></div>
                 <div class="result-cell"><div class="meta">Confidence</div><strong id="demoConfidence">—</strong></div>
                 <div class="result-cell"><div class="meta">Providers</div><strong id="demoProviders">—</strong></div>
@@ -480,6 +481,7 @@ const CONTROL_PLANE_HTML = `<!doctype html>
         document.getElementById("demoCompanies").textContent =
           (outcome.companies || []).map(function (company) { return company.displayName; }).join(", ") || "—";
         document.getElementById("demoCompanyCount").textContent = String(outcome.companyCount ?? 0);
+        document.getElementById("demoProcessedEventCount").textContent = String(outcome.processedEventCount ?? 0);
         document.getElementById("demoScoreCount").textContent = String(outcome.scoreCount ?? 0);
         document.getElementById("demoConfidence").textContent = outcome.confidence || "—";
         document.getElementById("demoProviders").textContent = (outcome.providerProvenance || []).join(", ") || "—";
