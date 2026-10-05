@@ -20,7 +20,7 @@ describe("synthetic site host", () => {
       const home = await fetch(`${binding.localOrigin}/`);
       const html = await home.text();
       expect(html).toContain('data-test="hero-heading"');
-      expect(html).toContain("Nordlicht Example GmbH");
+      expect(html).toContain("Northstar Cloud");
       expect(binding.hostname).toBe("run-123.customer-alpha.test");
 
       const form = await fetch(`${binding.localOrigin}/contact/submit`, {
@@ -92,6 +92,7 @@ describe("synthetic site host", () => {
       expect(html).toContain('data-site="synthetic-site-token"');
       expect(html).toContain('"2"');
 
+      expect(home.headers.get("content-security-policy")).toContain("script-src 'self' 'unsafe-inline'");
       const sdk = await fetch(`${binding.localOrigin}/sdk/track.v1.min.js`);
       expect(await sdk.text()).toContain("__testySdkLoaded");
 
