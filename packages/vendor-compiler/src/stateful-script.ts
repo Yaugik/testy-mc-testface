@@ -30,13 +30,14 @@ export interface StatefulScriptContext {
   }[];
   readonly operationCase: OperationCaseDefinition;
   readonly stores: StatefulStoreLayout;
+  readonly responseContents: Readonly<Record<string, string>>;
 }
 
 interface ScriptResponse {
   readonly status: number;
   readonly headers?: Readonly<Record<string, string>>;
   readonly contentType?: string;
-  readonly body?: string;
+  readonly content?: string;
   readonly delayMs?: number;
   readonly failure?: "CloseConnection";
 }
@@ -167,7 +168,7 @@ export function renderStatefulCaseScript(
               ? { defaultDelayMs: parseDuration(state.defaults.delay) }
               : {}),
             ...(state.override
-              ? { override: normalizeResponse(state.override) }
+              ? { override: normalizeResponse(state.override, context.responseContents) }
               : {}),
           },
         ]),
@@ -178,7 +179,12 @@ export function renderStatefulCaseScript(
       requestCountAtLeast: transition.when.requestCountAtLeast,
     })),
     ...(context.operationCase.respond
-      ? { behavior: normalizeResponse(context.operationCase.respond) }
+      ? {
+          behavior: normalizeResponse(
+            context.operationCase.respond,
+            context.responseContents,
+          ),
+        }
       : {}),
     ...(context.operationCase.transport
       ? { behavior: normalizeTransport(context.operationCase.transport) }
@@ -189,7 +195,7 @@ export function renderStatefulCaseScript(
             onExhausted: context.operationCase.sequence.onExhausted,
             steps: context.operationCase.sequence.steps.map((step) => ({
               behavior: step.respond
-                ? normalizeResponse(step.respond)
+                ? normalizeResponse(step.respond, context.responseContents)
                 : normalizeTransport(step.transport as TransportFaultDefinition),
               ...(step.effects
                 ? { effects: normalizeEffects(step.effects, context.stores) }
@@ -199,6 +205,7 @@ export function renderStatefulCaseScript(
               ? {
                   terminalResponse: normalizeResponse(
                     context.operationCase.sequence.terminalResponse,
+                    context.responseContents,
                   ),
                 }
               : {}),
@@ -337,8 +344,8 @@ function applyResponse(behavior) {
     response.withHeader("Content-Type", behavior.contentType);
   }
 
-  if (behavior.body) {
-    response.withFile(config.dir + "/" + behavior.body);
+  if (behavior.content !== undefined) {
+    response.withContent(behavior.content);
   } else if (!behavior.failure) {
     response.withEmpty();
   }
@@ -409,12 +416,23 @@ applyResponse(effectiveBehavior);
 `;
 }
 
-function normalizeResponse(response: ResponseDefinition): ScriptResponse {
+function normalizeResponse(
+  response: ResponseDefinition,
+  responseContents: Readonly<Record<string, string>>,
+): ScriptResponse {
+  const content =
+    response.body === undefined ? undefined : responseContents[response.body];
+  if (response.body !== undefined && content === undefined) {
+    throw new Error(
+      `Response asset '${response.body}' was not loaded for stateful execution.`,
+    );
+  }
+
   return {
     status: response.status,
     ...(response.headers ? { headers: response.headers } : {}),
     ...(response.contentType ? { contentType: response.contentType } : {}),
-    ...(response.body ? { body: response.body } : {}),
+    ...(content === undefined ? {} : { content }),
     ...(response.delay ? { delayMs: parseDuration(response.delay) } : {}),
   };
 }
