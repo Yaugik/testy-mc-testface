@@ -53,11 +53,35 @@ function renderPage(
       <span>${escapeHtml(site.site.displayName)}</span>
     </a>
     <nav class="site-nav" aria-label="Primary navigation">
-      <a href="/">Platform</a>
-      <a href="/solutions">Solutions</a>
+      <div class="site-nav-menu">
+        <a href="/product">Product</a>
+        <div class="site-nav-dropdown">
+          <a href="/product"><strong>Product overview</strong><span>See the complete Northstar workflow</span></a>
+          <a href="/product/account-identification"><strong>Account identification</strong><span>Reveal eligible business accounts</span></a>
+          <a href="/product/intent-signals"><strong>Intent signals</strong><span>Understand research themes and depth</span></a>
+          <a href="/product/enrichment"><strong>Enrichment</strong><span>Add company and contact context</span></a>
+          <a href="/product/scoring"><strong>Scoring</strong><span>Prioritize the strongest account signals</span></a>
+          <a href="/product/routing-workflows"><strong>Routing & workflows</strong><span>Move qualified accounts to the right owner</span></a>
+        </div>
+      </div>
+      <div class="site-nav-menu">
+        <a href="/solutions">Solutions</a>
+        <div class="site-nav-dropdown site-nav-dropdown--compact">
+          <a href="/solutions/sales"><strong>Sales</strong><span>Reach out with better context</span></a>
+          <a href="/solutions/revops"><strong>Revenue Operations</strong><span>Manage routing, quality, and feedback</span></a>
+          <a href="/solutions/marketing"><strong>Marketing</strong><span>Understand account-level content engagement</span></a>
+        </div>
+      </div>
       <a href="/customers">Customers</a>
       <a href="/integrations">Integrations</a>
-      <a href="/resources">Resources</a>
+      <div class="site-nav-menu">
+        <a href="/resources">Resources</a>
+        <div class="site-nav-dropdown site-nav-dropdown--compact">
+          <a href="/resources"><strong>Resource library</strong><span>Guides, benchmarks, and checklists</span></a>
+          <a href="/blog"><strong>Blog</strong><span>Ideas for modern revenue teams</span></a>
+          <a href="/changelog"><strong>Changelog</strong><span>See what’s new in Northstar</span></a>
+        </div>
+      </div>
       <a href="/pricing">Pricing</a>
       <a class="site-nav-cta" href="/contact">Book a demo</a>
     </nav>
@@ -73,16 +97,33 @@ function renderPage(
     </div>
     <div class="footer-column">
       <strong>Product</strong>
-      <a href="/">Platform</a>
-      <a href="/solutions">Solutions</a>
+      <a href="/product">Overview</a>
+      <a href="/product/account-identification">Identification</a>
+      <a href="/product/intent-signals">Intent signals</a>
+      <a href="/product/enrichment">Enrichment</a>
+      <a href="/product/scoring">Scoring</a>
+      <a href="/product/routing-workflows">Routing</a>
+    </div>
+    <div class="footer-column">
+      <strong>Solutions</strong>
+      <a href="/solutions/sales">Sales</a>
+      <a href="/solutions/revops">Revenue Operations</a>
+      <a href="/solutions/marketing">Marketing</a>
       <a href="/integrations">Integrations</a>
       <a href="/security">Security</a>
     </div>
     <div class="footer-column">
-      <strong>Explore</strong>
+      <strong>Resources</strong>
+      <a href="/resources">Resource library</a>
+      <a href="/blog">Blog</a>
+      <a href="/changelog">Changelog</a>
       <a href="/customers">Customers</a>
-      <a href="/resources">Resources</a>
       <a href="/pricing">Pricing</a>
+    </div>
+    <div class="footer-column">
+      <strong>Company</strong>
+      <a href="/about">About</a>
+      <a href="/careers">Careers</a>
       <a href="/contact">Contact</a>
     </div>
     <div class="footer-meta">
@@ -157,7 +198,31 @@ function renderPageBlocks(
   <span>Built for modern revenue teams</span>
   <strong>HALCYON</strong><strong>ARBOR</strong><strong>VERDANT</strong><strong>POLARIS</strong><strong>ORBITAL</strong>
 </div>`
-      : "";
+      : pageId === "product"
+        ? `
+<div class="product-page-preview" aria-label="Northstar product workflow preview">
+  <div class="product-preview-rail">
+    <span class="active">Identify</span>
+    <span>Intent</span>
+    <span>Enrich</span>
+    <span>Score</span>
+    <span>Route</span>
+  </div>
+  <div class="product-preview-main">
+    <div class="product-preview-company">
+      <div class="product-preview-logo">H</div>
+      <div><strong>Halcyon Systems</strong><span>High-confidence account · active research</span></div>
+      <div class="product-preview-badge">87 score</div>
+    </div>
+    <div class="product-preview-grid">
+      <div><small>Recent intent</small><strong>Pricing + integrations</strong><span>6 visits across 3 sessions</span></div>
+      <div><small>Identification</small><strong>High confidence</strong><span>Corporate network match</span></div>
+      <div><small>Enrichment</small><strong>Ready</strong><span>Company + contact context</span></div>
+      <div><small>Next action</small><strong>Route to account owner</strong><span>Evidence attached</span></div>
+    </div>
+  </div>
+</div>`
+        : "";
 
   const heroHtml =
     hero.length > 0
