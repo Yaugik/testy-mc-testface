@@ -41,15 +41,55 @@ pages:
         text: Book a demo
         href: /contact
         testId: contact-link
+
       - id: trust-heading
         type: heading
         level: 2
-        text: Built for modern revenue teams
+        text: Revenue teams use Northstar to turn anonymous traffic into account context.
         testId: trust-heading
       - id: trust-copy
         type: text
-        text: Identify high-intent accounts, prioritize the right signals, and give sales context they can act on without stitching together another dashboard.
+        text: Bring identification, intent, enrichment, and routing into one view so sales can act while interest is still warm.
         testId: trust-copy
+
+      - id: metric-pipeline-heading
+        type: heading
+        level: 2
+        text: 31% more qualified conversations
+        testId: metric-pipeline-heading
+      - id: metric-pipeline-copy
+        type: text
+        text: Focus outreach on accounts showing repeat research and buying-stage behavior.
+        testId: metric-pipeline-copy
+      - id: metric-speed-heading
+        type: heading
+        level: 2
+        text: 7.4 hours saved per rep each week
+        testId: metric-speed-heading
+      - id: metric-speed-copy
+        type: text
+        text: Replace manual account research with a compact, enriched activity timeline.
+        testId: metric-speed-copy
+      - id: metric-confidence-heading
+        type: heading
+        level: 2
+        text: 92% high-confidence account matches
+        testId: metric-confidence-heading
+      - id: metric-confidence-copy
+        type: text
+        text: Prioritize signals with transparent confidence instead of treating every visit the same.
+        testId: metric-confidence-copy
+
+      - id: capabilities-heading
+        type: heading
+        level: 2
+        text: Everything your team needs to move from signal to action
+        testId: capabilities-heading
+      - id: capabilities-copy
+        type: text
+        text: Northstar connects first-party website activity with account intelligence so your team sees what changed, why it matters, and what to do next.
+        testId: capabilities-copy
+
       - id: intelligence-heading
         type: heading
         level: 2
@@ -68,6 +108,68 @@ pages:
         type: text
         text: Connect web behavior with account data, route qualified opportunities, and keep your team focused on the companies most likely to engage.
         testId: workflow-copy
+      - id: signal-heading
+        type: heading
+        level: 2
+        text: Understand what the account actually cares about
+        testId: signal-heading
+      - id: signal-copy
+        type: text
+        text: Group page views into meaningful themes like pricing, integrations, security, and product depth instead of handing sales a raw clickstream.
+        testId: signal-copy
+      - id: routing-heading
+        type: heading
+        level: 2
+        text: Route the right account to the right owner
+        testId: routing-heading
+      - id: routing-copy
+        type: text
+        text: Combine confidence, fit, and recent behavior to surface the accounts that deserve attention now.
+        testId: routing-copy
+      - id: integrations-heading
+        type: heading
+        level: 2
+        text: Fits the systems your team already uses
+        testId: integrations-heading
+      - id: integrations-copy
+        type: text
+        text: Keep Northstar alongside your CRM, enrichment providers, exports, and sales workflow without forcing another disconnected process.
+        testId: integrations-copy
+      - id: activation-heading
+        type: heading
+        level: 2
+        text: Give sales a useful reason to reach out
+        testId: activation-heading
+      - id: activation-copy
+        type: text
+        text: Turn research patterns into concise talking points so outreach starts with relevance instead of a generic sequence.
+        testId: activation-copy
+
+      - id: proof-heading
+        type: heading
+        level: 2
+        text: “Northstar made website intent usable for the whole revenue team.”
+        testId: proof-heading
+      - id: proof-copy
+        type: text
+        text: A fictional VP Revenue at Halcyon Systems — “We finally have one place to understand who is visiting, what changed, and whether the signal is strong enough for sales to act.”
+        testId: proof-copy
+
+      - id: final-cta-heading
+        type: heading
+        level: 2
+        text: See what your highest-intent accounts are doing right now.
+        testId: final-cta-heading
+      - id: final-cta-copy
+        type: text
+        text: Explore the workflow with your own go-to-market motion and see how identification, enrichment, scoring, and routing work together.
+        testId: final-cta-copy
+      - id: final-cta-link
+        type: link
+        text: Book a tailored demo
+        href: /contact
+        testId: final-cta-link
+
   - id: pricing
     path: /pricing
     title: Pricing — Northstar Cloud
@@ -75,44 +177,135 @@ pages:
       - id: pricing-heading
         type: heading
         level: 1
-        text: Pricing
+        text: Plans for teams moving from traffic to pipeline.
         testId: pricing-heading
       - id: pricing-intro
         type: text
-        text: Start with the account intelligence your team needs today and expand as your pipeline grows.
+        text: Start with the account intelligence your team needs today and expand as your pipeline, routing, and enrichment needs grow.
         testId: pricing-intro
+
       - id: starter-heading
         type: heading
         level: 2
         text: Starter
         testId: starter-heading
+      - id: starter-price
+        type: text
+        text: From $499 / month
+        testId: starter-price
       - id: starter-copy
         type: text
         text: For focused teams getting started with company identification and intent signals.
         testId: starter-copy
+      - id: starter-features
+        type: text
+        text: Includes company identification, account timelines, basic intent signals, CSV export, and one workspace.
+        testId: starter-features
+      - id: starter-link
+        type: link
+        text: Talk to sales
+        href: /contact
+        testId: starter-link
+
       - id: growth-heading
         type: heading
         level: 2
         text: Growth
         testId: growth-heading
+      - id: growth-price
+        type: text
+        text: From $1,499 / month
+        testId: growth-price
       - id: growth-copy
         type: text
         text: For revenue teams that need enrichment, scoring, workflows, exports, and more identified accounts.
         testId: growth-copy
+      - id: growth-features
+        type: text
+        text: Adds enrichment, scoring, routing rules, higher limits, advanced filters, team exports, and CRM-ready workflows.
+        testId: growth-features
+      - id: growth-link
+        type: link
+        text: Book a growth demo
+        href: /contact
+        testId: growth-link
+
       - id: scale-heading
         type: heading
         level: 2
         text: Scale
         testId: scale-heading
+      - id: scale-price
+        type: text
+        text: Custom annual plan
+        testId: scale-price
       - id: scale-copy
         type: text
         text: For larger teams that need advanced controls, higher limits, and tailored implementation support.
         testId: scale-copy
+      - id: scale-features
+        type: text
+        text: Adds custom limits, priority onboarding, multi-team controls, advanced governance, tailored routing, and implementation support.
+        testId: scale-features
+      - id: scale-link
+        type: link
+        text: Design a scale plan
+        href: /contact
+        testId: scale-link
+
+      - id: comparison-heading
+        type: heading
+        level: 2
+        text: All plans include the fundamentals
+        testId: comparison-heading
+      - id: comparison-copy
+        type: text
+        text: Every plan includes first-party tracking, account timelines, transparent confidence, privacy-aware collection, configurable retention, and access to the same core Northstar workspace.
+        testId: comparison-copy
+
+      - id: faq-identification-heading
+        type: heading
+        level: 2
+        text: How does identified-account volume work?
+        testId: faq-identification-heading
+      - id: faq-identification-copy
+        type: text
+        text: Your plan includes a monthly identified-account allowance. Northstar deduplicates repeat activity so repeated visits from the same account do not inflate your usage.
+        testId: faq-identification-copy
+      - id: faq-contract-heading
+        type: heading
+        level: 2
+        text: Can we start monthly?
+        testId: faq-contract-heading
+      - id: faq-contract-copy
+        type: text
+        text: Starter can begin monthly. Growth and Scale are typically annual because they include onboarding, routing design, and higher data limits.
+        testId: faq-contract-copy
+      - id: faq-security-heading
+        type: heading
+        level: 2
+        text: What about privacy and security?
+        testId: faq-security-heading
+      - id: faq-security-copy
+        type: text
+        text: Northstar is designed around business-account intelligence, configurable retention, consent-aware tracking, and workspace-level controls.
+        testId: faq-security-copy
+
+      - id: pricing-contact-heading
+        type: heading
+        level: 2
+        text: Not sure which plan fits?
+        testId: pricing-contact-heading
+      - id: pricing-contact-copy
+        type: text
+        text: Tell us your traffic volume, sales motion, and enrichment needs. We’ll recommend the smallest plan that supports the workflow.
+        testId: pricing-contact-copy
       - id: pricing-contact-link
         type: link
         text: Talk to sales
         href: /contact
         testId: pricing-contact-link
+
   - id: contact
     path: /contact
     title: Book a demo — Northstar Cloud
@@ -126,6 +319,7 @@ pages:
         type: text
         text: Tell us a little about your team. We’ll show how company identification, intent, enrichment, and routing can fit into your workflow.
         testId: contact-copy
+
       - id: lead-form
         type: form
         method: POST
@@ -163,6 +357,35 @@ pages:
         submit:
           text: Book my demo
           testId: submit-lead
+
+      - id: contact-expect-heading
+        type: heading
+        level: 2
+        text: What happens in the demo
+        testId: contact-expect-heading
+      - id: contact-expect-copy
+        type: text
+        text: We’ll walk through identification, account timelines, scoring, enrichment, and routing using a sample motion close to yours. No generic 45-slide deck.
+        testId: contact-expect-copy
+      - id: contact-proof-heading
+        type: heading
+        level: 2
+        text: Bring a real question from your pipeline
+        testId: contact-proof-heading
+      - id: contact-proof-copy
+        type: text
+        text: We can model how Northstar would handle repeat research, pricing-page intent, target-account visits, and sales handoff for a representative account.
+        testId: contact-proof-copy
+      - id: contact-time-heading
+        type: heading
+        level: 2
+        text: 30 minutes, tailored to your team
+        testId: contact-time-heading
+      - id: contact-time-copy
+        type: text
+        text: Most teams leave with a clear view of where Northstar fits, what data it needs, and which plan makes sense.
+        testId: contact-time-copy
+
   - id: thanks
     path: /thanks
     title: Thank you — Northstar Cloud
@@ -181,3 +404,12 @@ pages:
         text: Back to home
         href: /
         testId: thanks-home
+      - id: thanks-next-heading
+        type: heading
+        level: 2
+        text: While you wait, think about the accounts you wish you understood better.
+        testId: thanks-next-heading
+      - id: thanks-next-copy
+        type: text
+        text: Bring one recent high-intent account to the demo and we’ll use it to frame the workflow.
+        testId: thanks-next-copy
