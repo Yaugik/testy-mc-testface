@@ -396,9 +396,20 @@ if (nextState && nextState !== currentState) {
   }
 }
 
+function requestHeader(name) {
+  var headers = context.request.headers || {};
+  var wanted = String(name).toLowerCase();
+  var keys = Object.keys(headers);
+  for (var index = 0; index < keys.length; index += 1) {
+    if (String(keys[index]).toLowerCase() === wanted) {
+      return headers[keys[index]];
+    }
+  }
+  return undefined;
+}
+
 var correlationId =
-  context.request.headers["X-Testy-Correlation-ID"] ||
-  context.request.normalisedHeaders["x-testy-correlation-id"] ||
+  requestHeader("X-Testy-Correlation-ID") ||
   "none";
 
 console.log(
