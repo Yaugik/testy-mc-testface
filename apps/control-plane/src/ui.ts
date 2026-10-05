@@ -205,6 +205,7 @@ const CONTROL_PLANE_HTML = `<!doctype html>
             <div class="card-head"><h2>Services</h2></div>
             <div class="card-body service-list">
               <div class="service-row"><span>GL-EYE</span><strong id="demoGlEyeService">Checking</strong></div>
+              <div class="service-row"><span>GL-EYE workspace</span><strong>Testy Interactive Demo</strong></div>
               <div class="service-row"><span>Traffic Gateway</span><strong id="demoTrafficService">Session managed</strong></div>
               <div class="service-row"><span>IPInfo</span><strong>Mocked</strong></div>
               <div class="service-row"><span>Apollo</span><strong>Mocked</strong></div>
@@ -220,7 +221,7 @@ const CONTROL_PLANE_HTML = `<!doctype html>
               <button id="refreshDemoResult" class="btn secondary" hidden>Refresh GL-EYE Result</button>
             </div>
             <div class="card-body">
-              <div id="demoResultEmpty" class="empty">Start a demo and browse the customer site to see the actual GL-EYE outcome.</div>
+              <div id="demoResultEmpty" class="empty">Start a demo and browse the customer site to see the actual GL-EYE outcome. In the GL-EYE app, switch workspace from “GL-EYE Demo Company” to “Testy Interactive Demo” to inspect the same isolated tenant.</div>
               <div id="demoResult" class="result-grid" hidden>
                 <div class="result-cell"><div class="meta">Company</div><strong id="demoCompanies">—</strong></div>
                 <div class="result-cell"><div class="meta">Companies</div><strong id="demoCompanyCount">0</strong></div>
