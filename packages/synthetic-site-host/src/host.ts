@@ -241,7 +241,21 @@ async function proxyTrackingScript(
   bridge: ManualTrackingBridge,
   record: (event: Omit<SyntheticSiteEvent, "sequence">) => void,
 ): Promise<void> {
-  const upstream = await fetch(bridge.trackingScriptUrl, { redirect: "manual" });
+  let upstream: Response;
+  try {
+    upstream = await fetch(bridge.trackingScriptUrl, { redirect: "manual" });
+  } catch (error) {
+    record({
+      type: "sdk-load",
+      event: "failed",
+      value: "upstream-fetch-failed",
+    });
+    sendJson(response, 502, {
+      error: "tracking-script-fetch-failed",
+      message: error instanceof Error ? error.message : String(error),
+    });
+    return;
+  }
   if (!upstream.ok) {
     record({
       type: "sdk-load",
