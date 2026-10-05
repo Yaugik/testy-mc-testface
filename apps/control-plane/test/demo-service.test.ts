@@ -210,7 +210,32 @@ describe("interactive demo service", () => {
     expect(outcome.companyCount).toBe(1);
     expect(enrichmentTriggers).toBe(1);
 
-    const stopped = await service.stop(created.id);
+    expect(
+      await service.localWebsiteOriginForHost(created.websiteHostname),
+    ).toBe("http://127.0.0.1:43123");
+
+    await service.shutdown();
+    expect(
+      await service.localWebsiteOriginForHost(created.websiteHostname),
+    ).toBeUndefined();
+
+    const restarted = new InteractiveDemoService(
+      testConfig(),
+      sessions,
+      evidence,
+      actions,
+      {},
+    );
+    await restarted.recoverInterruptedSessions();
+
+    const recovered = await sessions.get(created.id);
+    expect(recovered?.status).toBe("ACTIVE");
+    expect(
+      await restarted.localWebsiteOriginForHost(created.websiteHostname),
+    ).toBe("http://127.0.0.1:43123");
+    expect(targetCleanupCalls).toBe(0);
+
+    const stopped = await restarted.stop(created.id);
     expect(stopped?.status).toBe("STOPPED");
     expect(finishedRuns.at(-1)).toBe("PASSED");
     expect(targetCleanupCalls).toBe(1);
