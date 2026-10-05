@@ -24,7 +24,7 @@ describe("synthetic site host", () => {
       expect(html).toContain('class="hero-product-preview"');
       expect(html).toContain('class="site-content-grid"');
       expect(html).toContain('data-section-id="metric-pipeline-heading"');
-      expect(html).toContain("Nordlicht");
+      expect(html).toContain("Halcyon Systems");
       expect(binding.hostname).toBe("run-123.customer-alpha.test");
 
       const form = await fetch(`${binding.localOrigin}/contact/submit`, {
