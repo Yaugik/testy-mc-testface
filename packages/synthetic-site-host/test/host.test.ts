@@ -45,6 +45,67 @@ describe("synthetic site host", () => {
       expect(resources.status).toBe(200);
       expect(await resources.text()).toContain("anonymous traffic to account action");
 
+      const product = await fetch(`${binding.localOrigin}/product`);
+      expect(product.status).toBe(200);
+      const productHtml = await product.text();
+      expect(productHtml).toContain('data-test="product-heading"');
+      expect(productHtml).toContain("/product/account-identification");
+      expect(productHtml).toContain("/product/intent-signals");
+
+      const accountIdentification = await fetch(
+        `${binding.localOrigin}/product/account-identification`,
+      );
+      expect(accountIdentification.status).toBe(200);
+      expect(await accountIdentification.text()).toContain(
+        'data-test="account-identification-heading"',
+      );
+
+      const intentSignals = await fetch(
+        `${binding.localOrigin}/product/intent-signals`,
+      );
+      expect(intentSignals.status).toBe(200);
+
+      const enrichment = await fetch(
+        `${binding.localOrigin}/product/enrichment`,
+      );
+      expect(enrichment.status).toBe(200);
+
+      const scoring = await fetch(
+        `${binding.localOrigin}/product/scoring`,
+      );
+      expect(scoring.status).toBe(200);
+
+      const routing = await fetch(
+        `${binding.localOrigin}/product/routing-workflows`,
+      );
+      expect(routing.status).toBe(200);
+
+      const sales = await fetch(`${binding.localOrigin}/solutions/sales`);
+      expect(sales.status).toBe(200);
+      expect(await sales.text()).toContain('data-test="sales-solution-heading"');
+
+      const revops = await fetch(`${binding.localOrigin}/solutions/revops`);
+      expect(revops.status).toBe(200);
+
+      const marketing = await fetch(
+        `${binding.localOrigin}/solutions/marketing`,
+      );
+      expect(marketing.status).toBe(200);
+
+      const about = await fetch(`${binding.localOrigin}/about`);
+      expect(about.status).toBe(200);
+      expect(await about.text()).toContain('data-test="about-heading"');
+
+      const careers = await fetch(`${binding.localOrigin}/careers`);
+      expect(careers.status).toBe(200);
+
+      const blog = await fetch(`${binding.localOrigin}/blog`);
+      expect(blog.status).toBe(200);
+      expect(await blog.text()).toContain('data-test="blog-heading"');
+
+      const changelog = await fetch(`${binding.localOrigin}/changelog`);
+      expect(changelog.status).toBe(200);
+
       expect(binding.hostname).toBe("run-123.customer-alpha.test");
 
       const form = await fetch(`${binding.localOrigin}/contact/submit`, {
