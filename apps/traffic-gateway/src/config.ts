@@ -4,6 +4,7 @@ export interface TrafficGatewayAppConfig {
   readonly adminToken: string;
   readonly allowedTargetOrigins: readonly string[];
   readonly blockedProviderHosts: readonly string[];
+  readonly maxRouteTtlMs: number;
 }
 
 export function loadTrafficGatewayConfig(
@@ -22,6 +23,12 @@ export function loadTrafficGatewayConfig(
     adminToken,
     allowedTargetOrigins,
     blockedProviderHosts: splitCsv(environment.TESTY_GATEWAY_BLOCKED_PROVIDER_HOSTS ?? ""),
+    maxRouteTtlMs: parseInteger(
+      environment.TESTY_GATEWAY_MAX_ROUTE_TTL_MS ?? "86400000",
+      "TESTY_GATEWAY_MAX_ROUTE_TTL_MS",
+      60_000,
+      24 * 60 * 60 * 1000,
+    ),
   };
 }
 
@@ -36,9 +43,18 @@ function splitCsv(value: string): readonly string[] {
 }
 
 function parsePort(value: string): number {
-  const port = Number.parseInt(value, 10);
-  if (!Number.isInteger(port) || port < 1 || port > 65_535) {
-    throw new Error("TESTY_GATEWAY_PORT must be an integer between 1 and 65535.");
+  return parseInteger(value, "TESTY_GATEWAY_PORT", 1, 65_535);
+}
+
+function parseInteger(
+  value: string,
+  name: string,
+  minimum: number,
+  maximum: number,
+): number {
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isInteger(parsed) || parsed < minimum || parsed > maximum) {
+    throw new Error(`${name} must be an integer between ${minimum} and ${maximum}.`);
   }
-  return port;
+  return parsed;
 }

@@ -35,9 +35,16 @@ export interface GatewayTargetScenarioActionsOptions {
   readonly defaultTargetLeaseTtlMs?: number;
 }
 
+export interface BrowserTargetRunContext {
+  readonly trackingScriptUrl: string;
+  readonly ingestionToken?: string;
+  readonly gateway: GatewayRouteBinding;
+}
+
 export interface GatewayTargetScenarioActionBundle {
   readonly actions: ScenarioActionRegistry;
   routeFor(context: ScenarioActionContext): GatewayRouteBinding;
+  browserTargetFor(context: ScenarioActionContext): BrowserTargetRunContext;
 }
 
 export function createGatewayTargetScenarioActionBundle(
@@ -96,6 +103,32 @@ export function createGatewayTargetScenarioActionBundle(
       }
       return safeGatewayBinding(state.gateway);
     },
+    "gateway.replace-route": async (input, context) => {
+      const state = stateFor(context);
+      const previous = requireGateway(state);
+      const value = readObject(input);
+      const targetOrigin = readString(value, "targetOrigin");
+      const syntheticIp = readString(value, "syntheticIp");
+      const ttlMs =
+        readOptionalNumber(value, "ttlMs") ??
+        options.defaultRouteTtlMs ??
+        15 * 60 * 1000;
+      const replacement = await options.gateway.createRoute({
+        runId: context.runId,
+        targetOrigin,
+        syntheticIp,
+        ttlMs,
+      });
+      await context.registerResourceLease(
+        "gateway-route",
+        replacement.routeId,
+        replacement.expiresAt,
+        async () => options.gateway.deleteRoute(replacement.routeId),
+      );
+      state.gateway = replacement;
+      await options.gateway.deleteRoute(previous.routeId);
+      return safeGatewayBinding(replacement);
+    },
     "gateway.collect-ledger": async (_input, context) => {
       const binding = requireGateway(stateFor(context));
       const entries = await options.gateway.getLedger(binding.routeId);
@@ -110,6 +143,16 @@ export function createGatewayTargetScenarioActionBundle(
         ).length,
         failedCount: entries.filter((entry) => entry.outcome === "failed")
           .length,
+        entries: entries.map((entry) => ({
+          sequence: entry.sequence,
+          occurredAt: entry.occurredAt,
+          method: entry.method,
+          pathFingerprint: entry.pathFingerprint,
+          statusCode: entry.statusCode ?? null,
+          durationMs: entry.durationMs,
+          outcome: entry.outcome,
+          reason: entry.reason ?? null,
+        })),
       };
     },
     "target.prepare-run": async (_input, context) => {
@@ -151,9 +194,11 @@ export function createGatewayTargetScenarioActionBundle(
       const prepared = requirePrepared(state);
       const value = readObject(input);
       const gateway = requireGateway(state);
+      const origin = readOptionalString(value, "origin");
       const site: SiteDefinition = {
         siteId: readOptionalString(value, "siteId") ?? prepared.siteId,
         hostname: assertSyntheticHostname(readString(value, "hostname")),
+        ...(origin ? { origin } : {}),
         trackingScriptUrl:
           readOptionalString(value, "trackingScriptUrl") ??
           prepared.trackingScriptUrl,
@@ -172,6 +217,19 @@ export function createGatewayTargetScenarioActionBundle(
         hostname: configured.hostname,
         gatewayRouteId: gateway.routeId,
       };
+    },
+    "target.trigger-enrichment": async (input, context) => {
+      const state = stateFor(context);
+      requirePrepared(state);
+      if (!options.adapter.triggerEnrichment) {
+        throw new Error("Target enrichment trigger is not supported by this adapter.");
+      }
+      const value = input === undefined ? undefined : readObject(input);
+      const since = value ? readOptionalString(value, "since") : undefined;
+      await options.adapter.triggerEnrichment(adapterContext(context), {
+        ...(since ? { since } : {}),
+      });
+      return { triggered: true };
     },
     "target.start-observation": async (_input, context) => {
       const state = stateFor(context);
@@ -210,9 +268,12 @@ export function createGatewayTargetScenarioActionBundle(
           : {}),
       };
     },
-    "target.collect-outcome": async (_input, context) => {
+    "target.collect-outcome": async (input, context) => {
+      const value = input === undefined ? undefined : readObject(input);
+      const since = value ? readOptionalString(value, "since") : undefined;
       const outcome = await options.adapter.collectOutcome(
         adapterContext(context),
+        { ...(since ? { since } : {}) },
       );
       return {
         targetRunId: outcome.targetRunId,
@@ -220,6 +281,29 @@ export function createGatewayTargetScenarioActionBundle(
         visibleTenantIds: outcome.visibleTenantIds,
         scoreCount: outcome.scoreCount,
         companyCount: outcome.companyCount,
+        ...(outcome.processedEventCount === undefined
+          ? {}
+          : { processedEventCount: outcome.processedEventCount }),
+        ...(outcome.duplicateEventCount === undefined
+          ? {}
+          : { duplicateEventCount: outcome.duplicateEventCount }),
+        ...(outcome.companyFingerprint
+          ? { companyFingerprint: outcome.companyFingerprint }
+          : {}),
+        ...(outcome.companies ? { companies: outcome.companies } : {}),
+        ...(outcome.scoreFingerprints
+          ? { scoreFingerprints: outcome.scoreFingerprints }
+          : {}),
+        ...(outcome.providerProvenance
+          ? { providerProvenance: outcome.providerProvenance }
+          : {}),
+        ...(outcome.confidence ? { confidence: outcome.confidence } : {}),
+        ...(outcome.suppressionStatus
+          ? { suppressionStatus: outcome.suppressionStatus }
+          : {}),
+        ...(outcome.processingWarnings
+          ? { processingWarnings: outcome.processingWarnings }
+          : {}),
         ...(outcome.detailsFingerprint
           ? { detailsFingerprint: outcome.detailsFingerprint }
           : {}),
@@ -239,6 +323,17 @@ export function createGatewayTargetScenarioActionBundle(
   return {
     actions,
     routeFor: (context) => requireGateway(stateFor(context)),
+    browserTargetFor: (context) => {
+      const state = stateFor(context);
+      const prepared = requirePrepared(state);
+      return {
+        trackingScriptUrl: prepared.trackingScriptUrl,
+        ...(prepared.ingestionToken
+          ? { ingestionToken: prepared.ingestionToken }
+          : {}),
+        gateway: requireGateway(state),
+      };
+    },
   };
 }
 
@@ -356,7 +451,7 @@ function assertSyntheticHostname(value: string): string {
   if (
     hostname === "localhost" ||
     !hostname.includes(".") ||
-    /\.(?:test|example|invalid|internal)$/iu.test(hostname)
+    /\.(?:test|example|invalid|internal|localhost)$/iu.test(hostname)
   ) {
     return value;
   }
@@ -390,6 +485,7 @@ function safePreparedTarget(
       : {}),
     trackingScriptUrl: prepared.trackingScriptUrl,
     siteId: prepared.siteId,
+    targetOrigin: prepared.targetOrigin,
   };
 }
 

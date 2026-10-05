@@ -1,0 +1,14 @@
+{
+  "matches": [
+    {
+      "id": "person_nordlicht_sales",
+      "name": "Alex Example",
+      "title": "VP Sales",
+      "linkedin_url": "https://www.linkedin.com/in/alex-example",
+      "email": "alex.sales@nordlicht-example.test",
+      "email_status": "verified",
+      "country": "DE",
+      "confidence": 0.97
+    }
+  ]
+}

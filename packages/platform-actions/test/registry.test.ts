@@ -37,6 +37,7 @@ describe("createIntegratedPlatformActions", () => {
     let configuredSite: ScenarioValue | undefined;
     let runtimeStopped = false;
     let siteStopped = false;
+    let browserRunnerOptions: unknown;
 
     const bundle = createIntegratedPlatformActions({
       vendorPackagesRoot: root,
@@ -61,6 +62,13 @@ describe("createIntegratedPlatformActions", () => {
           configuredSite = input;
           return { configured: true };
         },
+        resolveBrowserTarget: () => ({
+          trackingScriptUrl: "http://gl-eye.test/sdk/track.v1.min.js",
+          ingestionToken: "integration-secret-site-key",
+          gatewayProxyBaseUrl: "http://gateway.test/v1/proxy/route-1",
+          gatewayRouteToken: "integration-route-token",
+          runIdHeader: "00000000-0000-4000-8000-000000000100",
+        }),
       },
       dependencies: {
         validateVendorPackagePrivacy: async () => ({
@@ -115,7 +123,7 @@ describe("createIntegratedPlatformActions", () => {
           ({
             hostname: "run.customer-alpha.example.test",
             port: 42001,
-            origin: "http://run.customer-alpha.example.test:42001",
+            origin: "https://run.customer-alpha.example.test:42001",
             localOrigin: "http://127.0.0.1:42001",
             siteId: "alpha-site",
             events: () => [
@@ -130,7 +138,9 @@ describe("createIntegratedPlatformActions", () => {
               siteStopped = true;
             },
           }) as never,
-        runBrowserJourney: async () => ({
+        runBrowserJourney: async (_journeyId, _loaded, _site, runnerOptions) => {
+          browserRunnerOptions = runnerOptions;
+          return ({
           customerId: "customer-alpha",
           siteId: "alpha-site",
           journeyId: "lead-capture",
@@ -152,7 +162,8 @@ describe("createIntegratedPlatformActions", () => {
           console: [],
           requests: [],
           artifacts: { rootDirectory: browserRoot, screenshots: [] },
-        }),
+        });
+        },
       },
     });
 
@@ -189,7 +200,7 @@ describe("createIntegratedPlatformActions", () => {
       undefined,
       context,
     );
-    await bundle.actions["browser.run-journey"]?.(
+    const browserOutput = await bundle.actions["browser.run-journey"]?.(
       { journeyId: "lead-capture" },
       context,
     );
@@ -209,7 +220,28 @@ describe("createIntegratedPlatformActions", () => {
     expect(configuredSite).toMatchObject({
       siteId: "alpha-site",
       hostname: "run.customer-alpha.example.test",
+      origin: "http://run.customer-alpha.example.test:42001",
     });
+    expect(browserRunnerOptions).toMatchObject({
+      externalScripts: [
+        {
+          url: "http://gl-eye.test/sdk/track.v1.min.js",
+          attributes: { "data-site": "integration-secret-site-key" },
+        },
+      ],
+      requestProxies: [
+        {
+          path: "/t/v1/events",
+          targetBaseUrl: "http://gateway.test/v1/proxy/route-1",
+          headers: {
+            origin: "https://run.customer-alpha.example.test:42001",
+            "x-testy-route-token": "integration-route-token",
+            "x-testy-run-id": "00000000-0000-4000-8000-000000000100",
+          },
+        },
+      ],
+    });
+    expect(JSON.stringify(browserOutput)).not.toContain("integration-secret-site-key");
     expect(leases).toEqual([
       "vendor-runtime:container-ipinfo",
       "synthetic-site:run.customer-alpha.example.test:42001",

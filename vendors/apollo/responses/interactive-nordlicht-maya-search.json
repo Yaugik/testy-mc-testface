@@ -1,0 +1,12 @@
+{
+  "people": [
+    {
+      "id": "person_nordlicht_maya",
+      "name": "Maya Schmidt",
+      "title": "Revenue Operations Director",
+      "linkedin_url": "https://www.linkedin.com/in/maya-synthetic",
+      "country": "DE",
+      "confidence": 0.96
+    }
+  ]
+}

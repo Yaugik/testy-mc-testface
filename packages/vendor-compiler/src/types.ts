@@ -1,7 +1,7 @@
 import type { Buffer } from "node:buffer";
 
 export const VENDOR_COMPILER_VERSION = "0.2.0" as const;
-export const DEFAULT_IMPOSTER_IMAGE = "outofcoffee/imposter:5" as const;
+export const DEFAULT_IMPOSTER_IMAGE = "outofcoffee/imposter:5-beta" as const;
 export const IMPOSTER_CONFIG_DIRECTORY = "/opt/imposter/config" as const;
 export const IMPOSTER_CONTAINER_PORT = 8080 as const;
 export const IMPOSTER_STATUS_PATH = "/system/status" as const;

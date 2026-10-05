@@ -1,0 +1,20 @@
+{
+  "ip": "198.51.100.40",
+  "company": {
+    "name": "Synthetic Hosting Example",
+    "domain": "hosting-example.test",
+    "type": "hosting"
+  },
+  "privacy": {
+    "vpn": false,
+    "proxy": false,
+    "hosting": true
+  },
+  "asn": {
+    "asn": "AS64501",
+    "name": "Synthetic Hosting Network",
+    "type": "hosting"
+  },
+  "country": "DE",
+  "classification": "hosting"
+}

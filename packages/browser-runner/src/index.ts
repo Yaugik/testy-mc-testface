@@ -18,7 +18,9 @@ export type {
   BrowserName,
   BrowserRequestCheck,
   BrowserRequestEntry,
+  BrowserRequestProxy,
   BrowserRunnerOptions,
+  ExternalBrowserScript,
   ExpectedBrowserRequest,
   JourneyStatus,
 } from "./types.js";

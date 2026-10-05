@@ -1,8 +1,8 @@
 import { readFile } from "node:fs/promises";
 
 import type { AnySchema, ValidateFunction } from "ajv";
-import Ajv2020 from "ajv/dist/2020.js";
-import addFormats from "ajv-formats";
+import { Ajv2020 } from "ajv/dist/2020.js";
+import addFormatsModule, { type FormatsPlugin } from "ajv-formats";
 import {
   VENDOR_SCHEMA_IDS,
   vendorSchemaDirectory,
@@ -18,6 +18,7 @@ export interface VendorSchemaRegistry {
 }
 
 export async function createVendorSchemaRegistry(): Promise<VendorSchemaRegistry> {
+  const addFormats = addFormatsModule as unknown as FormatsPlugin;
   const ajv = new Ajv2020({
     allErrors: true,
     allowUnionTypes: true,
@@ -37,14 +38,8 @@ export async function createVendorSchemaRegistry(): Promise<VendorSchemaRegistry
 
   return {
     vendor: requireValidator<VendorConfig>(ajv, VENDOR_SCHEMA_IDS.vendor),
-    systemCases: requireValidator<SystemCasesConfig>(
-      ajv,
-      VENDOR_SCHEMA_IDS.systemCases,
-    ),
-    operation: requireValidator<OperationConfig>(
-      ajv,
-      VENDOR_SCHEMA_IDS.operation,
-    ),
+    systemCases: requireValidator<SystemCasesConfig>(ajv, VENDOR_SCHEMA_IDS.systemCases),
+    operation: requireValidator<OperationConfig>(ajv, VENDOR_SCHEMA_IDS.operation),
   };
 }
 
@@ -53,10 +48,7 @@ async function readSchema(fileName: string): Promise<AnySchema> {
   return JSON.parse(content) as AnySchema;
 }
 
-function requireValidator<T>(
-  ajv: Ajv2020,
-  schemaId: string,
-): ValidateFunction<T> {
+function requireValidator<T>(ajv: Ajv2020, schemaId: string): ValidateFunction<T> {
   const validator = ajv.getSchema<T>(schemaId);
 
   if (!validator) {

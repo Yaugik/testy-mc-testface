@@ -1,0 +1,130 @@
+#!/bin/sh
+set -eu
+
+cd "$(dirname "$0")/.."
+
+mode="${1:---ui}"
+case "$mode" in
+    --ui|--headless) ;;
+    *)
+        echo "Usage: ./bin/test-gl-eye [--ui|--headless]" >&2
+        exit 2
+        ;;
+esac
+
+export TESTY_POSTGRES_HOST_PORT="${TESTY_POSTGRES_HOST_PORT:-25432}"
+export TESTY_REFERENCE_SUT_HOST_PORT="${TESTY_REFERENCE_SUT_HOST_PORT:-28080}"
+export TESTY_GATEWAY_HOST_PORT="${TESTY_GATEWAY_HOST_PORT:-23100}"
+export TESTY_CONTROL_PLANE_HOST_PORT="${TESTY_CONTROL_PLANE_HOST_PORT:-23000}"
+
+if ! docker info >/dev/null 2>&1; then
+    echo "Docker is not running. Start Docker Desktop and retry." >&2
+    exit 1
+fi
+
+if ! docker network inspect testy-gl-eye >/dev/null 2>&1; then
+    docker network create testy-gl-eye >/dev/null
+fi
+
+compose() {
+    docker compose --file compose.yaml --file compose.gl-eye.yaml "$@"
+}
+
+echo "Starting Testy services for the real GL-EYE integration..."
+compose up --build --detach --wait postgres reference-sut traffic-gateway control-plane
+
+target_ready=true
+if ! compose exec -T control-plane node - <<'NODE'
+const response = await fetch("http://127.0.0.1:3000/v1/target-readiness");
+const text = await response.text();
+console.log("Target readiness: HTTP " + response.status + " " + text);
+process.exit(response.ok ? 0 : 1);
+NODE
+then
+    target_ready=false
+fi
+
+ui_url="http://127.0.0.1:$TESTY_CONTROL_PLANE_HOST_PORT/"
+
+if [ "$mode" = "--ui" ]; then
+    echo
+    echo "Testy Control Plane is running:"
+    echo "  $ui_url"
+    if [ "$target_ready" = "false" ]; then
+        echo
+        echo "GL-EYE is not ready yet. The Control Plane UI will show the exact target-readiness status."
+        echo "Keep ./bin/testy-dev running in the GL-EYE repository."
+    fi
+    if command -v open >/dev/null 2>&1; then
+        open "$ui_url" >/dev/null 2>&1 || true
+    fi
+    echo
+    echo "Use Automated Tests for customer-alpha-gl-eye-local, or choose Interactive Demo to browse manually."
+    echo "Use ./bin/test-gl-eye --headless only when you want the non-UI automation path."
+    exit 0
+fi
+
+if [ "$target_ready" = "false" ]; then
+    echo "GL-EYE is not ready; headless execution cannot start." >&2
+    exit 1
+fi
+
+echo "GL-EYE Testy mode is ready. Running customer-alpha-gl-eye-local headlessly..."
+
+compose exec -T -e TESTY_PUBLIC_CONTROL_PLANE_PORT="$TESTY_CONTROL_PLANE_HOST_PORT" control-plane node - <<'NODE'
+const baseUrl = "http://127.0.0.1:3000";
+const scenarioId = "customer-alpha-gl-eye-local";
+const terminal = new Set(["PASSED", "FAILED", "CANCELLED"]);
+const publicBaseUrl = `http://127.0.0.1:${process.env.TESTY_PUBLIC_CONTROL_PLANE_PORT ?? "23000"}`;
+const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const createdResponse = await fetch(`${baseUrl}/v1/runs`, {
+  method: "POST",
+  headers: { "content-type": "application/json" },
+  body: JSON.stringify({ scenarioId }),
+});
+
+if (!createdResponse.ok) {
+  console.error("Failed to create Testy run:", await createdResponse.text());
+  process.exit(1);
+}
+
+let run = await createdResponse.json();
+console.log(`Testy run: ${run.id}`);
+
+const deadline = Date.now() + 11 * 60 * 1000;
+while (!terminal.has(run.status) && Date.now() < deadline) {
+  await delay(1000);
+  const response = await fetch(`${baseUrl}/v1/runs/${run.id}`);
+  if (!response.ok) {
+    console.error("Failed to read Testy run:", await response.text());
+    process.exit(1);
+  }
+  run = await response.json();
+}
+
+if (!terminal.has(run.status)) {
+  console.error("Testy run did not reach a terminal state before the local timeout.");
+  process.exit(1);
+}
+
+const reportResponse = await fetch(`${baseUrl}/v1/runs/${run.id}/report`);
+const report = reportResponse.ok ? await reportResponse.json() : undefined;
+
+if (run.status !== "PASSED") {
+  const failedAssertions = Array.isArray(report?.assertions)
+    ? report.assertions.filter((assertion) => assertion.passed === false)
+    : [];
+  console.error(JSON.stringify({
+    runId: run.id,
+    status: run.status,
+    metadata: run.metadata,
+    failedAssertions,
+  }, null, 2));
+  console.error(`Report: ${publicBaseUrl}/v1/runs/${run.id}/report`);
+  process.exit(1);
+}
+
+console.log(`PASS: ${scenarioId}`);
+console.log(`Report: ${publicBaseUrl}/v1/runs/${run.id}/report`);
+NODE

@@ -1,0 +1,14 @@
+{
+  "matches": [
+    {
+      "id": "person_acme_sarah",
+      "name": "Sarah Demo",
+      "title": "Head of Sales",
+      "linkedin_url": "https://www.linkedin.com/in/sarah-synthetic",
+      "email": "sarah.demo@acme-synthetic.test",
+      "email_status": "verified",
+      "country": "GB",
+      "confidence": 0.95
+    }
+  ]
+}

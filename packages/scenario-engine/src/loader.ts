@@ -1,14 +1,13 @@
 import { readFile } from "node:fs/promises";
 
 import type { AnySchema, ValidateFunction } from "ajv";
-import Ajv2020 from "ajv/dist/2020.js";
+import { Ajv2020 } from "ajv/dist/2020.js";
 import { parseDocument } from "yaml";
 
 import { ScenarioValidationError } from "./errors.js";
 import type { ScenarioConfig } from "./types.js";
 
-const SCHEMA_ID =
-  "https://testy-mctestface.dev/schemas/scenario/v1/scenario.schema.json";
+const SCHEMA_ID = "https://testy-mctestface.dev/schemas/scenario/v1/scenario.schema.json";
 let validatorPromise: Promise<ValidateFunction<ScenarioConfig>> | undefined;
 
 export async function loadScenarioConfig(filePath: string): Promise<ScenarioConfig> {

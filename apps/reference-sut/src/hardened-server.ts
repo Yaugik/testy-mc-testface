@@ -132,6 +132,7 @@ async function handleOuterRequest(
       innerOrigin,
       publicOrigin,
       decodeURIComponent(tracking[1] ?? ""),
+      serviceToken,
     );
     return;
   }
@@ -231,10 +232,13 @@ async function serveTrackingScript(
   innerOrigin: string,
   publicOrigin: string,
   targetRunId: string,
+  serviceToken: string,
 ): Promise<void> {
+  const innerHeaders = copyRequestHeaders(request);
+  innerHeaders.set("authorization", `Bearer ${serviceToken}`);
   const upstream = await fetch(`${innerOrigin}${request.url ?? "/"}`, {
     method: "GET",
-    headers: copyRequestHeaders(request),
+    headers: innerHeaders,
     redirect: "manual",
   });
   if (!upstream.ok) {

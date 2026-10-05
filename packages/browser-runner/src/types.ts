@@ -3,6 +3,17 @@ import type { ArtifactPolicy, JourneyActionDefinition } from "@testy/browser-sch
 export type BrowserName = "chromium" | "firefox" | "webkit";
 export type JourneyStatus = "passed" | "failed" | "cancelled";
 
+export interface ExternalBrowserScript {
+  readonly url: string;
+  readonly attributes?: Readonly<Record<string, string>>;
+}
+
+export interface BrowserRequestProxy {
+  readonly path: string;
+  readonly targetBaseUrl: string;
+  readonly headers?: Readonly<Record<string, string>>;
+}
+
 export interface ExpectedBrowserRequest {
   readonly id: string;
   readonly url: string;
@@ -15,7 +26,8 @@ export interface BrowserRunnerOptions {
   readonly artifactRoot: string;
   readonly runNamespace: string;
   readonly signal?: AbortSignal;
-  readonly externalScripts?: readonly string[];
+  readonly externalScripts?: readonly ExternalBrowserScript[];
+  readonly requestProxies?: readonly BrowserRequestProxy[];
   readonly expectedRequests?: readonly ExpectedBrowserRequest[];
 }
 

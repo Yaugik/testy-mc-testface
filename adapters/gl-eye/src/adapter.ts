@@ -19,6 +19,7 @@ export interface GlEyeEndpointTemplates {
   readonly configureSite: string;
   readonly startObservation: string;
   readonly observationStatus: string;
+  readonly triggerEnrichment: string;
   readonly outcome: string;
   readonly cleanup: string;
 }
@@ -29,6 +30,7 @@ export const defaultGlEyeTestSupportEndpoints: GlEyeEndpointTemplates = {
   configureSite: "/test-support/v1/runs/{targetRunId}/site",
   startObservation: "/test-support/v1/runs/{targetRunId}/observations",
   observationStatus: "/test-support/v1/runs/{targetRunId}/observations/{observationId}",
+  triggerEnrichment: "/test-support/v1/runs/{targetRunId}/enrichment",
   outcome: "/test-support/v1/runs/{targetRunId}/outcome",
   cleanup: "/test-support/v1/runs/{targetRunId}",
 };
@@ -53,14 +55,19 @@ export class GlEyeTargetAdapter implements TargetAdapter {
   private readonly maxResponseBytes: number;
   private readonly prepared = new Map<RunId, PreparedTarget>();
   private readonly observations = new Map<RunId, ObservationHandle>();
+  private readonly enrichmentTriggered = new Set<RunId>();
 
   public constructor(private readonly options: GlEyeTargetAdapterOptions) {
     this.baseOrigin = normalizeAllowedOrigin(options.baseUrl, options.allowedOrigins);
     const approved = new Set(
-      (options.approvedEnvironments ?? ["local", "test", "testing", "qa", "staging"])
-        .map((value) => value.toLowerCase()),
+      (options.approvedEnvironments ?? ["local", "test", "testing", "qa", "staging"]).map((value) =>
+        value.toLowerCase(),
+      ),
     );
-    if (!approved.has(options.environment.toLowerCase()) || options.environment.toLowerCase() === "production") {
+    if (
+      !approved.has(options.environment.toLowerCase()) ||
+      options.environment.toLowerCase() === "production"
+    ) {
       throw new Error("GL-EYE adapter is restricted to explicitly approved test environments.");
     }
     if (options.authToken.length < 12) throw new Error("GL-EYE test-support token is too short.");
@@ -84,15 +91,21 @@ export class GlEyeTargetAdapter implements TargetAdapter {
         target: context.target,
         environment: this.options.environment,
       },
+      [200, 201],
     );
     const controlTenantId = optionalString(value, "controlTenantId");
+    const ingestionToken = optionalString(value, "ingestionToken");
     const prepared: PreparedTarget = {
       targetRunId: requireString(value, "targetRunId"),
       tenantId: requireString(value, "tenantId"),
       ...(controlTenantId ? { controlTenantId } : {}),
-      trackingScriptUrl: requireString(value, "trackingScriptUrl"),
+      trackingScriptUrl: rebaseTrackingScriptUrl(
+        requireString(value, "trackingScriptUrl"),
+        this.baseOrigin,
+      ),
       siteId: requireString(value, "siteId"),
       targetOrigin: this.baseOrigin,
+      ...(ingestionToken ? { ingestionToken } : {}),
     };
     this.prepared.set(context.runId, prepared);
     return prepared;
@@ -121,10 +134,31 @@ export class GlEyeTargetAdapter implements TargetAdapter {
       "PUT",
       expandEndpoint(this.endpoints.configureSite, prepared.targetRunId),
       context,
-      site,
+      {
+        hostname: site.hostname,
+        ...(site.origin ? { origin: site.origin } : {}),
+      },
       [200, 204],
     );
     return site;
+  }
+
+  public async triggerEnrichment(
+    context: AdapterRunContext,
+    options: { readonly since?: string } = {},
+  ): Promise<void> {
+    const prepared = this.requirePrepared(context.runId);
+    await this.requestJson(
+      "POST",
+      withSince(
+        expandEndpoint(this.endpoints.triggerEnrichment, prepared.targetRunId),
+        options.since,
+      ),
+      context,
+      {},
+      [200, 202],
+    );
+    this.enrichmentTriggered.add(context.runId);
   }
 
   public async startObservation(context: AdapterRunContext): Promise<ObservationHandle> {
@@ -164,9 +198,21 @@ export class GlEyeTargetAdapter implements TargetAdapter {
         context,
       );
       const state = requireString(value, "state");
-      const completed = value.completed === true ||
+      const completed =
+        value.completed === true ||
         (condition.expectedState !== undefined && state === condition.expectedState);
       if (completed) {
+        if (!this.enrichmentTriggered.has(context.runId)) {
+          await this.requestJson(
+            "POST",
+            expandEndpoint(this.endpoints.triggerEnrichment, prepared.targetRunId),
+            context,
+            {},
+            [200, 202],
+          );
+          this.enrichmentTriggered.add(context.runId);
+        }
+
         return {
           completed: true,
           state,
@@ -179,19 +225,48 @@ export class GlEyeTargetAdapter implements TargetAdapter {
     throw new Error(`GL-EYE observation exceeded ${condition.timeoutMs}ms.`);
   }
 
-  public async collectOutcome(context: AdapterRunContext): Promise<TargetOutcome> {
+  public async collectOutcome(
+    context: AdapterRunContext,
+    options: { readonly since?: string } = {},
+  ): Promise<TargetOutcome> {
     const prepared = this.requirePrepared(context.runId);
     const value = await this.requestJson(
       "GET",
-      expandEndpoint(this.endpoints.outcome, prepared.targetRunId),
+      withSince(
+        expandEndpoint(this.endpoints.outcome, prepared.targetRunId),
+        options.since,
+      ),
       context,
     );
+    const processedEventCount = optionalNumber(value, "processedEventCount");
+    const duplicateEventCount = optionalNumber(value, "duplicateEventCount");
+    const companyFingerprint = optionalString(value, "companyFingerprint");
+    const companies = optionalCompanyArray(value, "companies");
+    const scoreFingerprints = optionalStringArray(value, "scoreFingerprints");
+    const providerProvenance = optionalStringArray(value, "providerProvenance");
+    const confidence = optionalEnum(value, "confidence", ["low", "medium", "high"] as const);
+    const suppressionStatus = optionalEnum(
+      value,
+      "suppressionStatus",
+      ["allowed", "suppressed"] as const,
+    );
+    const processingWarnings = optionalStringArray(value, "processingWarnings");
+
     return {
       targetRunId: prepared.targetRunId,
       tenantId: prepared.tenantId,
       visibleTenantIds: requireStringArray(value, "visibleTenantIds"),
       scoreCount: requireNumber(value, "scoreCount"),
       companyCount: requireNumber(value, "companyCount"),
+      ...(processedEventCount === undefined ? {} : { processedEventCount }),
+      ...(duplicateEventCount === undefined ? {} : { duplicateEventCount }),
+      ...(companyFingerprint ? { companyFingerprint } : {}),
+      ...(companies ? { companies } : {}),
+      ...(scoreFingerprints ? { scoreFingerprints } : {}),
+      ...(providerProvenance ? { providerProvenance } : {}),
+      ...(confidence ? { confidence } : {}),
+      ...(suppressionStatus ? { suppressionStatus } : {}),
+      ...(processingWarnings ? { processingWarnings } : {}),
       detailsFingerprint: fingerprintJson(value),
     };
   }
@@ -202,6 +277,7 @@ export class GlEyeTargetAdapter implements TargetAdapter {
     await this.cleanupTarget(prepared.targetRunId);
     this.prepared.delete(context.runId);
     this.observations.delete(context.runId);
+    this.enrichmentTriggered.delete(context.runId);
   }
 
   public async cleanupTarget(targetRunId: string): Promise<void> {
@@ -216,6 +292,7 @@ export class GlEyeTargetAdapter implements TargetAdapter {
       if (prepared.targetRunId === targetRunId) {
         this.prepared.delete(runId);
         this.observations.delete(runId);
+        this.enrichmentTriggered.delete(runId);
       }
     }
   }
@@ -267,6 +344,18 @@ export class GlEyeTargetAdapter implements TargetAdapter {
   }
 }
 
+function rebaseTrackingScriptUrl(value: string, baseOrigin: string): string {
+  const advertised = new URL(value);
+  if (!["http:", "https:"].includes(advertised.protocol)) {
+    throw new Error("GL-EYE tracking script URL must use HTTP(S).");
+  }
+  const target = new URL(baseOrigin);
+  target.pathname = advertised.pathname;
+  target.search = advertised.search;
+  target.hash = "";
+  return target.toString();
+}
+
 function normalizeAllowedOrigin(value: string, allowedOrigins: readonly string[]): string {
   const origin = new URL(value).origin;
   const allowed = new Set(allowedOrigins.map((item) => new URL(item).origin));
@@ -307,6 +396,32 @@ function requireNumber(value: Record<string, unknown>, key: string): number {
   return result;
 }
 
+function optionalNumber(value: Record<string, unknown>, key: string): number | undefined {
+  const result = value[key];
+  return typeof result === "number" && Number.isFinite(result) ? result : undefined;
+}
+
+function optionalStringArray(
+  value: Record<string, unknown>,
+  key: string,
+): readonly string[] | undefined {
+  const result = value[key];
+  return Array.isArray(result) && result.every((item) => typeof item === "string")
+    ? result as string[]
+    : undefined;
+}
+
+function optionalEnum<const T extends readonly string[]>(
+  value: Record<string, unknown>,
+  key: string,
+  allowed: T,
+): T[number] | undefined {
+  const result = value[key];
+  return typeof result === "string" && allowed.includes(result as T[number])
+    ? result as T[number]
+    : undefined;
+}
+
 function requireStringArray(value: Record<string, unknown>, key: string): readonly string[] {
   const result = value[key];
   if (!Array.isArray(result) || result.some((item) => typeof item !== "string")) {
@@ -320,10 +435,14 @@ function fingerprintJson(value: unknown): string {
 }
 
 function throwIfAborted(signal: AbortSignal | undefined): void {
-  if (signal?.aborted) throw signal.reason instanceof Error ? signal.reason : new Error("Target operation cancelled.");
+  if (signal?.aborted)
+    throw signal.reason instanceof Error ? signal.reason : new Error("Target operation cancelled.");
 }
 
-async function abortableDelay(milliseconds: number, signal: AbortSignal | undefined): Promise<void> {
+async function abortableDelay(
+  milliseconds: number,
+  signal: AbortSignal | undefined,
+): Promise<void> {
   throwIfAborted(signal);
   await new Promise<void>((resolveDelay, rejectDelay) => {
     const timer = setTimeout(() => {
@@ -332,7 +451,9 @@ async function abortableDelay(milliseconds: number, signal: AbortSignal | undefi
     }, milliseconds);
     const abort = (): void => {
       clearTimeout(timer);
-      rejectDelay(signal?.reason instanceof Error ? signal.reason : new Error("Target operation cancelled."));
+      rejectDelay(
+        signal?.reason instanceof Error ? signal.reason : new Error("Target operation cancelled."),
+      );
     };
     signal?.addEventListener("abort", abort, { once: true });
   });
@@ -361,4 +482,51 @@ async function readLimitedResponseBody(response: Response, limit: number): Promi
     reader.releaseLock();
   }
   return Buffer.concat(chunks);
+}
+
+
+function optionalCompanyArray(
+  value: Record<string, unknown>,
+  key: string,
+):
+  | readonly {
+      readonly domain: string;
+      readonly displayName: string;
+      readonly score: number;
+      readonly confidence: string;
+      readonly visibility: string;
+    }[]
+  | undefined {
+  const selected = value[key];
+  if (!Array.isArray(selected)) return undefined;
+  const companies = [];
+  for (const item of selected) {
+    if (!item || typeof item !== "object" || Array.isArray(item)) return undefined;
+    const record = item as Record<string, unknown>;
+    if (
+      typeof record.domain !== "string" ||
+      typeof record.displayName !== "string" ||
+      typeof record.score !== "number" ||
+      !Number.isFinite(record.score) ||
+      typeof record.confidence !== "string" ||
+      typeof record.visibility !== "string"
+    ) {
+      return undefined;
+    }
+    companies.push({
+      domain: record.domain,
+      displayName: record.displayName,
+      score: record.score,
+      confidence: record.confidence,
+      visibility: record.visibility,
+    });
+  }
+  return companies;
+}
+
+
+function withSince(endpoint: string, since: string | undefined): string {
+  if (!since) return endpoint;
+  const separator = endpoint.includes("?") ? "&" : "?";
+  return `${endpoint}${separator}since=${encodeURIComponent(since)}`;
 }

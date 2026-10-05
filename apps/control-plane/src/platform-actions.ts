@@ -28,6 +28,9 @@ import { deriveTargetOutcome } from "./target-outcome.js";
 export interface PlatformActions {
   readonly actions: ScenarioActionRegistry;
   readonly resourceCleaners: Readonly<Record<string, ResourceLeaseCleaner>>;
+  readonly browserTargetFor?: ReturnType<
+    typeof createGatewayTargetScenarioActionBundle
+  >["browserTargetFor"];
 }
 
 export function createPlatformActions(
@@ -60,6 +63,25 @@ export function createPlatformActions(
               target.actions,
               "target.configure-site",
             ),
+            ...(target.browserTargetFor
+              ? {
+                  resolveBrowserTarget: (context: ScenarioActionContext) => {
+                    const selected = target.browserTargetFor?.(context);
+                    if (!selected) {
+                      throw new Error("Target browser context is unavailable.");
+                    }
+                    return {
+                      trackingScriptUrl: selected.trackingScriptUrl,
+                      ...(selected.ingestionToken
+                        ? { ingestionToken: selected.ingestionToken }
+                        : {}),
+                      gatewayProxyBaseUrl: selected.gateway.proxyBaseUrl,
+                      gatewayRouteToken: selected.gateway.routeToken,
+                      runIdHeader: selected.gateway.runId,
+                    };
+                  },
+                }
+              : {}),
           },
         }
       : {}),
@@ -112,6 +134,7 @@ function createTargetActions(
   return {
     actions: recordTargetObservations(actions, evidence),
     resourceCleaners: createGatewayTargetResourceCleaners(gateway, adapter),
+    browserTargetFor: target.browserTargetFor,
   };
 }
 

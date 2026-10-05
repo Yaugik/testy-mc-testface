@@ -1,0 +1,21 @@
+#!/bin/sh
+set -eu
+
+cd "$(dirname "$0")/.."
+
+if ! docker info >/dev/null 2>&1; then
+    echo "Docker is not running. Start Docker Desktop and retry." >&2
+    exit 1
+fi
+
+if ! docker network inspect testy-gl-eye >/dev/null 2>&1; then
+    docker network create testy-gl-eye >/dev/null
+fi
+
+docker compose     --file compose.yaml     --file compose.gl-eye.yaml     config >/dev/null
+
+docker compose build
+
+echo "Testy setup is complete."
+echo "Start GL-EYE with ./bin/testy-dev in the GL-EYE repository."
+echo "Then run ./bin/test-gl-eye here and control the test from the Control Plane UI."

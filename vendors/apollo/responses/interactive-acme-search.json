@@ -1,0 +1,12 @@
+{
+  "people": [
+    {
+      "id": "person_acme_sarah",
+      "name": "Sarah Demo",
+      "title": "Head of Sales",
+      "linkedin_url": "https://www.linkedin.com/in/sarah-synthetic",
+      "country": "GB",
+      "confidence": 0.95
+    }
+  ]
+}

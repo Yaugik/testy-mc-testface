@@ -1,0 +1,30 @@
+schemaVersion: "1.0"
+operationId: interactive-people-search
+request:
+  method: POST
+  path: /profiles/{profile}/api/v1/mixed_people/api_search
+cases:
+  - id: nordlicht-alex-people
+    priority: 100
+    when:
+      path.profile: nordlicht-alex
+      json.page: 1
+    respond:
+      status: 200
+      body: responses/interactive-nordlicht-alex-search.json
+  - id: nordlicht-maya-people
+    priority: 100
+    when:
+      path.profile: nordlicht-maya
+      json.page: 1
+    respond:
+      status: 200
+      body: responses/interactive-nordlicht-maya-search.json
+  - id: acme-sarah-people
+    priority: 100
+    when:
+      path.profile: acme-sarah
+      json.page: 1
+    respond:
+      status: 200
+      body: responses/interactive-acme-search.json

@@ -263,7 +263,7 @@ function assertSyntheticRequest(
   });
   if (issues.length === 0 && !credentialPattern) return;
   const codes = [...new Set(issues.map((issue) => issue.code))].sort();
-  if (credentialPattern) codes.push("credential-pattern");
+  if (credentialPattern) codes.push("live-credential-pattern");
   throw trafficError(
     "invalid-config",
     `Traffic request '${requestId}' failed synthetic-data validation (${codes.join(",")}).`,

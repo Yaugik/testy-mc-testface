@@ -1,6 +1,8 @@
 import { buildApp } from "./app.js";
 import { closeDatabase, databasePool } from "./database.js";
 import { loadConfig } from "./config.js";
+import { PostgresDemoSessionRepository } from "./demo-repository.js";
+import { InteractiveDemoService } from "./demo-service.js";
 import { sanitizeError } from "./errors.js";
 import {
   ControlPlaneMaintenance,
@@ -14,6 +16,13 @@ import { ScenarioRunService } from "./run-service.js";
 const config = loadConfig();
 const repository = new PostgresScenarioRunRepository(databasePool);
 const platform = createPlatformActions(config, repository);
+const demos = new InteractiveDemoService(
+  config,
+  new PostgresDemoSessionRepository(databasePool),
+  repository,
+  platform.actions,
+  platform.resourceCleaners,
+);
 const runs = new ScenarioRunService(
   repository,
   platform.actions,
@@ -26,10 +35,13 @@ const maintenance = new ControlPlaneMaintenance(
   new LocalArtifactCleaner(config.generatedRunsDirectory),
   config.maintenance,
 );
+const targetReadiness = createTargetReadinessProbe(config);
 const app = buildApp({
   logger: { level: config.logLevel },
   runs,
   maintenance,
+  ...(targetReadiness ? { targetReadiness } : {}),
+  demos,
   ...(config.maintenance.adminToken
     ? { maintenanceAdminToken: config.maintenance.adminToken }
     : {}),
@@ -58,7 +70,21 @@ process.once("SIGTERM", () => void shutdown("SIGTERM"));
 
 try {
   await runs.recoverInterruptedRuns();
+  await demos.recoverInterruptedSessions();
+  await demos.expireSessions();
   await maintenance.run();
+  const demoExpiryTimer = setInterval(() => {
+    void demos.expireSessions().catch((error) => {
+      app.log.error(
+        { error: sanitizeError(error) },
+        "Interactive Demo expiry cycle failed",
+      );
+    });
+  }, 60_000);
+  demoExpiryTimer.unref?.();
+  app.addHook("onClose", async () => {
+    clearInterval(demoExpiryTimer);
+  });
   maintenance.start((error) => {
     app.log.error(
       { error: sanitizeError(error) },
@@ -74,4 +100,54 @@ try {
   await app.close().catch(() => undefined);
   await closeDatabase();
   process.exitCode = 1;
+}
+
+
+function createTargetReadinessProbe(config: ReturnType<typeof loadConfig>) {
+  const integration = config.targetIntegration;
+  if (!integration) return undefined;
+
+  if (integration.adapter !== "gl-eye") {
+    return async () => ({
+      status: "unconfigured" as const,
+      target: integration.adapter,
+    });
+  }
+
+  return async () => {
+    const baseUrl = integration.glEyeBaseUrl.replace(/\/$/u, "");
+    const [health, capabilities] = await Promise.all([
+      fetch(baseUrl + "/up"),
+      fetch(baseUrl + "/test-support/v1/capabilities", {
+        headers: {
+          authorization: "Bearer " + integration.glEyeAuthToken,
+        },
+      }),
+    ]);
+
+    let contractVersion: string | undefined;
+    let errorCode: string | undefined;
+
+    try {
+      const payload = (await capabilities.json()) as Record<string, unknown>;
+      if (typeof payload.contractVersion === "string") {
+        contractVersion = payload.contractVersion;
+      }
+      if (typeof payload.error === "string") {
+        errorCode = payload.error;
+      }
+    } catch {
+      // Status codes remain sufficient for operator diagnostics.
+    }
+
+    const ready = health.ok && capabilities.ok;
+    return {
+      status: ready ? "ready" as const : "not-ready" as const,
+      target: "gl-eye",
+      healthStatus: health.status,
+      capabilitiesStatus: capabilities.status,
+      ...(contractVersion ? { contractVersion } : {}),
+      ...(!ready && errorCode ? { error: errorCode } : {}),
+    };
+  };
 }

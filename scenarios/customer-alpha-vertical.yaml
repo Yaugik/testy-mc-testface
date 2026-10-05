@@ -8,7 +8,7 @@ timeoutMs: 600000
 
 variables:
   targetOrigin: http://127.0.0.1:8080
-  syntheticIp: 198.51.100.25
+  syntheticIp: 198.51.100.10
 
 assertions:
   - id: browser-journey-passed
@@ -20,30 +20,41 @@ assertions:
     action: submit
     expectedStatus: PASSED
     minimum: 2
-  - id: tracking-script-delivered-twice
+  - id: tracking-script-delivered
     type: observation-count
     observationType: browser-request-check
     status: delivered
-    equals: 2
-  - id: ipinfo-called-once
+    minimum: 2
+  - id: ipinfo-called
     type: provider-call-count
     vendorId: ipinfo
-    equals: 1
-  - id: apollo-called-once
+    minimum: 2
+  - id: apollo-called
     type: provider-call-count
     vendorId: apollo
-    equals: 1
-  - id: hunter-called-once
+    minimum: 3
+  - id: hunter-called
     type: provider-call-count
     vendorId: hunter
-    equals: 1
+    minimum: 1
   - id: provider-order
     type: provider-call-order
-    exact: true
     sequence:
       - vendorId: ipinfo
+        operationId: ip-lookup-json
+        caseId: corporate-json
       - vendorId: apollo
+        operationId: gl-eye-organization-enrich
+        caseId: nordlicht-company
+      - vendorId: apollo
+        operationId: gl-eye-people-search
+        caseId: nordlicht-people
+      - vendorId: apollo
+        operationId: gl-eye-people-bulk-match
+        caseId: nordlicht-people-details
       - vendorId: hunter
+        operationId: gl-eye-email-verifier
+        caseId: nordlicht-email-valid
   - id: target-created-one-score
     type: observation
     observationType: target-outcome
@@ -74,6 +85,30 @@ assertions:
     path: controlTenantVisible
     operator: equals
     expected: false
+  - id: gl-eye-recorded-ipinfo
+    type: observation
+    observationType: target-outcome
+    path: providerProvenance
+    operator: contains
+    expected: ipinfo
+  - id: gl-eye-recorded-apollo
+    type: observation
+    observationType: target-outcome
+    path: providerProvenance
+    operator: contains
+    expected: apollo
+  - id: gl-eye-recorded-hunter
+    type: observation
+    observationType: target-outcome
+    path: providerProvenance
+    operator: contains
+    expected: hunter
+  - id: identification-confidence-high
+    type: observation
+    observationType: target-outcome
+    path: confidence
+    operator: equals
+    expected: high
   - id: form-submitted-twice
     type: observation
     observationType: synthetic-site-events
@@ -174,6 +209,13 @@ phases:
         targetPreparationStepId: prepare-target
 
   observe:
+    - id: wait-for-target
+      kind: task
+      action: target.wait-for-completion
+      input:
+        timeoutMs: 120000
+        pollIntervalMs: 2000
+        expectedState: completed
     - id: collect-local-evidence
       kind: parallel
       steps:
@@ -200,13 +242,6 @@ phases:
           action: vendor.collect-state
           input:
             vendorId: ipinfo
-    - id: wait-for-target
-      kind: task
-      action: target.wait-for-completion
-      input:
-        timeoutMs: 120000
-        pollIntervalMs: 2000
-        expectedState: completed
     - id: collect-target-outcome
       kind: task
       action: target.collect-outcome

@@ -163,7 +163,9 @@ function scanString(
     });
   }
 
-  for (const match of value.matchAll(EMAIL_PATTERN)) {
+  const emailMatches = [...value.matchAll(EMAIL_PATTERN)];
+
+  for (const match of emailMatches) {
     const domain = (match[1] ?? "").toLowerCase();
     if (!isAllowedDomain(domain, allowedDomainSuffixes)) {
       issues.push({
@@ -193,7 +195,7 @@ function scanString(
     const domain = match[0].toLowerCase();
     if (
       !isAllowedDomain(domain, allowedDomainSuffixes) &&
-      !looksLikeEmailDomainMatch(value, match.index ?? 0) &&
+      !isContainedInEmailMatch(match.index ?? 0, match[0].length, emailMatches) &&
       !looksLikeFileReference(value, match.index ?? 0, domain)
     ) {
       issues.push({
@@ -269,8 +271,23 @@ function normalizeAllowedSuffixes(values: readonly string[]): readonly string[] 
   });
 }
 
-function looksLikeEmailDomainMatch(value: string, index: number): boolean {
-  return index > 0 && value[index - 1] === "@";
+function isContainedInEmailMatch(
+  index: number,
+  length: number,
+  emailMatches: readonly RegExpMatchArray[],
+): boolean {
+  const end = index + length;
+
+  return emailMatches.some((match) => {
+    const emailStart = match.index ?? -1;
+    if (emailStart < 0) {
+      return false;
+    }
+
+    const emailEnd = emailStart + match[0].length;
+
+    return index >= emailStart && end <= emailEnd;
+  });
 }
 
 function looksLikeFileReference(

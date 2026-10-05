@@ -1,0 +1,13 @@
+schemaVersion: "1.0"
+operationId: gl-eye-people-bulk-match
+request:
+  method: POST
+  path: /api/v1/people/bulk_match
+cases:
+  - id: nordlicht-people-details
+    priority: 100
+    when:
+      query.reveal_personal_emails: "false"
+    respond:
+      status: 200
+      body: responses/gl-eye-people-bulk.json

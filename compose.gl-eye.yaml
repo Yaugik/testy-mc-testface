@@ -1,0 +1,24 @@
+services:
+  traffic-gateway:
+    environment:
+      TESTY_GATEWAY_ALLOWED_TARGET_ORIGINS: http://gl-eye-app:8000
+    networks:
+      - testy-platform
+      - testy-gl-eye
+
+  control-plane:
+    environment:
+      TESTY_TARGET_ADAPTER: gl-eye
+      TESTY_DOCKER_NETWORK: testy-gl-eye
+      TESTY_GATEWAY_ADMIN_URL: http://traffic-gateway:3100
+      GL_EYE_BASE_URL: http://gl-eye-app:8000
+      GL_EYE_ENVIRONMENT: local
+      GL_EYE_TEST_SUPPORT_TOKEN: test-support-token-local
+      GL_EYE_ALLOWED_ORIGINS: http://gl-eye-app:8000
+    networks:
+      - testy-platform
+      - testy-gl-eye
+
+networks:
+  testy-gl-eye:
+    external: true

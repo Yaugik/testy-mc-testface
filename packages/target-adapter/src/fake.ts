@@ -34,6 +34,7 @@ export class FakeTargetAdapter implements TargetAdapter {
       tenantId: `tenant-alpha-${segment}`,
       controlTenantId: `tenant-beta-${segment}`,
       trackingScriptUrl: `https://tracking.example.test/${segment}.js`,
+      ingestionToken: `fake-ingestion-${segment}`,
       siteId: `site-${segment}`,
       targetOrigin: "https://target.example.test",
     };

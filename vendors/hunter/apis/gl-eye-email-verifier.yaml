@@ -1,0 +1,13 @@
+schemaVersion: "1.0"
+operationId: gl-eye-email-verifier
+request:
+  method: GET
+  path: /v2/email-verifier
+cases:
+  - id: nordlicht-email-valid
+    priority: 100
+    when:
+      query.email: alex.sales@nordlicht-example.test
+    respond:
+      status: 200
+      body: responses/gl-eye-verification.json

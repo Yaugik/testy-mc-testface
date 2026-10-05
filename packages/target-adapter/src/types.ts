@@ -26,6 +26,7 @@ export interface GatewaySiteBinding {
 export interface SiteDefinition {
   readonly siteId: string;
   readonly hostname: string;
+  readonly origin?: string;
   readonly trackingScriptUrl?: string;
   readonly gateway?: GatewaySiteBinding;
   readonly metadata?: Readonly<Record<string, string>>;
@@ -50,6 +51,14 @@ export interface ObservationResult {
   readonly detailsFingerprint?: string;
 }
 
+export type TargetCompanyOutcome = Readonly<Record<string, string | number>> & {
+  readonly domain: string;
+  readonly displayName: string;
+  readonly score: number;
+  readonly confidence: string;
+  readonly visibility: string;
+};
+
 export interface TargetOutcome {
   readonly targetRunId: string;
   readonly tenantId: string;
@@ -59,6 +68,7 @@ export interface TargetOutcome {
   readonly processedEventCount?: number;
   readonly duplicateEventCount?: number;
   readonly companyFingerprint?: string;
+  readonly companies?: readonly TargetCompanyOutcome[];
   readonly scoreFingerprints?: readonly string[];
   readonly providerProvenance?: readonly string[];
   readonly confidence?: "low" | "medium" | "high";
@@ -85,11 +95,18 @@ export interface TargetAdapter {
     site: SiteDefinition,
   ): Promise<SiteDefinition>;
   startObservation(context: AdapterRunContext): Promise<ObservationHandle>;
+  triggerEnrichment?(
+    context: AdapterRunContext,
+    options?: { readonly since?: string },
+  ): Promise<void>;
   waitForCompletion(
     context: AdapterRunContext,
     condition: CompletionCondition,
   ): Promise<ObservationResult>;
-  collectOutcome(context: AdapterRunContext): Promise<TargetOutcome>;
+  collectOutcome(
+    context: AdapterRunContext,
+    options?: { readonly since?: string },
+  ): Promise<TargetOutcome>;
   cleanupRun(context: AdapterRunContext): Promise<void>;
   cleanupTarget(targetRunId: string): Promise<void>;
 }

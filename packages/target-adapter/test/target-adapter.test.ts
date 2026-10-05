@@ -131,6 +131,84 @@ describe("target adapter contract", () => {
 
     expect(JSON.stringify(publicResult)).not.toContain(binding.routeToken);
     expect(bundle.routeFor(context)).toBe(binding);
+
+    const prepare = bundle.actions["target.prepare-run"];
+    if (!prepare) throw new Error("target.prepare-run was not registered");
+    const preparedOutput = await prepare(undefined, context);
+    expect(JSON.stringify(preparedOutput)).not.toContain("fake-ingestion-");
+
+    const browserTarget = bundle.browserTargetFor(context);
+    expect(browserTarget.gateway).toBe(binding);
+    expect(browserTarget.ingestionToken).toMatch(/^fake-ingestion-/u);
+  });
+
+
+  it("replaces an interactive gateway route without mutating the original binding", async () => {
+    const first = routeBinding("run-switch" as RunId, "route-first");
+    const second = {
+      ...routeBinding("run-switch" as RunId, "route-second"),
+      syntheticIpFingerprint: "ip-fingerprint-second",
+    };
+    const created: GatewayRouteBinding[] = [];
+    const deleted: string[] = [];
+    const gateway = {
+      createRoute: async () => {
+        const next = created.length === 0 ? first : second;
+        created.push(next);
+        return next;
+      },
+      deleteRoute: async (routeId: string) => {
+        deleted.push(routeId);
+      },
+      getLedger: async () => [],
+    } as unknown as GatewayAdminClient;
+    const bundle = createGatewayTargetScenarioActionBundle({
+      gateway,
+      adapter: new FakeTargetAdapter(),
+    });
+    const leases: string[] = [];
+    const context: ScenarioActionContext = {
+      ...scenarioContext(first.runId),
+      registerResourceLease: async (_resourceType, resourceKey, expiresAt) => {
+        leases.push(resourceKey);
+        return {
+          leaseId: `lease-${leases.length}`,
+          runId: first.runId,
+          resourceType: "gateway-route",
+          resourceKey,
+          expiresAt,
+        };
+      },
+    };
+
+    const createRoute = bundle.actions["gateway.create-route"];
+    const replaceRoute = bundle.actions["gateway.replace-route"];
+    if (!createRoute || !replaceRoute) {
+      throw new Error("Gateway route actions were not registered");
+    }
+
+    await createRoute(
+      {
+        targetOrigin: "http://target.test",
+        syntheticIp: "198.51.100.10",
+      },
+      context,
+    );
+    const replaced = await replaceRoute(
+      {
+        targetOrigin: "http://target.test",
+        syntheticIp: "198.51.100.11",
+      },
+      context,
+    );
+
+    expect(replaced).toMatchObject({
+      routeId: "route-second",
+      syntheticIpFingerprint: "ip-fingerprint-second",
+    });
+    expect(bundle.routeFor(context)).toBe(second);
+    expect(deleted).toContain("route-first");
+    expect(leases).toEqual(["route-first", "route-second"]);
   });
 
   it("cleans target runs idempotently", async () => {

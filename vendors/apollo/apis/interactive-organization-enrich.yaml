@@ -1,0 +1,30 @@
+schemaVersion: "1.0"
+operationId: interactive-organization-enrich
+request:
+  method: GET
+  path: /profiles/{profile}/api/v1/organizations/enrich
+cases:
+  - id: nordlicht-alex-company
+    priority: 100
+    when:
+      path.profile: nordlicht-alex
+      query.domain: nordlicht-example.test
+    respond:
+      status: 200
+      body: responses/gl-eye-company.json
+  - id: nordlicht-maya-company
+    priority: 100
+    when:
+      path.profile: nordlicht-maya
+      query.domain: nordlicht-example.test
+    respond:
+      status: 200
+      body: responses/gl-eye-company.json
+  - id: acme-sarah-company
+    priority: 100
+    when:
+      path.profile: acme-sarah
+      query.domain: acme-synthetic.test
+    respond:
+      status: 200
+      body: responses/interactive-acme-company.json

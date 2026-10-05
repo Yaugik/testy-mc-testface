@@ -1,0 +1,12 @@
+{
+  "people": [
+    {
+      "id": "person_nordlicht_sales",
+      "name": "Alex Example",
+      "title": "VP Sales",
+      "linkedin_url": "https://www.linkedin.com/in/alex-example",
+      "country": "DE",
+      "confidence": 0.97
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "people": [
+    {
+      "id": "person_nordlicht_alex",
+      "name": "Alex Sales",
+      "title": "VP Sales",
+      "linkedin_url": "https://www.linkedin.com/in/alex-synthetic",
+      "country": "DE",
+      "confidence": 0.97
+    }
+  ]
+}

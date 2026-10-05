@@ -18,6 +18,20 @@ describe("scanStructuredValue", () => {
     ).toEqual([]);
   });
 
+  it("does not treat a dotted email local part as a standalone domain", () => {
+    expect(
+      scanStructuredValue(
+        {
+          email: "alex.sales@nordlicht-example.test",
+          nested: {
+            matcher: "alex.sales@nordlicht-example.test",
+          },
+        },
+        "fixture.yaml",
+      ),
+    ).toEqual([]);
+  });
+
   it("rejects public identifiers and live-looking credentials", () => {
     const issues = scanStructuredValue(
       {

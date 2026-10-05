@@ -255,7 +255,10 @@
           "then": {
             "required": [
               "value"
-            ]
+            ],
+            "properties": {
+              "value": {}
+            }
           }
         },
         {
@@ -289,10 +292,8 @@
             ]
           },
           "then": {
-            "not": {
-              "required": [
-                "value"
-              ]
+            "properties": {
+              "value": false
             }
           }
         }
@@ -334,20 +335,18 @@
           "required": [
             "respond"
           ],
-          "not": {
-            "required": [
-              "transport"
-            ]
+          "properties": {
+            "respond": {},
+            "transport": false
           }
         },
         {
           "required": [
             "transport"
           ],
-          "not": {
-            "required": [
-              "respond"
-            ]
+          "properties": {
+            "transport": {},
+            "respond": false
           }
         }
       ]
@@ -393,13 +392,14 @@
           "then": {
             "required": [
               "terminalResponse"
-            ]
+            ],
+            "properties": {
+              "terminalResponse": {}
+            }
           },
           "else": {
-            "not": {
-              "required": [
-                "terminalResponse"
-              ]
+            "properties": {
+              "terminalResponse": false
             }
           }
         }
@@ -449,57 +449,30 @@
           "required": [
             "respond"
           ],
-          "not": {
-            "anyOf": [
-              {
-                "required": [
-                  "transport"
-                ]
-              },
-              {
-                "required": [
-                  "sequence"
-                ]
-              }
-            ]
+          "properties": {
+            "respond": {},
+            "transport": false,
+            "sequence": false
           }
         },
         {
           "required": [
             "transport"
           ],
-          "not": {
-            "anyOf": [
-              {
-                "required": [
-                  "respond"
-                ]
-              },
-              {
-                "required": [
-                  "sequence"
-                ]
-              }
-            ]
+          "properties": {
+            "transport": {},
+            "respond": false,
+            "sequence": false
           }
         },
         {
           "required": [
             "sequence"
           ],
-          "not": {
-            "anyOf": [
-              {
-                "required": [
-                  "respond"
-                ]
-              },
-              {
-                "required": [
-                  "transport"
-                ]
-              }
-            ]
+          "properties": {
+            "sequence": {},
+            "respond": false,
+            "transport": false
           }
         }
       ]

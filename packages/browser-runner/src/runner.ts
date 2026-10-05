@@ -29,6 +29,7 @@ import type {
   BrowserJourneyReport,
   BrowserRequestEntry,
   BrowserRunnerOptions,
+  ExternalBrowserScript,
 } from "./types.js";
 import {
   fingerprintText,
@@ -87,7 +88,7 @@ export async function runBrowserJourney(
       void context?.close().catch(() => undefined);
     };
     options.signal?.addEventListener("abort", abortListener, { once: true });
-    await installSiteRoute(context, site);
+    await installSiteRoute(context, site, options.requestProxies ?? []);
     await installNetworkFixtures(context, journey.networkFixtures ?? []);
     await applySession(context, journey, site);
     attachObservers(context, consoleEntries, requests);
@@ -203,7 +204,7 @@ async function executeStep(
   observedRequests: readonly Request[],
   site: SyntheticSiteBinding,
   screenshotPath: string,
-  externalScripts: readonly string[],
+  externalScripts: readonly ExternalBrowserScript[],
 ): Promise<{ readonly page: Page; readonly result: BrowserActionResult }> {
   const startedAt = new Date();
   let page = currentPage;
@@ -223,7 +224,7 @@ async function executeStep(
       case "hover": await required(locator, step).hover(); break;
       case "fill": await required(locator, step).fill(String(step.value ?? "")); break;
       case "fillForm": await fillForm(page, step.values ?? {}); break;
-      case "select": await required(locator, step).selectOption(step.option); break;
+      case "select": await required(locator, step).selectOption(requiredOption(step)); break;
       case "check": await required(locator, step).check(); break;
       case "uncheck": await required(locator, step).uncheck(); break;
       case "submit":
@@ -383,30 +384,50 @@ function attachObservers(
 
 async function ensureExternalScripts(
   page: Page,
-  externalScripts: readonly string[],
+  externalScripts: readonly ExternalBrowserScript[],
 ): Promise<void> {
   if (externalScripts.length === 0 || page.isClosed() || page.url() === "about:blank") return;
   await page.waitForLoadState("domcontentloaded");
-  const marker = fingerprintText(externalScripts.join("\n"));
+  const marker = fingerprintText(JSON.stringify(externalScripts));
   const current = await page.evaluate(() =>
     document.documentElement.getAttribute("data-testy-external-scripts"),
   );
   if (current === marker) return;
-  for (const url of externalScripts) {
-    await page.addScriptTag({ url });
+  for (const script of externalScripts) {
+    await page.evaluate(
+      async ({ url, attributes }) => {
+        await new Promise<void>((resolveScript, rejectScript) => {
+          const element = document.createElement("script");
+          element.src = url;
+          for (const [name, value] of Object.entries(attributes ?? {})) {
+            element.setAttribute(name, value);
+          }
+          element.addEventListener("load", () => resolveScript(), { once: true });
+          element.addEventListener(
+            "error",
+            () => rejectScript(new Error("External browser script failed to load.")),
+            { once: true },
+          );
+          document.head.appendChild(element);
+        });
+      },
+      script,
+    );
   }
   await page.evaluate((value) => {
     document.documentElement.setAttribute("data-testy-external-scripts", value);
   }, marker);
 }
 
-function validateExternalScripts(values: readonly string[]): readonly string[] {
-  const result: string[] = [];
+function validateExternalScripts(
+  values: readonly ExternalBrowserScript[],
+): readonly ExternalBrowserScript[] {
+  const result: ExternalBrowserScript[] = [];
   const seen = new Set<string>();
   for (const value of values) {
     let url: URL;
     try {
-      url = new URL(value);
+      url = new URL(value.url);
     } catch {
       throw new Error("External browser scripts must use absolute URLs.");
     }
@@ -416,10 +437,19 @@ function validateExternalScripts(values: readonly string[]): readonly string[] {
     if (url.username || url.password || url.hash) {
       throw new Error("External browser scripts cannot contain credentials or fragments.");
     }
+    for (const name of Object.keys(value.attributes ?? {})) {
+      if (!/^(?:data-[a-z0-9_.:-]+|type)$/iu.test(name)) {
+        throw new Error("External browser script attributes must be data-* attributes or type.");
+      }
+    }
     const normalized = url.toString();
-    if (!seen.has(normalized)) {
-      result.push(normalized);
-      seen.add(normalized);
+    const fingerprint = JSON.stringify([normalized, value.attributes ?? {}]);
+    if (!seen.has(fingerprint)) {
+      result.push({
+        url: normalized,
+        ...(value.attributes ? { attributes: { ...value.attributes } } : {}),
+      });
+      seen.add(fingerprint);
     }
   }
   return result;
@@ -453,6 +483,11 @@ async function expectAttribute(locator: Locator, name: string, expected: string)
 function required(locator: Locator | undefined, step: JourneyActionDefinition): Locator {
   if (!locator) throw new Error(`Action '${step.action}' requires a selector.`);
   return locator;
+}
+
+function requiredOption(step: JourneyActionDefinition): string {
+  if (step.option === undefined) throw new Error(`Action '${step.action}' requires an option.`);
+  return step.option;
 }
 
 function actionResult(

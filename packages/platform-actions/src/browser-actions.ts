@@ -44,12 +44,17 @@ export function createBrowserActions(
       };
     },
 
-    "site.start": async (_input, context) => {
+    "site.start": async (input, context) => {
       const state = stateFor(context);
       if (!state.site) {
+        const value = input === undefined ? undefined : readObject(input);
+        const hostname = value ? readOptionalString(value, "hostname") : undefined;
         state.site = await dependencies.startSyntheticSite(
           requireBrowserPackage(state),
-          { runNamespace: context.runId as string },
+          {
+            runNamespace: context.runId as string,
+            ...(hostname ? { hostname } : {}),
+          },
         );
       }
       if (!state.siteLeaseRegistered) {
@@ -60,7 +65,7 @@ export function createBrowserActions(
           new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString(),
           async () => {
             await site.stop();
-            if (state.site === site) state.site = undefined;
+            if (state.site === site) delete state.site;
           },
         );
         state.siteLeaseRegistered = true;
@@ -70,6 +75,33 @@ export function createBrowserActions(
         hostname: state.site.hostname,
         origin: state.site.origin,
         localOrigin: state.site.localOrigin,
+      };
+    },
+
+    "site.configure-manual-tracking": async (input, context) => {
+      const state = stateFor(context);
+      const site = requireSite(state);
+      const browserTarget = options.delegates?.resolveBrowserTarget?.(context);
+      if (!browserTarget?.ingestionToken) {
+        throw new Error("Target browser context does not include an ingestion token.");
+      }
+      const value = readObject(input);
+      const publicOrigin = readString(value, "publicOrigin");
+      const resetVersion = readOptionalNumber(value, "resetVersion") ?? 0;
+      site.configureManualTracking({
+        trackingScriptUrl: browserTarget.trackingScriptUrl,
+        ingestionToken: browserTarget.ingestionToken,
+        gatewayProxyBaseUrl: browserTarget.gatewayProxyBaseUrl,
+        gatewayRouteToken: browserTarget.gatewayRouteToken,
+        runId: browserTarget.runIdHeader,
+        publicOrigin,
+        resetVersion,
+      });
+      return {
+        hostname: site.hostname,
+        localOrigin: site.localOrigin,
+        publicOrigin,
+        resetVersion,
       };
     },
 
@@ -106,7 +138,11 @@ export function createBrowserActions(
       }
       const site = requireSite(stateFor(context));
       return delegate(
-        { siteId: site.siteId, hostname: site.hostname },
+        {
+          siteId: site.siteId,
+          hostname: site.hostname,
+          origin: secureSyntheticOrigin(site.origin),
+        },
         context,
       );
     },
@@ -119,9 +155,11 @@ export function createBrowserActions(
         value,
         "targetPreparationStepId",
       );
-      const trackingScriptUrl = targetPreparationStepId
-        ? readTrackingScriptUrl(context.outputs[targetPreparationStepId])
-        : undefined;
+      const browserTarget = options.delegates?.resolveBrowserTarget?.(context);
+      const trackingScriptUrl = browserTarget?.trackingScriptUrl ??
+        (targetPreparationStepId
+          ? readTrackingScriptUrl(context.outputs[targetPreparationStepId])
+          : undefined);
       const state = stateFor(context);
       const report = await dependencies.runBrowserJourney(
         journeyId,
@@ -141,12 +179,38 @@ export function createBrowserActions(
           signal: context.signal,
           ...(trackingScriptUrl
             ? {
-                externalScripts: [trackingScriptUrl],
+                externalScripts: [
+                  {
+                    url: trackingScriptUrl,
+                    ...(browserTarget?.ingestionToken
+                      ? {
+                          attributes: {
+                            "data-site": browserTarget.ingestionToken,
+                          },
+                        }
+                      : {}),
+                  },
+                ],
                 expectedRequests: [
                   {
                     id: "target-tracking-script",
                     url: trackingScriptUrl,
                     method: "GET",
+                  },
+                ],
+              }
+            : {}),
+          ...(browserTarget
+            ? {
+                requestProxies: [
+                  {
+                    path: "/t/v1/events",
+                    targetBaseUrl: browserTarget.gatewayProxyBaseUrl,
+                    headers: {
+                      origin: secureSyntheticOrigin(requireSite(state).origin),
+                      "x-testy-route-token": browserTarget.gatewayRouteToken,
+                      "x-testy-run-id": browserTarget.runIdHeader,
+                    },
                   },
                 ],
               }
@@ -178,7 +242,14 @@ export function createBrowserActions(
     "browser.collect-site-events": async (_input, context) => {
       const events = requireSite(stateFor(context)).events();
       const counts = Object.fromEntries(
-        ["page-view", "button", "consent", "form-submit"].map((type) => [
+        [
+          "page-view",
+          "button",
+          "consent",
+          "form-submit",
+          "sdk-load",
+          "tracking-forward",
+        ].map((type) => [
           type,
           events.filter((event) => event.type === type).length,
         ]),
@@ -191,6 +262,21 @@ export function createBrowserActions(
         value: {
           eventCount: events.length,
           counts,
+          events: events.map((event) => ({
+            sequence: event.sequence,
+            type: event.type,
+            ...(event.pageId ? { pageId: event.pageId } : {}),
+            ...(event.event ? { event: event.event } : {}),
+            ...(event.value ? { value: event.value } : {}),
+            ...(event.formId ? { formId: event.formId } : {}),
+            ...(event.fieldNames ? { fieldNames: event.fieldNames } : {}),
+            ...(event.bodyFingerprint
+              ? { bodyFingerprint: event.bodyFingerprint }
+              : {}),
+            ...(event.statusCode === undefined
+              ? {}
+              : { statusCode: event.statusCode }),
+          })),
           forms: events
             .filter((event) => event.type === "form-submit")
             .map((event) => ({
@@ -204,9 +290,32 @@ export function createBrowserActions(
         metadata: {},
         observedAt: new Date().toISOString(),
       });
-      return { eventCount: events.length, counts };
+      return {
+        eventCount: events.length,
+        counts,
+        events: events.map((event) => ({
+          sequence: event.sequence,
+          type: event.type,
+          ...(event.pageId ? { pageId: event.pageId } : {}),
+          ...(event.event ? { event: event.event } : {}),
+          ...(event.formId ? { formId: event.formId } : {}),
+          ...(event.statusCode === undefined
+            ? {}
+            : { statusCode: event.statusCode }),
+        })),
+      };
     },
   };
+}
+
+function readOptionalNumber(
+  value: Readonly<Record<string, ScenarioValue>>,
+  key: string,
+): number | undefined {
+  const selected = value[key];
+  return typeof selected === "number" && Number.isFinite(selected)
+    ? selected
+    : undefined;
 }
 
 function readOptionalString(
@@ -233,4 +342,17 @@ function readTrackingScriptUrl(value: ScenarioValue | undefined): string {
     throw new Error("Target tracking script URL must be an HTTP(S) URL without credentials or a fragment.");
   }
   return url.toString();
+}
+
+
+function secureSyntheticOrigin(value: string): string {
+  const url = new URL(value);
+  if (url.protocol !== "http:" && url.protocol !== "https:") {
+    throw new Error("Synthetic site origin must use HTTP or HTTPS.");
+  }
+  url.protocol = "https:";
+  url.pathname = "/";
+  url.search = "";
+  url.hash = "";
+  return url.origin;
 }

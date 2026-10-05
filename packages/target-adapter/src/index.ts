@@ -15,10 +15,13 @@ export type {
   PreparedTarget,
   SiteDefinition,
   TargetAdapter,
+  TargetCapabilities,
+  TargetCompanyOutcome,
   TargetOutcome,
   VendorEndpoints,
 } from "./types.js";
 export type {
+  BrowserTargetRunContext,
   GatewayTargetScenarioActionBundle,
   GatewayTargetScenarioActionsOptions,
 } from "./scenario-actions.js";
