@@ -55,7 +55,10 @@ describe("compileVendorBundle", () => {
         "imposter/generated/lookup-ip-json--corporate-json.js",
     );
     expect(corporateScript?.content.toString("utf8")).toContain(
-      'response.withFile(config.dir + "/" + behavior.body)',
+      "response.withContent(behavior.content)",
+    );
+    expect(corporateScript?.content.toString("utf8")).toContain(
+      "Nordlicht Example GmbH",
     );
 
     const recoveryScript = first.files.find(
