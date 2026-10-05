@@ -364,6 +364,10 @@ const CONTROL_PLANE_HTML = `<!doctype html>
       showDemoError("");
       try {
         await loadDemoProfiles();
+        currentDemoId = "";
+        currentDemo = undefined;
+        localStorage.removeItem("testy.currentDemoId");
+        demoSelectorsSessionId = "";
         currentDemo = await requestJson("/v1/demo-sessions", { method: "POST" });
         currentDemoId = currentDemo.id;
         localStorage.setItem("testy.currentDemoId", currentDemoId);
@@ -382,6 +386,15 @@ const CONTROL_PLANE_HTML = `<!doctype html>
       if (!currentDemoId) return;
       try {
         currentDemo = await requestJson("/v1/demo-sessions/" + encodeURIComponent(currentDemoId));
+        if (currentDemo.status === "FAILED" || currentDemo.status === "STOPPED") {
+          currentDemoId = "";
+          currentDemo = undefined;
+          localStorage.removeItem("testy.currentDemoId");
+          demoSelectorsSessionId = "";
+          showDemoError("");
+          renderDemoSession();
+          return;
+        }
         renderDemoSession();
         if (currentDemo.status === "READY" || currentDemo.status === "ACTIVE") {
           await refreshDemoActivity();
