@@ -28,7 +28,7 @@ function renderPage(
   variables: Readonly<Record<string, string>>,
 ): string {
   const title = interpolate(page.title, variables);
-  const content = renderPageBlocks(page.blocks, variables);
+  const content = renderPageBlocks(page.id, page.blocks, variables);
   const consent = site.consent ? renderConsent(site.consent, variables) : "";
   const trackingEndpoint = site.tracking?.enabled
     ? site.tracking.endpoint ?? "/__testy/events"
@@ -43,13 +43,19 @@ function renderPage(
   <link rel="stylesheet" href="/__testy/style.css">
 </head>
 <body data-test-page="${escapeAttribute(page.id)}">
+  <div class="site-announcement">
+    <span>New: richer account timelines and routing workflows</span>
+    <a href="/pricing">Explore plans →</a>
+  </div>
   <header class="site-header">
-    <a class="site-brand" href="/" aria-label="Northstar Cloud home">
-      <span class="site-brand-mark">N</span>
-      <span>Northstar Cloud</span>
+    <a class="site-brand" href="/" aria-label="${escapeAttribute(site.site.displayName)} home">
+      <span class="site-brand-mark">${escapeHtml(site.site.displayName.slice(0, 1).toUpperCase())}</span>
+      <span>${escapeHtml(site.site.displayName)}</span>
     </a>
     <nav class="site-nav" aria-label="Primary navigation">
       <a href="/">Platform</a>
+      <a href="/#capabilities-heading">Solutions</a>
+      <a href="/#proof-heading">Customers</a>
       <a href="/pricing">Pricing</a>
       <a href="/contact">Contact</a>
       <a class="site-nav-cta" href="/contact">Book a demo</a>
@@ -57,11 +63,29 @@ function renderPage(
   </header>
   <main class="site-main">${content}</main>
   <footer class="site-footer">
-    <div>
-      <strong>Northstar Cloud</strong>
-      <span>Revenue intelligence for teams that want signal, not noise.</span>
+    <div class="footer-brand">
+      <a class="site-brand" href="/">
+        <span class="site-brand-mark">${escapeHtml(site.site.displayName.slice(0, 1).toUpperCase())}</span>
+        <span>${escapeHtml(site.site.displayName)}</span>
+      </a>
+      <p>Revenue intelligence for teams that want signal, context, and a clear next action.</p>
     </div>
-    <span>© 2026 Northstar Cloud</span>
+    <div class="footer-column">
+      <strong>Product</strong>
+      <a href="/">Platform</a>
+      <a href="/#intelligence-heading">Account intelligence</a>
+      <a href="/#routing-heading">Routing</a>
+    </div>
+    <div class="footer-column">
+      <strong>Company</strong>
+      <a href="/#proof-heading">Customers</a>
+      <a href="/pricing">Pricing</a>
+      <a href="/contact">Contact</a>
+    </div>
+    <div class="footer-meta">
+      <span>© 2026 ${escapeHtml(site.site.displayName)}</span>
+      <span>Privacy-aware demo experience</span>
+    </div>
   </footer>
   ${consent}
   ${renderGeneratedScript(page.id, site.consent, trackingEndpoint)}
@@ -70,6 +94,7 @@ function renderPage(
 }
 
 function renderPageBlocks(
+  pageId: string,
   blocks: readonly SiteBlockDefinition[],
   variables: Readonly<Record<string, string>>,
 ): string {
@@ -84,11 +109,58 @@ function renderPageBlocks(
   const hero = blocks.slice(0, heroEnd);
   const body = blocks.slice(heroEnd);
 
+  const heroVisual =
+    pageId === "home"
+      ? `
+<div class="hero-product-preview" aria-label="Northstar account intelligence preview">
+  <div class="preview-window-bar">
+    <span class="preview-dot"></span><span class="preview-dot"></span><span class="preview-dot"></span>
+    <span class="preview-window-title">Account activity · live</span>
+  </div>
+  <div class="preview-layout">
+    <aside class="preview-sidebar">
+      <span class="preview-sidebar-brand">N</span>
+      <span class="preview-sidebar-item active"></span>
+      <span class="preview-sidebar-item"></span>
+      <span class="preview-sidebar-item"></span>
+      <span class="preview-sidebar-item short"></span>
+    </aside>
+    <div class="preview-content">
+      <div class="preview-kicker">TODAY'S ACCOUNT SIGNALS</div>
+      <div class="preview-stat-grid">
+        <div><strong>148</strong><span>identified accounts</span></div>
+        <div><strong>23</strong><span>high-intent accounts</span></div>
+        <div><strong>92%</strong><span>high-confidence matches</span></div>
+      </div>
+      <div class="preview-company">
+        <span class="preview-company-logo">H</span>
+        <div><strong>Halcyon Systems</strong><span>Pricing + integrations · 6 visits</span></div>
+        <span class="preview-score">87</span>
+      </div>
+      <div class="preview-company">
+        <span class="preview-company-logo">A</span>
+        <div><strong>Arbor Labs</strong><span>Security + platform · 4 visits</span></div>
+        <span class="preview-score">79</span>
+      </div>
+      <div class="preview-company muted">
+        <span class="preview-company-logo">S</span>
+        <div><strong>Solace Grid</strong><span>Product research · 3 visits</span></div>
+        <span class="preview-score">64</span>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="customer-strip">
+  <span>Built for modern revenue teams</span>
+  <strong>HALCYON</strong><strong>ARBOR</strong><strong>VERDANT</strong><strong>POLARIS</strong><strong>ORBITAL</strong>
+</div>`
+      : "";
+
   const heroHtml =
     hero.length > 0
       ? `<section class="page-hero">${hero
           .map((block) => renderBlock(block, variables))
-          .join("\n")}</section>`
+          .join("\n")}${heroVisual}</section>`
       : "";
 
   const groups: string[] = [];
