@@ -516,7 +516,11 @@ const CONTROL_PLANE_HTML = `<!doctype html>
               ? "Page viewed · " + (item.pageId || "page")
               : item.type === "form-submit"
                 ? "Form submitted · " + (item.formId || "form")
-                : "Site event · " + (item.type || "event")
+                : item.type === "sdk-load"
+                  ? "GL-EYE SDK " + (item.event || "load") + (item.value ? " · " + item.value : "")
+                  : item.type === "tracking-forward"
+                    ? "GL-EYE event " + (item.event || "forward") + (item.value ? " · " + item.value : "")
+                    : "Site event · " + (item.type || "event")
           });
         });
         events.sort(function (a, b) { return new Date(b.at) - new Date(a.at); });
