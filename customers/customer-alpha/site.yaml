@@ -170,6 +170,428 @@ pages:
         href: /contact
         testId: final-cta-link
 
+  - id: solutions
+    path: /solutions
+    title: Solutions — Northstar Cloud
+    blocks:
+      - id: solutions-heading
+        type: heading
+        level: 1
+        text: Revenue intelligence for every stage of the buying journey.
+        testId: solutions-heading
+      - id: solutions-copy
+        type: text
+        text: Use Northstar to identify accounts, understand intent, prioritize activity, and help sales act with better context.
+        testId: solutions-copy
+      - id: solutions-contact-link
+        type: link
+        text: Talk to our team
+        href: /contact
+        testId: solutions-contact-link
+
+      - id: solution-identification-heading
+        type: heading
+        level: 2
+        text: Company identification
+        testId: solution-identification-heading
+      - id: solution-identification-copy
+        type: text
+        text: Turn anonymous business traffic into account-level visibility with confidence bands and privacy-aware matching.
+        testId: solution-identification-copy
+
+      - id: solution-intent-heading
+        type: heading
+        level: 2
+        text: Intent and research signals
+        testId: solution-intent-heading
+      - id: solution-intent-copy
+        type: text
+        text: Understand whether an account is researching pricing, integrations, security, or deeper product capabilities.
+        testId: solution-intent-copy
+
+      - id: solution-scoring-heading
+        type: heading
+        level: 2
+        text: Prioritization and scoring
+        testId: solution-scoring-heading
+      - id: solution-scoring-copy
+        type: text
+        text: Combine fit, confidence, recency, and engagement into a useful score instead of treating every visit equally.
+        testId: solution-scoring-copy
+
+      - id: solution-enrichment-heading
+        type: heading
+        level: 2
+        text: Enrichment with context
+        testId: solution-enrichment-heading
+      - id: solution-enrichment-copy
+        type: text
+        text: Add company and contact context without losing the behavioral story that made the account relevant in the first place.
+        testId: solution-enrichment-copy
+
+      - id: solution-routing-heading
+        type: heading
+        level: 2
+        text: Routing and sales handoff
+        testId: solution-routing-heading
+      - id: solution-routing-copy
+        type: text
+        text: Move qualified accounts to the right owner with the reason, evidence, and recent journey attached.
+        testId: solution-routing-copy
+
+      - id: solution-ops-heading
+        type: heading
+        level: 2
+        text: Revenue operations visibility
+        testId: solution-ops-heading
+      - id: solution-ops-copy
+        type: text
+        text: Give RevOps one place to understand account quality, activity, disposition, exports, and workflow performance.
+        testId: solution-ops-copy
+
+      - id: solutions-cta-heading
+        type: heading
+        level: 2
+        text: Build the workflow around your sales motion.
+        testId: solutions-cta-heading
+      - id: solutions-cta-copy
+        type: text
+        text: We’ll map Northstar to your ICP, site traffic, ownership rules, and existing CRM or enrichment stack.
+        testId: solutions-cta-copy
+      - id: solutions-cta-link
+        type: link
+        text: Book a tailored walkthrough
+        href: /contact
+        testId: solutions-cta-link
+
+  - id: customers
+    path: /customers
+    title: Customers — Northstar Cloud
+    blocks:
+      - id: customers-heading
+        type: heading
+        level: 1
+        text: Built for teams that want better context, not more dashboards.
+        testId: customers-heading
+      - id: customers-copy
+        type: text
+        text: See how fictional revenue teams use Northstar to understand account research and turn it into useful sales action.
+        testId: customers-copy
+
+      - id: halcyon-heading
+        type: heading
+        level: 2
+        text: Halcyon Systems
+        testId: halcyon-heading
+      - id: halcyon-copy
+        type: text
+        text: A mid-market infrastructure company uses Northstar to surface repeat pricing research, rank target accounts, and give AEs a concise reason to reach out.
+        testId: halcyon-copy
+      - id: halcyon-metric
+        type: text
+        text: Outcome: 28% faster first-touch on high-intent accounts.
+        testId: halcyon-metric
+
+      - id: arbor-heading
+        type: heading
+        level: 2
+        text: Arbor Labs
+        testId: arbor-heading
+      - id: arbor-copy
+        type: text
+        text: A developer-tools team uses security and integration page signals to distinguish serious evaluation from casual product browsing.
+        testId: arbor-copy
+      - id: arbor-metric
+        type: text
+        text: Outcome: 36% fewer low-context outbound sequences.
+        testId: arbor-metric
+
+      - id: verdant-heading
+        type: heading
+        level: 2
+        text: Verdant Networks
+        testId: verdant-heading
+      - id: verdant-copy
+        type: text
+        text: A distributed sales team uses Northstar routing rules to send identified accounts to the correct regional owner with enriched context.
+        testId: verdant-copy
+      - id: verdant-metric
+        type: text
+        text: Outcome: 41% less manual account triage for RevOps.
+        testId: verdant-metric
+
+      - id: customer-quote-heading
+        type: heading
+        level: 2
+        text: “We finally know why an account matters before sales opens the CRM.”
+        testId: customer-quote-heading
+      - id: customer-quote-copy
+        type: text
+        text: Fictional customer quote from a Revenue Operations leader at Halcyon Systems.
+        testId: customer-quote-copy
+
+      - id: customer-fit-heading
+        type: heading
+        level: 2
+        text: Best fit for B2B teams with meaningful website research
+        testId: customer-fit-heading
+      - id: customer-fit-copy
+        type: text
+        text: Northstar works best when product, pricing, security, customer, and integration content are part of a real buying journey.
+        testId: customer-fit-copy
+
+      - id: customers-cta-heading
+        type: heading
+        level: 2
+        text: Want to see a customer journey modeled around your business?
+        testId: customers-cta-heading
+      - id: customers-cta-copy
+        type: text
+        text: Bring one target account and we’ll show how its research would appear inside Northstar.
+        testId: customers-cta-copy
+      - id: customers-cta-link
+        type: link
+        text: Book a demo
+        href: /contact
+        testId: customers-cta-link
+
+  - id: integrations
+    path: /integrations
+    title: Integrations — Northstar Cloud
+    blocks:
+      - id: integrations-page-heading
+        type: heading
+        level: 1
+        text: Connect Northstar to the systems your revenue team already trusts.
+        testId: integrations-page-heading
+      - id: integrations-page-copy
+        type: text
+        text: Keep account intelligence close to your CRM, enrichment, exports, and sales workflows instead of creating another isolated tool.
+        testId: integrations-page-copy
+
+      - id: integration-crm-heading
+        type: heading
+        level: 2
+        text: CRM workflows
+        testId: integration-crm-heading
+      - id: integration-crm-copy
+        type: text
+        text: Push account context, recent research, confidence, and disposition into the place sellers already manage their pipeline.
+        testId: integration-crm-copy
+
+      - id: integration-enrichment-heading
+        type: heading
+        level: 2
+        text: Enrichment providers
+        testId: integration-enrichment-heading
+      - id: integration-enrichment-copy
+        type: text
+        text: Pair behavioral signals with company and contact enrichment when an account crosses the threshold for action.
+        testId: integration-enrichment-copy
+
+      - id: integration-export-heading
+        type: heading
+        level: 2
+        text: Exports and analysis
+        testId: integration-export-heading
+      - id: integration-export-copy
+        type: text
+        text: Export filtered account lists for territory planning, campaign analysis, sales operations, or downstream reporting.
+        testId: integration-export-copy
+
+      - id: integration-routing-heading
+        type: heading
+        level: 2
+        text: Routing and ownership
+        testId: integration-routing-heading
+      - id: integration-routing-copy
+        type: text
+        text: Route accounts by territory, segment, account owner, or workflow criteria without losing the evidence behind the handoff.
+        testId: integration-routing-copy
+
+      - id: integration-api-heading
+        type: heading
+        level: 2
+        text: API-ready architecture
+        testId: integration-api-heading
+      - id: integration-api-copy
+        type: text
+        text: Northstar is designed around explicit account, activity, enrichment, and workflow boundaries so teams can extend integrations over time.
+        testId: integration-api-copy
+
+      - id: integrations-cta-heading
+        type: heading
+        level: 2
+        text: Don’t see your workflow here?
+        testId: integrations-cta-heading
+      - id: integrations-cta-copy
+        type: text
+        text: Tell us where account context needs to land and we’ll map the right integration approach.
+        testId: integrations-cta-copy
+      - id: integrations-cta-link
+        type: link
+        text: Discuss your stack
+        href: /contact
+        testId: integrations-cta-link
+
+  - id: security
+    path: /security
+    title: Security & Privacy — Northstar Cloud
+    blocks:
+      - id: security-heading
+        type: heading
+        level: 1
+        text: Account intelligence designed with privacy and control in mind.
+        testId: security-heading
+      - id: security-copy
+        type: text
+        text: Northstar focuses on business-account context, explicit retention controls, tenant isolation, and transparent data handling.
+        testId: security-copy
+
+      - id: security-privacy-heading
+        type: heading
+        level: 2
+        text: Privacy-aware collection
+        testId: security-privacy-heading
+      - id: security-privacy-copy
+        type: text
+        text: Tracking is designed around account-level business intelligence and can respect consent and retention requirements.
+        testId: security-privacy-copy
+
+      - id: security-isolation-heading
+        type: heading
+        level: 2
+        text: Workspace isolation
+        testId: security-isolation-heading
+      - id: security-isolation-copy
+        type: text
+        text: Customer workspaces keep account data, tracking configuration, membership, exports, and enrichment activity separated.
+        testId: security-isolation-copy
+
+      - id: security-retention-heading
+        type: heading
+        level: 2
+        text: Configurable retention
+        testId: security-retention-heading
+      - id: security-retention-copy
+        type: text
+        text: Keep operational data for the period your team actually needs instead of treating every signal as permanent.
+        testId: security-retention-copy
+
+      - id: security-audit-heading
+        type: heading
+        level: 2
+        text: Auditable workflows
+        testId: security-audit-heading
+      - id: security-audit-copy
+        type: text
+        text: Identification, enrichment, disposition, export, and workflow activity can be reasoned about as explicit system events.
+        testId: security-audit-copy
+
+      - id: security-controls-heading
+        type: heading
+        level: 2
+        text: Role-aware access
+        testId: security-controls-heading
+      - id: security-controls-copy
+        type: text
+        text: Keep operational actions aligned to workspace roles while preserving read-only visibility where appropriate.
+        testId: security-controls-copy
+
+      - id: security-contact-heading
+        type: heading
+        level: 2
+        text: Have a security or privacy requirement?
+        testId: security-contact-heading
+      - id: security-contact-copy
+        type: text
+        text: Bring your retention, access, tracking, or data-flow questions to the demo and we’ll walk through the relevant boundaries.
+        testId: security-contact-copy
+      - id: security-contact-link
+        type: link
+        text: Talk to us
+        href: /contact
+        testId: security-contact-link
+
+  - id: resources
+    path: /resources
+    title: Resources — Northstar Cloud
+    blocks:
+      - id: resources-heading
+        type: heading
+        level: 1
+        text: Practical guidance for turning website research into revenue context.
+        testId: resources-heading
+      - id: resources-copy
+        type: text
+        text: Fictional guides, playbooks, and benchmarks that make the demo site feel like a real B2B software company.
+        testId: resources-copy
+
+      - id: resource-playbook-heading
+        type: heading
+        level: 2
+        text: Playbook: From anonymous traffic to account action
+        testId: resource-playbook-heading
+      - id: resource-playbook-copy
+        type: text
+        text: A step-by-step framework for deciding when an identified visit is strong enough to trigger sales follow-up.
+        testId: resource-playbook-copy
+
+      - id: resource-benchmark-heading
+        type: heading
+        level: 2
+        text: Benchmark: What high-intent research looks like
+        testId: resource-benchmark-heading
+      - id: resource-benchmark-copy
+        type: text
+        text: Compare shallow visits with repeat pricing, integration, security, and customer-proof research patterns.
+        testId: resource-benchmark-copy
+
+      - id: resource-revops-heading
+        type: heading
+        level: 2
+        text: RevOps guide: Designing useful routing rules
+        testId: resource-revops-heading
+      - id: resource-revops-copy
+        type: text
+        text: Balance fit, confidence, account ownership, and recent intent without flooding sales with low-value notifications.
+        testId: resource-revops-copy
+
+      - id: resource-privacy-heading
+        type: heading
+        level: 2
+        text: Guide: Privacy-aware account intelligence
+        testId: resource-privacy-heading
+      - id: resource-privacy-copy
+        type: text
+        text: Think clearly about consent, account-level identification, data retention, and the boundary between business context and personal tracking.
+        testId: resource-privacy-copy
+
+      - id: resource-checklist-heading
+        type: heading
+        level: 2
+        text: Checklist: Is your website ready for account intelligence?
+        testId: resource-checklist-heading
+      - id: resource-checklist-copy
+        type: text
+        text: Review tracking coverage, page taxonomy, ownership, enrichment, CRM fields, and handoff rules before rollout.
+        testId: resource-checklist-copy
+
+      - id: resources-cta-heading
+        type: heading
+        level: 2
+        text: Want the workflow instead of another guide?
+        testId: resources-cta-heading
+      - id: resources-cta-copy
+        type: text
+        text: See Northstar turn a realistic buying journey into account context in the live demo.
+        testId: resources-cta-copy
+      - id: resources-cta-link
+        type: link
+        text: Book a demo
+        href: /contact
+        testId: resources-cta-link
+
   - id: pricing
     path: /pricing
     title: Pricing — Northstar Cloud
