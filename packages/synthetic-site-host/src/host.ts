@@ -752,6 +752,138 @@ button, input, select { font: inherit; }
   color: #0f172a;
 }
 
+/* Additional marketing pages */
+[data-test-page="solutions"] .page-hero,
+[data-test-page="customers"] .page-hero,
+[data-test-page="integrations"] .page-hero,
+[data-test-page="security"] .page-hero,
+[data-test-page="resources"] .page-hero {
+  max-width: 1040px;
+  margin: 0 auto;
+}
+[data-test-page="solutions"] .page-hero > h1,
+[data-test-page="customers"] .page-hero > h1,
+[data-test-page="integrations"] .page-hero > h1,
+[data-test-page="security"] .page-hero > h1,
+[data-test-page="resources"] .page-hero > h1 {
+  font-size: clamp(44px, 6vw, 70px);
+}
+[data-test-page="solutions"] .content-card,
+[data-test-page="integrations"] .content-card {
+  min-height: 230px;
+  position: relative;
+  overflow: hidden;
+}
+[data-test-page="solutions"] .content-card::before,
+[data-test-page="integrations"] .content-card::before {
+  content: "";
+  display: block;
+  width: 44px;
+  height: 44px;
+  margin-bottom: 26px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #dbeafe, #ede9fe);
+  box-shadow: inset 0 0 0 1px rgba(79,70,229,.1);
+}
+[data-test-page="solutions"] [data-section-id="solutions-cta-heading"],
+[data-test-page="integrations"] [data-section-id="integrations-cta-heading"],
+[data-test-page="customers"] [data-section-id="customers-cta-heading"],
+[data-test-page="security"] [data-section-id="security-contact-heading"],
+[data-test-page="resources"] [data-section-id="resources-cta-heading"] {
+  grid-column: 1 / -1;
+  padding: 46px;
+  color: #fff;
+  background: linear-gradient(135deg, #0f172a, #1e293b);
+  border-color: #0f172a;
+}
+[data-test-page="solutions"] [data-section-id="solutions-cta-heading"] p,
+[data-test-page="integrations"] [data-section-id="integrations-cta-heading"] p,
+[data-test-page="customers"] [data-section-id="customers-cta-heading"] p,
+[data-test-page="security"] [data-section-id="security-contact-heading"] p,
+[data-test-page="resources"] [data-section-id="resources-cta-heading"] p {
+  color: #cbd5e1;
+}
+[data-test-page="solutions"] [data-section-id="solutions-cta-heading"] a,
+[data-test-page="integrations"] [data-section-id="integrations-cta-heading"] a,
+[data-test-page="customers"] [data-section-id="customers-cta-heading"] a,
+[data-test-page="security"] [data-section-id="security-contact-heading"] a,
+[data-test-page="resources"] [data-section-id="resources-cta-heading"] a {
+  margin-left: 0;
+  background: #fff;
+  color: #0f172a;
+  border-color: #fff;
+}
+
+[data-test-page="customers"] [data-section-id="halcyon-heading"],
+[data-test-page="customers"] [data-section-id="arbor-heading"],
+[data-test-page="customers"] [data-section-id="verdant-heading"] {
+  min-height: 285px;
+  background: #f8fafc;
+}
+[data-test-page="customers"] [data-block-id$="-metric"] {
+  margin-top: 22px;
+  padding-top: 16px;
+  border-top: 1px solid #dbe4ee;
+  color: #0f172a;
+  font-weight: 800;
+}
+[data-test-page="customers"] [data-section-id="customer-quote-heading"] {
+  grid-column: span 2;
+  padding: 42px;
+  background: linear-gradient(135deg, #eff6ff, #f8fafc);
+}
+[data-test-page="customers"] [data-section-id="customer-quote-heading"] h2 {
+  font-size: clamp(28px, 3vw, 40px);
+}
+
+[data-test-page="integrations"] .site-content-grid {
+  grid-template-columns: repeat(2, minmax(0,1fr));
+}
+[data-test-page="integrations"] .content-card h2 { font-size: 27px; }
+
+[data-test-page="security"] .site-content-grid {
+  grid-template-columns: repeat(2, minmax(0,1fr));
+}
+[data-test-page="security"] .content-card {
+  min-height: 235px;
+  background:
+    linear-gradient(180deg, rgba(248,250,252,.88), rgba(255,255,255,.98));
+}
+[data-test-page="security"] .content-card::before {
+  content: "✓";
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  margin-bottom: 24px;
+  border-radius: 999px;
+  background: #dcfce7;
+  color: #166534;
+  font-weight: 900;
+}
+
+[data-test-page="resources"] .content-card {
+  min-height: 250px;
+  display: flex;
+  flex-direction: column;
+}
+[data-test-page="resources"] .content-card::before {
+  content: "GUIDE";
+  width: fit-content;
+  margin-bottom: 20px;
+  padding: 6px 9px;
+  border-radius: 999px;
+  background: #f1f5f9;
+  color: #475569;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: .09em;
+}
+[data-test-page="resources"] [data-section-id="resource-benchmark-heading"]::before { content: "BENCHMARK"; }
+[data-test-page="resources"] [data-section-id="resource-checklist-heading"]::before { content: "CHECKLIST"; }
+[data-test-page="resources"] [data-section-id="resource-revops-heading"]::before { content: "REVOPS"; }
+[data-test-page="resources"] [data-section-id="resource-privacy-heading"]::before { content: "PRIVACY"; }
+
 /* Pricing */
 [data-test-page="pricing"] .page-hero { padding-bottom: 0; }
 [data-test-page="pricing"] .page-hero > h1 { max-width: 820px; font-size: clamp(44px, 6vw, 70px); }
@@ -894,8 +1026,9 @@ form[data-test="lead-form"] button[type="submit"] {
 
 @media (max-width: 980px) {
   .site-nav { gap: 16px; }
-  .site-nav a[href="/#proof-heading"],
-  .site-nav a[href="/#capabilities-heading"] { display: none; }
+  .site-nav a[href="/customers"],
+  .site-nav a[href="/integrations"],
+  .site-nav a[href="/resources"] { display: none; }
   .site-content-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
   [data-test-page="home"] [data-section-id="trust-heading"],
   [data-test-page="home"] [data-section-id="capabilities-heading"],
