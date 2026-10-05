@@ -253,6 +253,7 @@ const CONTROL_PLANE_HTML = `<!doctype html>
     let currentDemoId = localStorage.getItem("testy.currentDemoId") || "";
     let currentDemo;
     let demoPollTimer;
+    let demoSelectorsSessionId = "";
 
     function escapeHtml(value) {
       return String(value ?? "")
@@ -301,8 +302,9 @@ const CONTROL_PLANE_HTML = `<!doctype html>
       }
     }
 
-    function renderDemoSelectors() {
+    function renderDemoSelectors(force) {
       if (!demoProfiles) return;
+      if (!force && currentDemo?.id && demoSelectorsSessionId === currentDemo.id) return;
       const network = document.getElementById("demoNetwork");
       const browser = document.getElementById("demoBrowser");
       network.innerHTML = demoProfiles.networks.map(function (item) {
@@ -313,6 +315,7 @@ const CONTROL_PLANE_HTML = `<!doctype html>
       }).join("");
       network.value = currentDemo?.networkIdentityId || demoProfiles.defaults.networkId;
       browser.value = currentDemo?.browserIdentityId || demoProfiles.defaults.browserId;
+      demoSelectorsSessionId = currentDemo?.id || "";
       renderDemoPeople();
     }
 
@@ -327,8 +330,11 @@ const CONTROL_PLANE_HTML = `<!doctype html>
       select.innerHTML = '<option value="">Anonymous / none</option>' + people.map(function (person) {
         return '<option value="' + escapeHtml(person.id) + '">' + escapeHtml(person.displayName) + '</option>';
       }).join("");
-      const desired = currentDemo?.personIdentityId || demoProfiles.defaults.personId;
-      select.value = people.some(function (person) { return person.id === desired; }) ? desired : "";
+      const currentSelected = select.value;
+      const desired = currentSelected || currentDemo?.personIdentityId || demoProfiles.defaults.personId;
+      select.value = people.some(function (person) { return person.id === desired; })
+        ? desired
+        : (people[0]?.id || "");
       updateDemoIdentitySummary();
     }
 
@@ -360,7 +366,7 @@ const CONTROL_PLANE_HTML = `<!doctype html>
         currentDemoId = currentDemo.id;
         localStorage.setItem("testy.currentDemoId", currentDemoId);
         renderDemoSession();
-        renderDemoSelectors();
+        renderDemoSelectors(true);
         await refreshDemoActivity();
         scheduleDemoPoll();
       } catch (error) {
@@ -411,7 +417,7 @@ const CONTROL_PLANE_HTML = `<!doctype html>
       document.getElementById("refreshDemoResult").hidden = !active;
       document.getElementById("startDemo").hidden = !!currentDemo && currentDemo.status !== "STOPPED" && currentDemo.status !== "FAILED";
       document.getElementById("demoGlEyeService").textContent = glEyeReady ? "Connected" : "Not ready";
-      if (demoProfiles && active) renderDemoSelectors();
+      if (demoProfiles && active) renderDemoSelectors(false);
       if (currentDemo?.errorMessage) showDemoError(currentDemo.errorMessage);
     }
 
@@ -429,6 +435,7 @@ const CONTROL_PLANE_HTML = `<!doctype html>
           }),
         });
         renderDemoSession();
+        renderDemoSelectors(true);
         await refreshDemoActivity();
       } catch (error) {
         showDemoError("Unable to apply visitor: " + error.message);
@@ -440,6 +447,7 @@ const CONTROL_PLANE_HTML = `<!doctype html>
       try {
         currentDemo = await requestJson("/v1/demo-sessions/" + encodeURIComponent(currentDemoId) + "/reset-visitor", { method: "POST" });
         renderDemoSession();
+        renderDemoSelectors(true);
         await refreshDemoActivity();
       } catch (error) {
         showDemoError("Unable to reset visitor: " + error.message);
@@ -736,7 +744,10 @@ const CONTROL_PLANE_HTML = `<!doctype html>
     document.getElementById("resetDemoVisitor").addEventListener("click", function () { void resetInteractiveVisitor(); });
     document.getElementById("stopDemo").addEventListener("click", function () { void stopInteractiveDemo(); });
     document.getElementById("refreshDemoResult").addEventListener("click", function () { void refreshDemoOutcome(true); });
-    document.getElementById("demoNetwork").addEventListener("change", renderDemoPeople);
+    document.getElementById("demoNetwork").addEventListener("change", function () {
+      renderDemoPeople();
+      updateDemoIdentitySummary();
+    });
     document.getElementById("demoPerson").addEventListener("change", updateDemoIdentitySummary);
     document.getElementById("demoBrowser").addEventListener("change", updateDemoIdentitySummary);
 
