@@ -21,6 +21,10 @@ describe("synthetic site host", () => {
       const html = await home.text();
       expect(html).toContain('data-test="hero-heading"');
       expect(html).toContain("Northstar Cloud");
+      expect(html).toContain('class="hero-product-preview"');
+      expect(html).toContain('class="site-content-grid"');
+      expect(html).toContain('data-section-id="metric-pipeline-heading"');
+      expect(html).toContain("Nordlicht");
       expect(binding.hostname).toBe("run-123.customer-alpha.test");
 
       const form = await fetch(`${binding.localOrigin}/contact/submit`, {
