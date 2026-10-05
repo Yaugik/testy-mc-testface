@@ -1,6 +1,6 @@
 import { resolve } from "node:path";
 
-import type { RunId } from "@testy/shared-types";
+import type { ResourceLease, RunId } from "@testy/shared-types";
 import type {
   ScenarioActionRegistry,
   ScenarioRunRepository,
@@ -73,15 +73,42 @@ describe("interactive demo service", () => {
     } as unknown as DemoSessionRepository;
 
     const timeline: unknown[] = [];
+    const resourceLeases = new Map<
+      string,
+      ResourceLease & { status: "ACTIVE" | "RELEASED"; releasedAt?: string }
+    >();
     const evidence = {
       async appendTimeline(record: unknown) {
         timeline.push(record);
       },
-      async createResourceLease() {},
-      async listActiveResourceLeases() {
-        return [];
+      async createResourceLease(lease: ResourceLease) {
+        const duplicate = [...resourceLeases.values()].some(
+          (candidate) =>
+            candidate.status === "ACTIVE" &&
+            candidate.resourceType === lease.resourceType &&
+            candidate.resourceKey === lease.resourceKey,
+        );
+        if (duplicate) {
+          throw new Error(
+            'duplicate key value violates unique constraint "resource_leases_active_key_idx"',
+          );
+        }
+        resourceLeases.set(lease.leaseId, { ...lease, status: "ACTIVE" });
       },
-      async releaseResourceLease() {},
+      async listActiveResourceLeases(runId: RunId) {
+        return [...resourceLeases.values()].filter(
+          (lease) => lease.runId === runId && lease.status === "ACTIVE",
+        );
+      },
+      async releaseResourceLease(leaseId: string, releasedAt: string) {
+        const lease = resourceLeases.get(leaseId);
+        if (!lease || lease.status !== "ACTIVE") return;
+        resourceLeases.set(leaseId, {
+          ...lease,
+          status: "RELEASED",
+          releasedAt,
+        });
+      },
       async listTimeline() {
         return [];
       },
@@ -109,13 +136,21 @@ describe("interactive demo service", () => {
           providerBaseUrl: `http://${vendorId}.test/${vendorId}`,
         };
       },
-      "target.prepare-run": async () => ({
-        targetRunId: "target-run-1",
-        tenantId: "tenant-1",
-        siteId: "site-1",
-        trackingScriptUrl: "http://gl-eye.test/sdk/track.v1.min.js",
-        targetOrigin: "http://gl-eye.test",
-      }),
+      "target.prepare-run": async (_input, context) => {
+        await context.registerResourceLease(
+          "target-run",
+          "target-run-1",
+          new Date(Date.now() + 60_000).toISOString(),
+          async () => undefined,
+        );
+        return {
+          targetRunId: "target-run-1",
+          tenantId: "tenant-1",
+          siteId: "site-1",
+          trackingScriptUrl: "http://gl-eye.test/sdk/track.v1.min.js",
+          targetOrigin: "http://gl-eye.test",
+        };
+      },
       "gateway.create-route": async () => ({
         routeId: `route-${++route}`,
       }),
@@ -234,6 +269,12 @@ describe("interactive demo service", () => {
       await restarted.localWebsiteOriginForHost(created.websiteHostname),
     ).toBe("http://127.0.0.1:43123");
     expect(targetCleanupCalls).toBe(0);
+    expect(
+      [...resourceLeases.values()].filter(
+        (lease) =>
+          lease.resourceType === "target-run" && lease.status === "ACTIVE",
+      ),
+    ).toHaveLength(1);
 
     const stopped = await restarted.stop(created.id);
     expect(stopped?.status).toBe("STOPPED");
