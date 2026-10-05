@@ -28,9 +28,7 @@ function renderPage(
   variables: Readonly<Record<string, string>>,
 ): string {
   const title = interpolate(page.title, variables);
-  const content = page.blocks
-    .map((block) => renderBlock(block, variables))
-    .join("\n");
+  const content = renderPageBlocks(page.blocks, variables);
   const consent = site.consent ? renderConsent(site.consent, variables) : "";
   const trackingEndpoint = site.tracking?.enabled
     ? site.tracking.endpoint ?? "/__testy/events"
@@ -71,6 +69,73 @@ function renderPage(
 </html>`;
 }
 
+function renderPageBlocks(
+  blocks: readonly SiteBlockDefinition[],
+  variables: Readonly<Record<string, string>>,
+): string {
+  if (blocks.length === 0) return "";
+
+  const bodyStart = blocks.findIndex(
+    (block, index) =>
+      index > 0 &&
+      ((block.type === "heading" && block.level >= 2) || block.type === "form"),
+  );
+  const heroEnd = bodyStart === -1 ? blocks.length : bodyStart;
+  const hero = blocks.slice(0, heroEnd);
+  const body = blocks.slice(heroEnd);
+
+  const heroHtml =
+    hero.length > 0
+      ? `<section class="page-hero">${hero
+          .map((block) => renderBlock(block, variables))
+          .join("\n")}</section>`
+      : "";
+
+  const groups: string[] = [];
+  for (let index = 0; index < body.length; ) {
+    const block = body[index];
+    if (!block) break;
+
+    if (block.type === "heading" && block.level >= 2) {
+      const sectionBlocks: SiteBlockDefinition[] = [block];
+      index += 1;
+      while (index < body.length) {
+        const next = body[index];
+        if (
+          !next ||
+          next.type === "form" ||
+          (next.type === "heading" && next.level >= 2)
+        ) {
+          break;
+        }
+        sectionBlocks.push(next);
+        index += 1;
+      }
+      groups.push(
+        `<section class="content-card" data-section-id="${escapeAttribute(block.id)}">${sectionBlocks
+          .map((item) => renderBlock(item, variables))
+          .join("\n")}</section>`,
+      );
+      continue;
+    }
+
+    if (block.type === "form") {
+      groups.push(
+        `<section class="form-panel" data-section-id="${escapeAttribute(block.id)}">${renderBlock(block, variables)}</section>`,
+      );
+      index += 1;
+      continue;
+    }
+
+    groups.push(
+      `<section class="content-card content-card--standalone" data-section-id="${escapeAttribute(block.id)}">${renderBlock(block, variables)}</section>`,
+    );
+    index += 1;
+  }
+
+  return `${heroHtml}${groups.length > 0 ? `<div class="site-content-grid">${groups.join("\n")}</div>` : ""}`;
+}
+
 function renderBlock(
   block: SiteBlockDefinition,
   variables: Readonly<Record<string, string>>,
@@ -78,6 +143,7 @@ function renderBlock(
   const testId = block.testId
     ? ` data-test="${escapeAttribute(block.testId)}"`
     : "";
+  const blockAttrs = ` id="${escapeAttribute(block.id)}" data-block-id="${escapeAttribute(block.id)}"${testId}`;
   switch (block.type) {
     case "heading":
       return `<h${block.level}${testId}>${escapeHtml(interpolate(block.text, variables))}</h${block.level}>`;
@@ -88,17 +154,17 @@ function renderBlock(
     case "button":
       return `<button type="button"${testId}${block.event ? ` data-test-event="${escapeAttribute(block.event)}"` : ""}>${escapeHtml(interpolate(block.text, variables))}</button>`;
     case "form":
-      return renderForm(block, variables, testId);
+      return renderForm(block, variables, blockAttrs);
   }
 }
 
 function renderForm(
   form: FormBlock,
   variables: Readonly<Record<string, string>>,
-  testId: string,
+  blockAttrs: string,
 ): string {
   const fields = form.fields.map((field) => renderField(field, variables)).join("\n");
-  return `<form${testId} method="${form.method}" action="${escapeAttribute(interpolate(form.action, variables))}"${form.successPath ? ` data-test-success-path="${escapeAttribute(form.successPath)}"` : ""}>
+  return `<form${blockAttrs} method="${form.method}" action="${escapeAttribute(interpolate(form.action, variables))}"${form.successPath ? ` data-test-success-path="${escapeAttribute(form.successPath)}"` : ""}>
 ${fields}
 <button type="submit" data-test="${escapeAttribute(form.submit.testId)}">${escapeHtml(interpolate(form.submit.text, variables))}</button>
 </form>`;
