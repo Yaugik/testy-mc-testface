@@ -25,6 +25,26 @@ describe("synthetic site host", () => {
       expect(html).toContain('class="site-content-grid"');
       expect(html).toContain('data-section-id="metric-pipeline-heading"');
       expect(html).toContain("Halcyon Systems");
+
+      const solutions = await fetch(`${binding.localOrigin}/solutions`);
+      expect(solutions.status).toBe(200);
+      expect(await solutions.text()).toContain('data-test="solutions-heading"');
+
+      const customers = await fetch(`${binding.localOrigin}/customers`);
+      expect(customers.status).toBe(200);
+      expect(await customers.text()).toContain("Verdant Networks");
+
+      const integrations = await fetch(`${binding.localOrigin}/integrations`);
+      expect(integrations.status).toBe(200);
+
+      const security = await fetch(`${binding.localOrigin}/security`);
+      expect(security.status).toBe(200);
+      expect(await security.text()).toContain('data-test="security-heading"');
+
+      const resources = await fetch(`${binding.localOrigin}/resources`);
+      expect(resources.status).toBe(200);
+      expect(await resources.text()).toContain("anonymous traffic to account action");
+
       expect(binding.hostname).toBe("run-123.customer-alpha.test");
 
       const form = await fetch(`${binding.localOrigin}/contact/submit`, {
