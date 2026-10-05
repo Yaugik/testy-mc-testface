@@ -49,6 +49,7 @@ try {
         unavailableState: "unavailable",
         healthyState: "healthy",
         requestsBeforeRecovery: 3,
+        expectedHealthyBodyIncludes: "Nordlicht Example GmbH",
       },
     },
     {
