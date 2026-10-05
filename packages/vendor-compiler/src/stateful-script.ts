@@ -401,7 +401,7 @@ var correlationId =
   context.request.normalisedHeaders["x-testy-correlation-id"] ||
   "none";
 
-logger.info(
+console.log(
   "TESTY_STATE vendor=" + plan.vendorId +
   " operation=" + plan.operationId +
   " case=" + plan.caseId +
