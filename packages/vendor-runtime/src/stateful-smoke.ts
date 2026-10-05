@@ -23,6 +23,7 @@ export interface StatefulRuntimeSmokeFixture {
     readonly unavailableState: string;
     readonly healthyState: string;
     readonly requestsBeforeRecovery: number;
+    readonly expectedHealthyBodyIncludes?: string;
   };
 }
 
@@ -57,6 +58,7 @@ export interface StatefulRuntimeSmokeReport {
 interface RequestResult {
   readonly correlationId: string;
   readonly statusCode?: number;
+  readonly bodyText?: string;
   readonly transportError?: string;
 }
 
@@ -198,6 +200,21 @@ export async function runStatefulRuntimeSmoke(
   );
   expectedCorrelations.add(healthyResult.correlationId);
   checks.push(statusCheck("state-healthy-response", 200, healthyResult));
+  if (fixture.stateTransition.expectedHealthyBodyIncludes !== undefined) {
+    const expected = fixture.stateTransition.expectedHealthyBodyIncludes;
+    const passed = healthyResult.bodyText?.includes(expected) === true;
+    checks.push({
+      id: "state-healthy-response-body",
+      passed,
+      message: passed
+        ? `Healthy response body contains '${expected}'.`
+        : `Healthy response body did not contain '${expected}'.`,
+      correlationId: healthyResult.correlationId,
+      ...(healthyResult.statusCode !== undefined
+        ? { statusCode: healthyResult.statusCode }
+        : {}),
+    });
+  }
 
   const finalState = await runtime.stateSnapshot();
   const ledger = await runtime.collectLedger();
@@ -248,8 +265,8 @@ async function requestProvider(
         signal: controller.signal,
       },
     );
-    await response.arrayBuffer();
-    return { correlationId, statusCode: response.status };
+    const bodyText = await response.text();
+    return { correlationId, statusCode: response.status, bodyText };
   } catch (error) {
     return {
       correlationId,
