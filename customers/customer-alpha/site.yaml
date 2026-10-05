@@ -1,59 +1,113 @@
 schemaVersion: "1.0"
 site:
   id: alpha-marketing-site
-  displayName: Customer Alpha Marketing Site
+  displayName: Northstar Cloud
   hostname: customer-alpha.test
 variables:
-  companyName: Nordlicht Example GmbH
+  brandName: Northstar Cloud
 tracking:
   enabled: true
   endpoint: /__testy/events
 consent:
   id: analytics-consent
-  text: Allow synthetic analytics for this test session?
+  text: We use analytics cookies to understand how visitors use Northstar Cloud.
   storage: cookie
   key: testy_consent
-  acceptText: Accept
-  rejectText: Reject
+  acceptText: Accept analytics
+  rejectText: Not now
   acceptTestId: accept-consent
   rejectTestId: reject-consent
 pages:
   - id: home
     path: /
-    title: Customer Alpha
+    title: Northstar Cloud — Turn product interest into pipeline
     blocks:
       - id: hero-heading
         type: heading
         level: 1
-        text: Welcome to Customer Alpha
+        text: Turn website interest into your next best conversation.
         testId: hero-heading
-      - id: company-message
+      - id: hero-copy
         type: text
-        text: A deterministic experience for {{companyName}}.
-        testId: company-message
+        text: Northstar Cloud helps B2B revenue teams understand which companies are researching, what they care about, and when to reach out.
+        testId: hero-copy
       - id: pricing-link
         type: link
-        text: View pricing
+        text: See pricing
         href: /pricing
         testId: pricing-link
       - id: contact-link
         type: link
-        text: Contact sales
+        text: Book a demo
         href: /contact
         testId: contact-link
+      - id: trust-heading
+        type: heading
+        level: 2
+        text: Built for modern revenue teams
+        testId: trust-heading
+      - id: trust-copy
+        type: text
+        text: Identify high-intent accounts, prioritize the right signals, and give sales context they can act on without stitching together another dashboard.
+        testId: trust-copy
+      - id: intelligence-heading
+        type: heading
+        level: 2
+        text: Account intelligence that arrives with context
+        testId: intelligence-heading
+      - id: intelligence-copy
+        type: text
+        text: See visits, intent, company confidence, enrichment, and buying signals together so your team can move from anonymous traffic to informed outreach.
+        testId: intelligence-copy
+      - id: workflow-heading
+        type: heading
+        level: 2
+        text: From first visit to sales-ready
+        testId: workflow-heading
+      - id: workflow-copy
+        type: text
+        text: Connect web behavior with account data, route qualified opportunities, and keep your team focused on the companies most likely to engage.
+        testId: workflow-copy
   - id: pricing
     path: /pricing
-    title: Pricing
+    title: Pricing — Northstar Cloud
     blocks:
       - id: pricing-heading
         type: heading
         level: 1
         text: Pricing
         testId: pricing-heading
-      - id: enterprise-copy
+      - id: pricing-intro
         type: text
-        text: Enterprise plans are available for synthetic customers.
-        testId: enterprise-copy
+        text: Start with the account intelligence your team needs today and expand as your pipeline grows.
+        testId: pricing-intro
+      - id: starter-heading
+        type: heading
+        level: 2
+        text: Starter
+        testId: starter-heading
+      - id: starter-copy
+        type: text
+        text: For focused teams getting started with company identification and intent signals.
+        testId: starter-copy
+      - id: growth-heading
+        type: heading
+        level: 2
+        text: Growth
+        testId: growth-heading
+      - id: growth-copy
+        type: text
+        text: For revenue teams that need enrichment, scoring, workflows, exports, and more identified accounts.
+        testId: growth-copy
+      - id: scale-heading
+        type: heading
+        level: 2
+        text: Scale
+        testId: scale-heading
+      - id: scale-copy
+        type: text
+        text: For larger teams that need advanced controls, higher limits, and tailored implementation support.
+        testId: scale-copy
       - id: pricing-contact-link
         type: link
         text: Talk to sales
@@ -61,13 +115,17 @@ pages:
         testId: pricing-contact-link
   - id: contact
     path: /contact
-    title: Contact sales
+    title: Book a demo — Northstar Cloud
     blocks:
       - id: contact-heading
         type: heading
         level: 1
-        text: Contact sales
+        text: See Northstar Cloud with your own go-to-market motion.
         testId: contact-heading
+      - id: contact-copy
+        type: text
+        text: Tell us a little about your team. We’ll show how company identification, intent, enrichment, and routing can fit into your workflow.
+        testId: contact-copy
       - id: lead-form
         type: form
         method: POST
@@ -79,7 +137,7 @@ pages:
             type: email
             name: work_email
             label: Work email
-            placeholder: qa@example.test
+            placeholder: you@company.com
             testId: work-email
             required: true
           - id: company-size
@@ -91,30 +149,35 @@ pages:
             value: medium
             options:
               - value: small
-                label: 1-49
+                label: 1–49 employees
               - value: medium
-                label: 50-249
+                label: 50–249 employees
               - value: large
-                label: 250+
+                label: 250+ employees
           - id: product-updates
             type: checkbox
             name: product_updates
-            label: Receive synthetic product updates
+            label: Send me practical product and revenue-intelligence updates
             testId: product-updates
             value: "yes"
         submit:
-          text: Submit
+          text: Book my demo
           testId: submit-lead
   - id: thanks
     path: /thanks
-    title: Thank you
+    title: Thank you — Northstar Cloud
     blocks:
       - id: thanks-heading
         type: heading
         level: 1
-        text: Thank you
+        text: You’re all set.
         testId: thanks-heading
       - id: thanks-copy
         type: text
-        text: Your synthetic request was received.
+        text: Thanks for reaching out. Our team will follow up with a tailored Northstar Cloud walkthrough.
         testId: thanks-copy
+      - id: thanks-home
+        type: link
+        text: Back to home
+        href: /
+        testId: thanks-home
