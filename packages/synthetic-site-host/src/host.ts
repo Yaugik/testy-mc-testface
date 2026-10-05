@@ -203,7 +203,7 @@ async function handleRequest(
   response.setHeader("x-content-type-options", "nosniff");
   response.setHeader(
     "content-security-policy",
-    "default-src 'self'; script-src 'unsafe-inline'; style-src 'self'; connect-src 'self'; form-action 'self'; base-uri 'none'",
+    "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self'; connect-src 'self'; form-action 'self'; base-uri 'none'",
   );
   response.end(injectManualTracking(page.html, manualTracking()));
 }
