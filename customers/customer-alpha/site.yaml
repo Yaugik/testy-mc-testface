@@ -289,7 +289,7 @@ pages:
         testId: halcyon-copy
       - id: halcyon-metric
         type: text
-        text: Outcome: 28% faster first-touch on high-intent accounts.
+        text: "Outcome: 28% faster first-touch on high-intent accounts."
         testId: halcyon-metric
 
       - id: arbor-heading
@@ -303,7 +303,7 @@ pages:
         testId: arbor-copy
       - id: arbor-metric
         type: text
-        text: Outcome: 36% fewer low-context outbound sequences.
+        text: "Outcome: 36% fewer low-context outbound sequences."
         testId: arbor-metric
 
       - id: verdant-heading
@@ -317,7 +317,7 @@ pages:
         testId: verdant-copy
       - id: verdant-metric
         type: text
-        text: Outcome: 41% less manual account triage for RevOps.
+        text: "Outcome: 41% less manual account triage for RevOps."
         testId: verdant-metric
 
       - id: customer-quote-heading
@@ -530,7 +530,7 @@ pages:
       - id: resource-playbook-heading
         type: heading
         level: 2
-        text: Playbook: From anonymous traffic to account action
+        text: "Playbook: From anonymous traffic to account action"
         testId: resource-playbook-heading
       - id: resource-playbook-copy
         type: text
@@ -540,7 +540,7 @@ pages:
       - id: resource-benchmark-heading
         type: heading
         level: 2
-        text: Benchmark: What high-intent research looks like
+        text: "Benchmark: What high-intent research looks like"
         testId: resource-benchmark-heading
       - id: resource-benchmark-copy
         type: text
@@ -550,7 +550,7 @@ pages:
       - id: resource-revops-heading
         type: heading
         level: 2
-        text: RevOps guide: Designing useful routing rules
+        text: "RevOps guide: Designing useful routing rules"
         testId: resource-revops-heading
       - id: resource-revops-copy
         type: text
@@ -560,7 +560,7 @@ pages:
       - id: resource-privacy-heading
         type: heading
         level: 2
-        text: Guide: Privacy-aware account intelligence
+        text: "Guide: Privacy-aware account intelligence"
         testId: resource-privacy-heading
       - id: resource-privacy-copy
         type: text
@@ -570,7 +570,7 @@ pages:
       - id: resource-checklist-heading
         type: heading
         level: 2
-        text: Checklist: Is your website ready for account intelligence?
+        text: "Checklist: Is your website ready for account intelligence?"
         testId: resource-checklist-heading
       - id: resource-checklist-copy
         type: text
