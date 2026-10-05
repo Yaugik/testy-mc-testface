@@ -54,10 +54,11 @@ function renderPage(
     </a>
     <nav class="site-nav" aria-label="Primary navigation">
       <a href="/">Platform</a>
-      <a href="/#capabilities-heading">Solutions</a>
-      <a href="/#proof-heading">Customers</a>
+      <a href="/solutions">Solutions</a>
+      <a href="/customers">Customers</a>
+      <a href="/integrations">Integrations</a>
+      <a href="/resources">Resources</a>
       <a href="/pricing">Pricing</a>
-      <a href="/contact">Contact</a>
       <a class="site-nav-cta" href="/contact">Book a demo</a>
     </nav>
   </header>
@@ -73,12 +74,14 @@ function renderPage(
     <div class="footer-column">
       <strong>Product</strong>
       <a href="/">Platform</a>
-      <a href="/#intelligence-heading">Account intelligence</a>
-      <a href="/#routing-heading">Routing</a>
+      <a href="/solutions">Solutions</a>
+      <a href="/integrations">Integrations</a>
+      <a href="/security">Security</a>
     </div>
     <div class="footer-column">
-      <strong>Company</strong>
-      <a href="/#proof-heading">Customers</a>
+      <strong>Explore</strong>
+      <a href="/customers">Customers</a>
+      <a href="/resources">Resources</a>
       <a href="/pricing">Pricing</a>
       <a href="/contact">Contact</a>
     </div>
