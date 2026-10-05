@@ -64,6 +64,12 @@ describe("compileVendorBundle", () => {
     expect(corporateScript?.content.toString("utf8")).toContain(
       "Nordlicht Example GmbH",
     );
+    expect(corporateScript?.content.toString("utf8")).toContain(
+      'requestHeader("X-Testy-Correlation-ID")',
+    );
+    expect(corporateScript?.content.toString("utf8")).not.toContain(
+      "normalisedHeaders",
+    );
     expect(corporate).not.toHaveProperty("response.scriptFile");
 
     const recoveryScript = first.files.find(
