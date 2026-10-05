@@ -66,6 +66,12 @@ export function compileVendorBundle(
   const initialStateDefinition = loaded.systemCasesFile.value.states[
     loaded.systemCasesFile.value.initialState
   ] as SystemStateDefinition;
+  const responseContents = Object.fromEntries(
+    loaded.assets.map((asset) => [
+      asset.reference,
+      asset.content.toString("utf8"),
+    ]),
+  );
   const stateful = requiresStatefulExecution(loaded.executionModel);
   const stores = stateful
     ? createStatefulStoreLayout(loaded.executionModel, options.runNamespace)
@@ -104,6 +110,7 @@ export function compileVendorBundle(
         initialStateDefinition,
         stateful,
         stores,
+        responseContents,
         issues,
       );
       resources.push(compiled.resource);
@@ -130,7 +137,11 @@ export function compileVendorBundle(
   }
 
   const fallbackScript = stateful
-    ? createFallbackScript(loaded, stores as StatefulStoreLayout)
+    ? createFallbackScript(
+        loaded,
+        stores as StatefulStoreLayout,
+        responseContents,
+      )
     : undefined;
   if (fallbackScript) {
     generatedScripts.push(fallbackScript);
@@ -324,6 +335,7 @@ function compileCaseResource(
   initialState: SystemStateDefinition,
   stateful: boolean,
   stores: StatefulStoreLayout | undefined,
+  responseContents: Readonly<Record<string, string>>,
   issues: CompilationIssue[],
 ): CompiledResource {
   const context = { operationId, caseId: operationCase.id };
@@ -347,6 +359,7 @@ function compileCaseResource(
         transitions: loaded.systemCasesFile.value.transitions ?? [],
         operationCase,
         stores,
+        responseContents,
       }),
       "utf8",
     );
@@ -388,6 +401,7 @@ function compileCaseResource(
 function createFallbackScript(
   loaded: LoadedVendorPackage,
   stores: StatefulStoreLayout,
+  responseContents: Readonly<Record<string, string>>,
 ): GeneratedBundleFile {
   const operationCase: OperationCaseDefinition = {
     id: "unmatched-request",
@@ -408,6 +422,7 @@ function createFallbackScript(
         transitions: loaded.systemCasesFile.value.transitions ?? [],
         operationCase,
         stores,
+        responseContents,
       }),
       "utf8",
     ),
