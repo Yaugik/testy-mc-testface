@@ -51,13 +51,13 @@ export interface ObservationResult {
   readonly detailsFingerprint?: string;
 }
 
-export interface TargetCompanyOutcome {
+export type TargetCompanyOutcome = Readonly<Record<string, string | number>> & {
   readonly domain: string;
   readonly displayName: string;
   readonly score: number;
   readonly confidence: string;
   readonly visibility: string;
-}
+};
 
 export interface TargetOutcome {
   readonly targetRunId: string;
