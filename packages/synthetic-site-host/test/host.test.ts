@@ -53,6 +53,7 @@ describe("synthetic site host", () => {
       expect(product.status).toBe(200);
       const productHtml = await product.text();
       expect(productHtml).toContain('data-test="product-heading"');
+      expect(productHtml).toContain('class="product-page-preview"');
       expect(productHtml).toContain("/product/account-identification");
       expect(productHtml).toContain("/product/intent-signals");
 
