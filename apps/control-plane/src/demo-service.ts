@@ -510,11 +510,22 @@ export class InteractiveDemoService {
     const oldLeases = await this.evidence.listActiveResourceLeases(
       session.runId,
     );
-    const oldTargetLeaseIds = oldLeases
-      .filter((lease) => lease.resourceType === "target-run")
-      .map((lease) => lease.leaseId);
+    const oldTargetLeases = oldLeases.filter(
+      (lease) => lease.resourceType === "target-run",
+    );
 
     await this.cleanupRecoverableResources(oldLeases);
+
+    // Preserve the external GL-EYE target run across Control Plane restarts, but
+    // release its persisted lease before prepare-run registers the same target
+    // resource again. Keeping the old lease ACTIVE would violate the global
+    // active (resource_type, resource_key) uniqueness constraint.
+    for (const lease of oldTargetLeases) {
+      await this.evidence.releaseResourceLease(
+        lease.leaseId,
+        new Date().toISOString(),
+      );
+    }
 
     const runtime: DemoRuntime = {
       controller: new AbortController(),
@@ -542,13 +553,6 @@ export class InteractiveDemoService {
     const targetRunId = readString(prepared, "targetRunId");
     const tenantId = readString(prepared, "tenantId");
     const siteId = readString(prepared, "siteId");
-
-    for (const leaseId of oldTargetLeaseIds) {
-      await this.evidence.releaseResourceLease(
-        leaseId,
-        new Date().toISOString(),
-      );
-    }
 
     for (const vendorId of ["ipinfo", "apollo", "hunter"] as const) {
       const compiled = await this.invoke(
