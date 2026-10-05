@@ -242,7 +242,14 @@ export function createBrowserActions(
     "browser.collect-site-events": async (_input, context) => {
       const events = requireSite(stateFor(context)).events();
       const counts = Object.fromEntries(
-        ["page-view", "button", "consent", "form-submit"].map((type) => [
+        [
+          "page-view",
+          "button",
+          "consent",
+          "form-submit",
+          "sdk-load",
+          "tracking-forward",
+        ].map((type) => [
           type,
           events.filter((event) => event.type === type).length,
         ]),
@@ -266,6 +273,9 @@ export function createBrowserActions(
             ...(event.bodyFingerprint
               ? { bodyFingerprint: event.bodyFingerprint }
               : {}),
+            ...(event.statusCode === undefined
+              ? {}
+              : { statusCode: event.statusCode }),
           })),
           forms: events
             .filter((event) => event.type === "form-submit")
@@ -289,6 +299,9 @@ export function createBrowserActions(
           ...(event.pageId ? { pageId: event.pageId } : {}),
           ...(event.event ? { event: event.event } : {}),
           ...(event.formId ? { formId: event.formId } : {}),
+          ...(event.statusCode === undefined
+            ? {}
+            : { statusCode: event.statusCode }),
         })),
       };
     },
