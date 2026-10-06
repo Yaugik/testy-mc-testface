@@ -1,10 +1,10 @@
 {
   "ip": "198.51.100.30",
-  "company": null,
-  "privacy": {
-    "vpn": true,
-    "proxy": false,
-    "hosting": false
-  },
-  "classification": "vpn"
+  "asn": "AS64520",
+  "as_name": "Synthetic VPN Network",
+  "as_domain": "",
+  "country_code": "NL",
+  "country": "Netherlands",
+  "continent_code": "EU",
+  "continent": "Europe"
 }
