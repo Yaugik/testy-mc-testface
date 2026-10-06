@@ -933,6 +933,7 @@ export class InteractiveDemoService {
           errors.push(error instanceof Error ? error.message : String(error));
         }
       }
+      runtime.controller.abort(new Error("Interactive Demo session cleanup."));
       this.runtimes.delete(session.id);
     }
     return errors;
@@ -1096,6 +1097,7 @@ async function demoDelay(
     };
 
     timer = setTimeout(finish, milliseconds);
+    (timer as ReturnType<typeof setTimeout> & { unref?: () => void }).unref?.();
     signal.addEventListener("abort", finish, { once: true });
   });
 }
