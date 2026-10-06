@@ -225,6 +225,19 @@ components:
         scenarioId: { type: string }
         target: { type: string }
         environment: { type: string, enum: [local, test, testing, qa] }
+        demoSessionId:
+          type: string
+          format: uuid
+          description: Unique Interactive Demo session identifier. Only valid for interactive-demo runs.
+        demoCredential:
+          type: object
+          additionalProperties: false
+          description: Login to provision into the session workspace. Only valid for interactive-demo runs.
+          required: [mode, email, password]
+          properties:
+            mode: { type: string, enum: [shared, generated] }
+            email: { type: string, format: email }
+            password: { type: string, minLength: 12, writeOnly: true }
         mutations:
           type: object
           additionalProperties: false
