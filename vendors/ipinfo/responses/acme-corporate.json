@@ -1,10 +1,27 @@
 {
   "ip": "198.51.100.11",
-  "asn": "AS64502",
-  "as_name": "Acme Synthetic Ltd",
-  "as_domain": "acme-synthetic.test",
-  "country_code": "GB",
-  "country": "United Kingdom",
-  "continent_code": "EU",
-  "continent": "Europe"
+  "geo": {
+    "city": "London",
+    "region": "England",
+    "region_code": "ENG",
+    "country": "United Kingdom",
+    "country_code": "GB",
+    "continent": "Europe",
+    "continent_code": "EU",
+    "latitude": 51.5074,
+    "longitude": -0.1278,
+    "timezone": "Europe/London",
+    "postal_code": "EC1A"
+  },
+  "as": {
+    "asn": "AS64502",
+    "name": "Acme Synthetic Ltd",
+    "domain": "acme-synthetic.test",
+    "type": "business"
+  },
+  "is_anonymous": false,
+  "is_anycast": false,
+  "is_hosting": false,
+  "is_mobile": false,
+  "is_satellite": false
 }
