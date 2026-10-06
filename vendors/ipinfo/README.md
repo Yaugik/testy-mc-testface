@@ -7,7 +7,8 @@ It uses only RFC documentation-range IP addresses and `.test` domains.
 
 - Bearer-token authentication with a synthetic credential.
 - Healthy, degraded, unavailable, and quota-exhausted system states.
-- Corporate, residential, unknown, and timeout lookup cases using the modern IPinfo Core contract, with an IPinfo Lite flat-schema fallback when Core omits usable AS identity.
+- Separate modern IPinfo Core (`/lookup/{ip}`) and IPinfo Lite (`/lite/{ip}`) contracts so the target application's configured product determines which fake shape is exercised.
+- Core fixtures include geo, AS type, hosting, and anonymity signals; Lite fixtures use the flat `asn`, `as_name`, `as_domain`, country, and continent fields.
 - Timeout → unavailable → recovered ordered sequence.
 - Explicit transition into `unavailable`, followed by request-count recovery.
 - Namespaced stores recording recovery attempts, outcomes, and trigger state.
