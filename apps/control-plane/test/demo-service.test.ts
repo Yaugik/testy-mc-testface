@@ -286,6 +286,34 @@ describe("interactive demo service", () => {
     expect(targetCleanupCalls).toBe(1);
     expect(timeline.length).toBeGreaterThan(0);
   });
+
+  it("builds browser URLs for a configured remote demo domain", () => {
+    const service = new InteractiveDemoService(
+      {
+        ...testConfig(),
+        publicDemoBaseUrl: "https://testy.example.com",
+      },
+      {} as DemoSessionRepository,
+      {} as ScenarioRunRepository,
+      {} as ScenarioActionRegistry,
+      {},
+    );
+    const session = {
+      websiteHostname: "demo-0123456789abcdef.testy.example.com",
+    } as DemoSessionRecord;
+
+    expect(service.websiteUrl(session)).toBe(
+      "https://demo-0123456789abcdef.testy.example.com/",
+    );
+    expect(
+      service.isDemoWebsiteHostname(
+        "demo-0123456789abcdef.testy.example.com",
+      ),
+    ).toBe(true);
+    expect(service.isDemoWebsiteHostname("demo-0123456789abcdef.localhost")).toBe(
+      false,
+    );
+  });
 });
 
 function testConfig(): ControlPlaneConfig {

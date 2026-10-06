@@ -83,7 +83,7 @@ export class InteractiveDemoService {
     );
     const sessionId = randomUUID();
     const runId = randomUUID() as RunId;
-    const hostname = `demo-${sessionId.replaceAll("-", "").slice(0, 20)}.localhost`;
+    const hostname = this.demoHostname(sessionId);
     const expiresAt = new Date(
       Date.now() + this.config.demoSessionTtlMs,
     ).toISOString();
@@ -239,9 +239,25 @@ export class InteractiveDemoService {
   }
 
   public websiteUrl(session: DemoSessionRecord): string {
+    const configured = this.config.publicDemoBaseUrl;
+    if (configured) {
+      const url = new URL(configured);
+      url.hostname = session.websiteHostname;
+      url.pathname = "/";
+      return url.toString();
+    }
+
     return `http://${session.websiteHostname}:${String(
       this.config.publicControlPlanePort,
     )}/`;
+  }
+
+  public isDemoWebsiteHostname(hostname: string): boolean {
+    const suffix = this.config.publicDemoBaseUrl
+      ? new URL(this.config.publicDemoBaseUrl).hostname
+      : "localhost";
+    const normalized = hostname.toLowerCase();
+    return normalized.startsWith("demo-") && normalized.endsWith(`.${suffix}`);
   }
 
   public async localWebsiteOriginForHost(
@@ -988,7 +1004,19 @@ export class InteractiveDemoService {
     return runtime;
   }
 
+  private demoHostname(sessionId: string): string {
+    const label = `demo-${sessionId.replaceAll("-", "").slice(0, 20)}`;
+    if (!this.config.publicDemoBaseUrl) return `${label}.localhost`;
+    return `${label}.${new URL(this.config.publicDemoBaseUrl).hostname}`;
+  }
+
   private publicSecureOrigin(session: DemoSessionRecord): string {
+    if (this.config.publicDemoBaseUrl) {
+      const configured = new URL(this.config.publicDemoBaseUrl);
+      const port = configured.port ? `:${configured.port}` : "";
+      return `https://${session.websiteHostname}${port}`;
+    }
+
     return `https://${session.websiteHostname}:${String(
       this.config.publicControlPlanePort,
     )}`;

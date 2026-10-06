@@ -32,6 +32,7 @@ export interface ControlPlaneConfig {
   readonly browser: ConfiguredBrowser;
   readonly browserHeadless: boolean;
   readonly publicControlPlanePort: number;
+  readonly publicDemoBaseUrl?: string;
   readonly demoSessionTtlMs: number;
   readonly maintenance: MaintenanceConfig;
   readonly runtimeImage?: string;
@@ -59,6 +60,9 @@ export function loadConfig(
   const targetIntegration = loadTargetIntegration(environment);
   const runtimeImage = nonEmpty(environment.TESTY_IMPOSTER_IMAGE);
   const runtimeNetworkName = nonEmpty(environment.TESTY_DOCKER_NETWORK);
+  const publicDemoBaseUrl = parsePublicDemoBaseUrl(
+    environment.TESTY_PUBLIC_DEMO_BASE_URL,
+  );
   return {
     host: environment.CONTROL_PLANE_HOST ?? "0.0.0.0",
     port: parsePort(environment.CONTROL_PLANE_PORT),
@@ -77,6 +81,7 @@ export function loadConfig(
       1,
       65_535,
     ),
+    ...(publicDemoBaseUrl ? { publicDemoBaseUrl } : {}),
     demoSessionTtlMs: parseInteger(
       "TESTY_DEMO_SESSION_TTL_MS",
       environment.TESTY_DEMO_SESSION_TTL_MS,
@@ -89,6 +94,35 @@ export function loadConfig(
     ...(runtimeNetworkName ? { runtimeNetworkName } : {}),
     ...(targetIntegration ? { targetIntegration } : {}),
   };
+}
+
+function parsePublicDemoBaseUrl(value: string | undefined): string | undefined {
+  const normalized = nonEmpty(value);
+  if (!normalized) return undefined;
+
+  let url: URL;
+  try {
+    url = new URL(normalized);
+  } catch {
+    throw new Error(
+      "TESTY_PUBLIC_DEMO_BASE_URL must be an absolute HTTP(S) URL.",
+    );
+  }
+
+  if (
+    (url.protocol !== "http:" && url.protocol !== "https:") ||
+    url.username ||
+    url.password ||
+    url.pathname !== "/" ||
+    url.search ||
+    url.hash
+  ) {
+    throw new Error(
+      "TESTY_PUBLIC_DEMO_BASE_URL must be an HTTP(S) origin without credentials, path, query, or fragment.",
+    );
+  }
+
+  return url.origin;
 }
 
 function loadMaintenance(environment: NodeJS.ProcessEnv): MaintenanceConfig {
