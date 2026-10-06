@@ -15,7 +15,7 @@ export function registerInteractiveDemoRoutes(
 ): void {
   app.addHook("onRequest", async (request, reply) => {
     const hostname = request.hostname.toLowerCase();
-    if (!hostname.startsWith("demo-") || !hostname.endsWith(".localhost")) {
+    if (!demos.isDemoWebsiteHostname(hostname)) {
       return;
     }
     const localOrigin = await demos.localWebsiteOriginForHost(hostname);
