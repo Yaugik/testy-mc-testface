@@ -281,6 +281,12 @@ export function createGatewayTargetScenarioActionBundle(
         visibleTenantIds: outcome.visibleTenantIds,
         scoreCount: outcome.scoreCount,
         companyCount: outcome.companyCount,
+        ...(outcome.enrichedCompanyCount === undefined
+          ? {}
+          : { enrichedCompanyCount: outcome.enrichedCompanyCount }),
+        ...(outcome.contactCount === undefined
+          ? {}
+          : { contactCount: outcome.contactCount }),
         ...(outcome.processedEventCount === undefined
           ? {}
           : { processedEventCount: outcome.processedEventCount }),
