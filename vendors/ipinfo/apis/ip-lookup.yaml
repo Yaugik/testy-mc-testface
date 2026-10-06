@@ -37,6 +37,14 @@ cases:
       status: 200
       body: responses/bogon.json
 
+  - id: core-insufficient
+    priority: 105
+    when:
+      path.ip: "198.51.100.80"
+    respond:
+      status: 200
+      body: responses/core-insufficient.json
+
   - id: timeout
     priority: 100
     when:
