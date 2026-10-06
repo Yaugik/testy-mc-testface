@@ -1,10 +1,10 @@
 {
   "ip": "198.51.100.20",
-  "company": null,
-  "privacy": {
-    "vpn": false,
-    "proxy": false,
-    "hosting": false
-  },
-  "classification": "residential"
+  "asn": "AS64510",
+  "as_name": "Synthetic Residential ISP",
+  "as_domain": "",
+  "country_code": "DE",
+  "country": "Germany",
+  "continent_code": "EU",
+  "continent": "Europe"
 }
