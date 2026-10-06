@@ -181,6 +181,8 @@ describe("interactive demo service", () => {
       },
       "target.collect-outcome": async () => ({
         companyCount: 1,
+        enrichedCompanyCount: enrichmentTriggers > 0 ? 1 : 0,
+        contactCount: enrichmentTriggers > 0 ? 1 : 0,
         scoreCount: 1,
         companies: [
           {
@@ -243,6 +245,8 @@ describe("interactive demo service", () => {
 
     const outcome = asRecord(await service.outcome(created.id));
     expect(outcome.companyCount).toBe(1);
+    expect(outcome.enrichedCompanyCount).toBe(1);
+    expect(outcome.contactCount).toBe(1);
     expect(enrichmentTriggers).toBe(1);
 
     expect(
