@@ -224,6 +224,48 @@ describe("target adapter contract", () => {
     await adapter.cleanupTarget(prepared.targetRunId);
     expect(adapter.snapshot(context.runId)).toBeUndefined();
   });
+  it("allows a synthetic site beneath an explicitly approved remote demo suffix", async () => {
+    const binding = routeBinding("run-remote-demo" as RunId, "route-remote-demo");
+    const gateway = {
+      createRoute: async () => binding,
+      deleteRoute: async () => undefined,
+      getLedger: async () => [],
+    } as unknown as GatewayAdminClient;
+    const adapter = new FakeTargetAdapter();
+    const bundle = createGatewayTargetScenarioActionBundle({
+      gateway,
+      adapter,
+      approvedSyntheticHostnameSuffixes: [
+        "testy.129.213.107.15.sslip.io",
+      ],
+    });
+    const context = scenarioContext(binding.runId);
+
+    await bundle.actions["gateway.create-route"]?.(
+      {
+        targetOrigin: "http://target.test",
+        syntheticIp: "198.51.100.10",
+      },
+      context,
+    );
+    await bundle.actions["target.prepare-run"]?.(undefined, context);
+
+    await expect(
+      bundle.actions["target.configure-site"]?.(
+        {
+          hostname:
+            "demo-0123456789abcdef.testy.129.213.107.15.sslip.io",
+          origin:
+            "https://demo-0123456789abcdef.testy.129.213.107.15.sslip.io",
+        },
+        context,
+      ),
+    ).resolves.toMatchObject({
+      hostname:
+        "demo-0123456789abcdef.testy.129.213.107.15.sslip.io",
+    });
+  });
+
 });
 
 function routeBinding(runId: RunId, routeId: string): GatewayRouteBinding {
