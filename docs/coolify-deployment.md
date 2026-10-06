@@ -59,9 +59,9 @@ Interactive Demo sessions derive their browser hostname from
 also use `http://` for temporary test-only deployments; GL-EYE still receives
 the synthetic site's HTTPS origin.
 
-The Coolify stack defaults `TESTY_IMPOSTER_IMAGE` to `outofcoffee/imposter:5-beta`, matching the vendor compiler default and a published multi-architecture Imposter tag. If Coolify already materialized `TESTY_IMPOSTER_IMAGE` as an environment variable, update or remove the stale value so the Compose default can take effect.
+The Coolify stack sets the container `TESTY_IMPOSTER_IMAGE` from `TESTY_IMPOSTER_RUNTIME_IMAGE`, defaulting to `outofcoffee/imposter:5-beta`. This deliberately avoids stale Coolify variables named `TESTY_IMPOSTER_IMAGE` overriding the runtime image after Compose updates. Use `TESTY_IMPOSTER_RUNTIME_IMAGE` for any deployment-specific image override.
 
-For reproducible provider-runtime execution, set `TESTY_IMPOSTER_IMAGE` to an
+For reproducible provider-runtime execution, set `TESTY_IMPOSTER_RUNTIME_IMAGE` to an
 exact `image@sha256:<digest>` after validating the desired Imposter release.
 
 ## Security
