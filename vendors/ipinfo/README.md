@@ -7,7 +7,7 @@ It uses only RFC documentation-range IP addresses and `.test` domains.
 
 - Bearer-token authentication with a synthetic credential.
 - Healthy, degraded, unavailable, and quota-exhausted system states.
-- Corporate, residential, unknown, and timeout lookup cases.
+- Corporate, residential, unknown, and timeout lookup cases using the IPinfo Lite flat response contract (`asn`, `as_name`, `as_domain`, country and continent fields).
 - Timeout → unavailable → recovered ordered sequence.
 - Explicit transition into `unavailable`, followed by request-count recovery.
 - Namespaced stores recording recovery attempts, outcomes, and trigger state.
