@@ -33,6 +33,7 @@ export interface GatewayTargetScenarioActionsOptions {
   readonly adapter: TargetAdapter;
   readonly defaultRouteTtlMs?: number;
   readonly defaultTargetLeaseTtlMs?: number;
+  readonly approvedSyntheticHostnameSuffixes?: readonly string[];
 }
 
 export interface BrowserTargetRunContext {
@@ -197,7 +198,10 @@ export function createGatewayTargetScenarioActionBundle(
       const origin = readOptionalString(value, "origin");
       const site: SiteDefinition = {
         siteId: readOptionalString(value, "siteId") ?? prepared.siteId,
-        hostname: assertSyntheticHostname(readString(value, "hostname")),
+        hostname: assertSyntheticHostname(
+          readString(value, "hostname"),
+          options.approvedSyntheticHostnameSuffixes,
+        ),
         ...(origin ? { origin } : {}),
         trackingScriptUrl:
           readOptionalString(value, "trackingScriptUrl") ??
@@ -452,12 +456,22 @@ function isSyntheticRuntimeHostname(hostname: string): boolean {
   );
 }
 
-function assertSyntheticHostname(value: string): string {
+function assertSyntheticHostname(
+  value: string,
+  approvedSuffixes: readonly string[] = [],
+): string {
   const hostname = value.toLowerCase();
+  const approved = approvedSuffixes
+    .map((suffix) => suffix.trim().toLowerCase().replace(/^\.+/u, ""))
+    .filter((suffix) => suffix.length > 0);
+
   if (
     hostname === "localhost" ||
     !hostname.includes(".") ||
-    /\.(?:test|example|invalid|internal|localhost)$/iu.test(hostname)
+    /\.(?:test|example|invalid|internal|localhost)$/iu.test(hostname) ||
+    approved.some(
+      (suffix) => hostname === suffix || hostname.endsWith("." + suffix),
+    )
   ) {
     return value;
   }
