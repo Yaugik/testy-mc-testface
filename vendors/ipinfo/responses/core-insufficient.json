@@ -1,0 +1,14 @@
+{
+  "ip": "198.51.100.80",
+  "geo": {
+    "country": "Germany",
+    "country_code": "DE",
+    "continent": "Europe",
+    "continent_code": "EU"
+  },
+  "is_anonymous": false,
+  "is_anycast": false,
+  "is_hosting": false,
+  "is_mobile": false,
+  "is_satellite": false
+}
