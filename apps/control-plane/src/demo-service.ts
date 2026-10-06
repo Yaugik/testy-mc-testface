@@ -392,10 +392,24 @@ export class InteractiveDemoService {
       ) === true;
 
     if (
-      companyCount > 0 &&
-      !initialMaterialization.complete &&
-      !priorMaterializationFailure
+      initialMaterialization.complete &&
+      priorMaterializationFailure
     ) {
+      session = await this.sessions.update(id, {
+        enrichmentTriggeredAt:
+          session.enrichmentTriggeredAt ?? new Date().toISOString(),
+        errorMessage: null,
+      });
+    }
+
+    const shouldTriggerEnrichment =
+      companyCount > 0 &&
+      !priorMaterializationFailure &&
+      (initialMaterialization.known
+        ? !initialMaterialization.complete
+        : !session.enrichmentTriggeredAt);
+
+    if (shouldTriggerEnrichment) {
       await this.invoke(
         session,
         runtime,
