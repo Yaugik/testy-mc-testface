@@ -42,7 +42,6 @@ TESTY_MAINTENANCE_ADMIN_TOKEN=<hex-secret>
 GL_EYE_TEST_SUPPORT_TOKEN=<same-value-used-by-gl-eye-testing>
 
 TESTY_GL_EYE_NETWORK=testy-gl-eye
-TESTY_GENERATED_HOST_ROOT=/var/lib/testy/generated
 TESTY_BROWSER=chromium
 TESTY_HEADLESS=true
 ```
@@ -53,7 +52,7 @@ exact `image@sha256:<digest>` after validating the desired Imposter release.
 ## Security
 
 The Traffic Gateway is an internal service and must not receive a public
-domain. The Control Plane contains operational test APIs and should not be
+domain. The Control Plane stores generated Testy artifacts at the fixed host/container path `/var/lib/testy/generated` so sibling Docker runtimes can mount the same files. The Control Plane contains operational test APIs and should not be
 published without an access-control layer. Prefer Coolify proxy authentication
 or restricted network access if a browser-accessible domain is added.
 
