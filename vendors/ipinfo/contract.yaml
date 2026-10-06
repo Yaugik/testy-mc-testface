@@ -35,6 +35,16 @@ cases:
           status: 200
           matchedCase: unknown
 
+  - id: bogon
+    steps:
+      - id: private-ip
+        request:
+          method: GET
+          path: /192.168.1.8
+        expect:
+          status: 200
+          matchedCase: bogon
+
   - id: authentication
     steps:
       - id: invalid-token
