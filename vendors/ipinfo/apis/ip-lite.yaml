@@ -1,0 +1,22 @@
+schemaVersion: "1.0"
+operationId: ip-lite
+request:
+  method: GET
+  path: /lite/{ip}
+
+cases:
+  - id: lite-fallback
+    priority: 100
+    when:
+      path.ip: "198.51.100.80"
+    respond:
+      status: 200
+      body: responses/lite-fallback.json
+
+  - id: lite-bogon
+    priority: 100
+    when:
+      path.ip: "192.168.1.8"
+    respond:
+      status: 200
+      body: responses/bogon.json
