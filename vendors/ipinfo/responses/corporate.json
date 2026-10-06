@@ -1,10 +1,27 @@
 {
   "ip": "198.51.100.10",
-  "asn": "AS64500",
-  "as_name": "Nordlicht Example GmbH",
-  "as_domain": "nordlicht-example.test",
-  "country_code": "DE",
-  "country": "Germany",
-  "continent_code": "EU",
-  "continent": "Europe"
+  "geo": {
+    "city": "Berlin",
+    "region": "Berlin",
+    "region_code": "BE",
+    "country": "Germany",
+    "country_code": "DE",
+    "continent": "Europe",
+    "continent_code": "EU",
+    "latitude": 52.52,
+    "longitude": 13.405,
+    "timezone": "Europe/Berlin",
+    "postal_code": "10115"
+  },
+  "as": {
+    "asn": "AS64500",
+    "name": "Nordlicht Example GmbH",
+    "domain": "nordlicht-example.test",
+    "type": "business"
+  },
+  "is_anonymous": false,
+  "is_anycast": false,
+  "is_hosting": false,
+  "is_mobile": false,
+  "is_satellite": false
 }
