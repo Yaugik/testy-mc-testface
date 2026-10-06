@@ -1052,8 +1052,8 @@ function enrichmentMaterialization(
       (enrichedCompanyCount ?? 0) >= companyCount &&
       (!contactExpected || (contactCount ?? 0) > 0),
     contactExpected,
-    enrichedCompanyCount,
-    contactCount,
+    enrichedCompanyCount: enrichedCompanyCount ?? 0,
+    ...(contactCount === undefined ? {} : { contactCount }),
   };
 }
 
@@ -1064,12 +1064,12 @@ async function demoDelay(
   if (signal.aborted) return;
   await new Promise<void>((resolve) => {
     let settled = false;
-    let timer: ReturnType<typeof setTimeout>;
+    let timer: ReturnType<typeof setTimeout> | undefined;
 
     const finish = (): void => {
       if (settled) return;
       settled = true;
-      clearTimeout(timer);
+      if (timer !== undefined) clearTimeout(timer);
       signal.removeEventListener("abort", finish);
       resolve();
     };
