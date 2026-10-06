@@ -67,6 +67,18 @@ assertions:
     path: companyCount
     operator: equals
     expected: 1
+  - id: target-enriched-one-company
+    type: observation
+    observationType: target-outcome
+    path: enrichedCompanyCount
+    operator: equals
+    expected: 1
+  - id: target-selected-contact
+    type: observation
+    observationType: target-outcome
+    path: contactCount
+    operator: equals
+    expected: 1
   - id: primary-tenant-visible
     type: observation
     observationType: target-outcome
