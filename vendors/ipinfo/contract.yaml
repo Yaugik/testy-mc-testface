@@ -30,37 +30,50 @@ cases:
       - id: request
         request:
           method: GET
-          path: /lookup/198.51.100.30
+          path: /lookup/198.51.100.50
         expect:
           status: 200
           matchedCase: unknown
 
-  - id: bogon
+  - id: core-bogon
     steps:
-      - id: private-ip
+      - id: reserved-ip
         request:
           method: GET
-          path: /lookup/192.168.1.8
+          path: /lookup/192.0.2.8
         expect:
           status: 200
           matchedCase: bogon
 
-  - id: core-to-lite-fallback
+  - id: lite-corporate
     steps:
-      - id: core-insufficient
+      - id: request
         request:
           method: GET
-          path: /lookup/198.51.100.80
+          path: /lite/198.51.100.10
         expect:
           status: 200
-          matchedCase: core-insufficient
-      - id: lite-fallback
+          matchedCase: lite-corporate
+
+  - id: lite-unknown
+    steps:
+      - id: request
         request:
           method: GET
-          path: /lite/198.51.100.80
+          path: /lite/198.51.100.50
         expect:
           status: 200
-          matchedCase: lite-fallback
+          matchedCase: lite-unknown
+
+  - id: lite-bogon
+    steps:
+      - id: reserved-ip
+        request:
+          method: GET
+          path: /lite/192.0.2.8
+        expect:
+          status: 200
+          matchedCase: lite-bogon
 
   - id: authentication
     steps:
