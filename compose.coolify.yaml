@@ -16,7 +16,9 @@ services:
       retries: 20
     restart: unless-stopped
     networks:
-      - testy-platform
+      testy-platform:
+        aliases:
+          - testy-postgres
 
   traffic-gateway:
     image: *testy-image
@@ -53,7 +55,7 @@ services:
     environment:
       CONTROL_PLANE_HOST: 0.0.0.0
       CONTROL_PLANE_PORT: 3000
-      DATABASE_URL: "postgresql://testy:${TESTY_POSTGRES_PASSWORD:?}@postgres:5432/testy"
+      DATABASE_URL: "postgresql://testy:${TESTY_POSTGRES_PASSWORD:?}@testy-postgres:5432/testy"
       LOG_LEVEL: "${LOG_LEVEL:-info}"
       SCENARIOS_DIR: /workspace/scenarios
       VENDOR_PACKAGES_DIR: /workspace/vendors
