@@ -997,6 +997,7 @@ export class InteractiveDemoService {
     await this.sessions.update(session.id, {
       status: "FAILED",
       stoppedAt: new Date().toISOString(),
+      ...(cleanupErrors.length === 0 ? { credentialPassword: null } : {}),
       errorMessage: [message, ...cleanupErrors].join("; "),
     });
     await this.sessions.finishRun(session.runId, "FAILED");
