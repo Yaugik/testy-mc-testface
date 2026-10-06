@@ -13,6 +13,14 @@ cases:
       status: 200
       body: responses/corporate.json
 
+  - id: acme-corporate
+    priority: 100
+    when:
+      path.ip: "198.51.100.11"
+    respond:
+      status: 200
+      body: responses/acme-corporate.json
+
   - id: residential
     priority: 100
     when:
@@ -21,10 +29,26 @@ cases:
       status: 200
       body: responses/residential.json
 
-  - id: unknown
+  - id: vpn
     priority: 100
     when:
       path.ip: "198.51.100.30"
+    respond:
+      status: 200
+      body: responses/vpn.json
+
+  - id: hosting
+    priority: 100
+    when:
+      path.ip: "198.51.100.40"
+    respond:
+      status: 200
+      body: responses/hosting.json
+
+  - id: unknown
+    priority: 100
+    when:
+      path.ip: "198.51.100.50"
     respond:
       status: 200
       body: responses/unknown.json
@@ -32,18 +56,10 @@ cases:
   - id: bogon
     priority: 110
     when:
-      path.ip: "192.168.1.8"
+      path.ip: "192.0.2.8"
     respond:
       status: 200
       body: responses/bogon.json
-
-  - id: core-insufficient
-    priority: 105
-    when:
-      path.ip: "198.51.100.80"
-    respond:
-      status: 200
-      body: responses/core-insufficient.json
 
   - id: timeout
     priority: 100
