@@ -90,6 +90,8 @@ export class GlEyeTargetAdapter implements TargetAdapter {
         scenarioId: context.scenarioId,
         target: context.target,
         environment: this.options.environment,
+        ...(context.demoSessionId ? { demoSessionId: context.demoSessionId } : {}),
+        ...(context.demoCredential ? { demoCredential: context.demoCredential } : {}),
       },
       [200, 201],
     );
