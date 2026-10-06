@@ -413,6 +413,10 @@ describe("interactive demo service", () => {
     expect(service.workspaceName(first)).toBe(
       "Testy Demo - " + first.id.replaceAll("-", "").slice(0, 8),
     );
+
+    const stopped = await service.stop(first.id);
+    expect(stopped?.status).toBe("STOPPED");
+    expect(stopped?.credentialPassword).toBeUndefined();
   });
 
   it("builds browser URLs for a configured remote demo domain", () => {
