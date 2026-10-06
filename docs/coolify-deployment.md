@@ -44,7 +44,20 @@ GL_EYE_TEST_SUPPORT_TOKEN=<same-value-used-by-gl-eye-testing>
 TESTY_GL_EYE_NETWORK=testy-gl-eye
 TESTY_BROWSER=chromium
 TESTY_HEADLESS=true
+
+# Public Control Plane origin used as the suffix for generated demo hosts.
+# Example demo: demo-<session>.testy.example.com
+TESTY_PUBLIC_DEMO_BASE_URL=https://testy.example.com
 ```
+
+Interactive Demo sessions derive their browser hostname from
+`TESTY_PUBLIC_DEMO_BASE_URL`. For example, with
+`https://testy.example.com`, Testy generates
+`https://demo-<session>.testy.example.com/` instead of a local-only
+`.localhost` URL. Configure the matching wildcard DNS/proxy route
+(`*.testy.example.com`) to the Control Plane on port 3000. The variable may
+also use `http://` for temporary test-only deployments; GL-EYE still receives
+the synthetic site's HTTPS origin.
 
 For reproducible provider-runtime execution, set `TESTY_IMPOSTER_IMAGE` to an
 exact `image@sha256:<digest>` after validating the desired Imposter release.
