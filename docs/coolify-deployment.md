@@ -51,7 +51,7 @@ TESTY_PUBLIC_DEMO_BASE_URL=https://testy.example.com
 ```
 
 Interactive Demo sessions derive their browser hostname from
-`TESTY_PUBLIC_DEMO_BASE_URL`. For example, with
+`TESTY_PUBLIC_DEMO_BASE_URL`. The configured hostname suffix is also explicitly allowlisted by the Control Plane's synthetic-site safety check, while arbitrary public hostnames remain rejected. For example, with
 `https://testy.example.com`, Testy generates
 `https://demo-<session>.testy.example.com/` instead of a local-only
 `.localhost` URL. Configure the matching wildcard DNS/proxy route
