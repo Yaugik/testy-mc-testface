@@ -1,0 +1,10 @@
+{
+  "ip": "198.51.100.10",
+  "asn": "AS64500",
+  "as_name": "Nordlicht Example GmbH",
+  "as_domain": "nordlicht-example.test",
+  "country_code": "DE",
+  "country": "Germany",
+  "continent_code": "EU",
+  "continent": "Europe"
+}
