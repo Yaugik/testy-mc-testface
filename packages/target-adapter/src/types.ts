@@ -65,6 +65,8 @@ export interface TargetOutcome {
   readonly visibleTenantIds: readonly string[];
   readonly scoreCount: number;
   readonly companyCount: number;
+  readonly enrichedCompanyCount?: number;
+  readonly contactCount?: number;
   readonly processedEventCount?: number;
   readonly duplicateEventCount?: number;
   readonly companyFingerprint?: string;
