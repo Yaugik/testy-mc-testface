@@ -185,6 +185,15 @@ Control Plane endpoints:
 - `GET http://localhost:3000/v1/runs/:runId/report`
 - `GET http://localhost:3000/v1/runs/:runId/artifacts`
 
+## Coolify deployment
+
+A server-oriented Compose stack for the shared GL-EYE testing environment is
+available at [`compose.coolify.yaml`](compose.coolify.yaml). It connects to a
+separate GL-EYE testing target over the external `testy-gl-eye` Docker network
+and does not expose the Traffic Gateway publicly. See
+[`docs/coolify-deployment.md`](docs/coolify-deployment.md) for prerequisites,
+required secrets, and readiness checks.
+
 ## Documents
 
 - [Product and System Plan v0.3](Standalone_Testing_Platform_Product_and_System_Plan_v0.3.md)
