@@ -175,6 +175,20 @@ const CONTROL_PLANE_HTML = `<!doctype html>
             </div>
             <div class="card-body">
               <div class="meta" id="demoSessionMeta">Start a long-lived Testy session for manual browser QA.</div>
+              <div class="field" id="demoCredentialModeField" style="margin-top:18px">
+                <label for="demoCredentialMode">Demo login</label>
+                <select id="demoCredentialMode">
+                  <option value="shared">Reusable credential across sessions</option>
+                  <option value="generated">Generate a new credential for this session</option>
+                </select>
+                <div class="meta" style="margin-top:6px">Reusable uses the same demo account every time. Generated creates a new login tied to this session.</div>
+              </div>
+              <div id="demoCredentialPanel" class="result-grid" hidden style="margin-top:18px">
+                <div class="result-cell"><div class="meta">Workspace</div><strong id="demoWorkspaceName">—</strong></div>
+                <div class="result-cell"><div class="meta">Session ID</div><strong id="demoCredentialSessionId">—</strong></div>
+                <div class="result-cell"><div class="meta">Email</div><strong id="demoCredentialEmail">—</strong></div>
+                <div class="result-cell"><div class="meta">Password</div><strong id="demoCredentialPassword">—</strong></div>
+              </div>
               <div id="demoVisitorControls" hidden style="margin-top:18px">
                 <div class="field">
                   <label for="demoNetwork">Network identity</label>
@@ -205,7 +219,7 @@ const CONTROL_PLANE_HTML = `<!doctype html>
             <div class="card-head"><h2>Services</h2></div>
             <div class="card-body service-list">
               <div class="service-row"><span>GL-EYE</span><strong id="demoGlEyeService">Checking</strong></div>
-              <div class="service-row"><span>GL-EYE workspace</span><strong>Testy Interactive Demo</strong></div>
+              <div class="service-row"><span>GL-EYE workspace</span><strong id="demoWorkspaceService">Created per session</strong></div>
               <div class="service-row"><span>Traffic Gateway</span><strong id="demoTrafficService">Session managed</strong></div>
               <div class="service-row"><span>IPInfo</span><strong>Mocked</strong></div>
               <div class="service-row"><span>Apollo</span><strong>Mocked</strong></div>
@@ -221,7 +235,7 @@ const CONTROL_PLANE_HTML = `<!doctype html>
               <button id="refreshDemoResult" class="btn secondary" hidden>Refresh GL-EYE Result</button>
             </div>
             <div class="card-body">
-              <div id="demoResultEmpty" class="empty">Start a demo and browse the customer site to see the actual GL-EYE outcome. In the GL-EYE app, switch workspace from “GL-EYE Demo Company” to “Testy Interactive Demo” to inspect the same isolated tenant.</div>
+              <div id="demoResultEmpty" class="empty">Start a demo and browse the customer site to see the actual GL-EYE outcome. The matching GL-EYE workspace is created for that session and shown with the demo credentials.</div>
               <div id="demoResult" class="result-grid" hidden>
                 <div class="result-cell"><div class="meta">Company</div><strong id="demoCompanies">—</strong></div>
                 <div class="result-cell"><div class="meta">Companies</div><strong id="demoCompanyCount">0</strong></div>
@@ -368,7 +382,13 @@ const CONTROL_PLANE_HTML = `<!doctype html>
         currentDemo = undefined;
         localStorage.removeItem("testy.currentDemoId");
         demoSelectorsSessionId = "";
-        currentDemo = await requestJson("/v1/demo-sessions", { method: "POST" });
+        currentDemo = await requestJson("/v1/demo-sessions", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            credentialMode: document.getElementById("demoCredentialMode").value,
+          }),
+        });
         currentDemoId = currentDemo.id;
         localStorage.setItem("testy.currentDemoId", currentDemoId);
         renderDemoSession();
@@ -416,13 +436,30 @@ const CONTROL_PLANE_HTML = `<!doctype html>
     function renderDemoSession() {
       const active = currentDemo && (currentDemo.status === "READY" || currentDemo.status === "ACTIVE");
       const status = document.getElementById("demoStatus");
+      const credentialPanel = document.getElementById("demoCredentialPanel");
+      const credentialMode = document.getElementById("demoCredentialMode");
       if (!currentDemo) {
         setBadge(status, "Not started", "warn");
         document.getElementById("demoSessionMeta").textContent = "Start a long-lived Testy session for manual browser QA.";
+        credentialPanel.hidden = true;
+        credentialMode.disabled = false;
+        document.getElementById("demoWorkspaceService").textContent = "Created per session";
       } else {
         setBadge(status, currentDemo.status, currentDemo.status === "FAILED" ? "bad" : currentDemo.status === "STOPPED" ? "warn" : "ok");
         document.getElementById("demoSessionMeta").textContent =
           "Session " + currentDemo.id + " · Started " + new Date(currentDemo.startedAt).toLocaleString();
+        credentialMode.value = currentDemo.credentialMode || "shared";
+        credentialMode.disabled = currentDemo.status !== "STOPPED" && currentDemo.status !== "FAILED";
+        credentialPanel.hidden = false;
+        document.getElementById("demoWorkspaceName").textContent = currentDemo.workspaceName || "—";
+        document.getElementById("demoCredentialSessionId").textContent = currentDemo.id || "—";
+        document.getElementById("demoCredentialEmail").textContent = currentDemo.credentialEmail || "—";
+        document.getElementById("demoCredentialPassword").textContent =
+          currentDemo.credentialPassword || (currentDemo.status === "STOPPED" ? "Cleared" : "—");
+        document.getElementById("demoWorkspaceService").textContent =
+          currentDemo.status === "STOPPED"
+            ? "Deleted"
+            : (currentDemo.workspaceName || "Session managed");
       }
       document.getElementById("demoVisitorControls").hidden = !active;
       document.getElementById("applyDemoVisitor").hidden = !active;
