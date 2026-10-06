@@ -16,6 +16,9 @@ export interface DemoSessionRecord {
   readonly status: DemoSessionStatus;
   readonly customerPackage: string;
   readonly websiteHostname: string;
+  readonly credentialMode: "shared" | "generated";
+  readonly credentialEmail: string;
+  readonly credentialPassword?: string;
   readonly networkIdentityId?: string;
   readonly personIdentityId?: string;
   readonly browserIdentityId?: string;
@@ -41,6 +44,9 @@ export interface DemoSessionRepository {
     websiteHostname: string,
     customerPackage: string,
     expiresAt: string,
+    credentialMode: "shared" | "generated",
+    credentialEmail: string,
+    credentialPassword: string,
   ): Promise<DemoSessionRecord>;
   get(id: string): Promise<DemoSessionRecord | undefined>;
   getByHostname(hostname: string): Promise<DemoSessionRecord | undefined>;
@@ -61,6 +67,7 @@ export interface DemoSessionRepository {
       readonly visitorStartedAt?: string | null;
       readonly errorMessage?: string | null;
       readonly stoppedAt?: string | null;
+      readonly credentialPassword?: string | null;
     },
   ): Promise<DemoSessionRecord>;
   finishRun(runId: RunId, status: "PASSED" | "FAILED"): Promise<void>;
@@ -72,6 +79,9 @@ interface DemoSessionRow {
   readonly status: DemoSessionStatus;
   readonly customer_package: string;
   readonly website_hostname: string;
+  readonly credential_mode: "shared" | "generated";
+  readonly credential_email: string;
+  readonly credential_password: string | null;
   readonly network_identity_id: string | null;
   readonly person_identity_id: string | null;
   readonly browser_identity_id: string | null;
@@ -99,6 +109,9 @@ export class PostgresDemoSessionRepository implements DemoSessionRepository {
     websiteHostname: string,
     customerPackage: string,
     expiresAt: string,
+    credentialMode: "shared" | "generated",
+    credentialEmail: string,
+    credentialPassword: string,
   ): Promise<DemoSessionRecord> {
     const client = await this.pool.connect();
     try {
@@ -117,10 +130,20 @@ export class PostgresDemoSessionRepository implements DemoSessionRepository {
       );
       const result = await client.query<DemoSessionRow>(
         `INSERT INTO interactive_demo_sessions (
-          id, run_id, status, customer_package, website_hostname, expires_at
-        ) VALUES ($1,$2,'CREATE',$3,$4,$5)
+          id, run_id, status, customer_package, website_hostname, expires_at,
+          credential_mode, credential_email, credential_password
+        ) VALUES ($1,$2,'CREATE',$3,$4,$5,$6,$7,$8)
         RETURNING *`,
-        [id, runId, customerPackage, websiteHostname, expiresAt],
+        [
+          id,
+          runId,
+          customerPackage,
+          websiteHostname,
+          expiresAt,
+          credentialMode,
+          credentialEmail,
+          credentialPassword,
+        ],
       );
       await client.query("COMMIT");
       const row = result.rows[0];
@@ -179,6 +202,7 @@ export class PostgresDemoSessionRepository implements DemoSessionRepository {
       readonly visitorStartedAt?: string | null;
       readonly errorMessage?: string | null;
       readonly stoppedAt?: string | null;
+      readonly credentialPassword?: string | null;
     },
   ): Promise<DemoSessionRecord> {
     const current = await this.get(id);
@@ -230,6 +254,10 @@ export class PostgresDemoSessionRepository implements DemoSessionRepository {
         patch.stoppedAt === undefined
           ? current.stoppedAt ?? null
           : patch.stoppedAt,
+      credentialPassword:
+        patch.credentialPassword === undefined
+          ? current.credentialPassword ?? null
+          : patch.credentialPassword,
     };
     const result = await this.pool.query<DemoSessionRow>(
       `UPDATE interactive_demo_sessions SET
@@ -246,6 +274,7 @@ export class PostgresDemoSessionRepository implements DemoSessionRepository {
         visitor_started_at=$12,
         error_message=$13,
         stopped_at=$14,
+        credential_password=$15,
         updated_at=NOW()
        WHERE id=$1
        RETURNING *`,
@@ -264,6 +293,7 @@ export class PostgresDemoSessionRepository implements DemoSessionRepository {
         values.visitorStartedAt,
         values.errorMessage,
         values.stoppedAt,
+        values.credentialPassword,
       ],
     );
     const row = result.rows[0];
@@ -294,6 +324,11 @@ function mapSession(row: DemoSessionRow): DemoSessionRecord {
     status: row.status,
     customerPackage: row.customer_package,
     websiteHostname: row.website_hostname,
+    credentialMode: row.credential_mode,
+    credentialEmail: row.credential_email,
+    ...(row.credential_password
+      ? { credentialPassword: row.credential_password }
+      : {}),
     ...(row.network_identity_id
       ? { networkIdentityId: row.network_identity_id }
       : {}),
