@@ -28,6 +28,7 @@ interface DemoRuntime {
   readonly providerBaseUrls: Record<string, string>;
   targetOrigin?: string;
   localSiteOrigin?: string;
+  outcomeInFlight?: Promise<ScenarioValue | undefined>;
 }
 
 export interface ApplyDemoVisitorInput {
@@ -351,6 +352,26 @@ export class InteractiveDemoService {
   }
 
   public async outcome(id: string): Promise<ScenarioValue | undefined> {
+    const runtime = this.requireRuntime(id);
+    if (runtime.outcomeInFlight) {
+      return runtime.outcomeInFlight;
+    }
+
+    const inFlight = this.collectOutcomeAndEnrich(id);
+    runtime.outcomeInFlight = inFlight;
+
+    try {
+      return await inFlight;
+    } finally {
+      if (runtime.outcomeInFlight === inFlight) {
+        delete runtime.outcomeInFlight;
+      }
+    }
+  }
+
+  private async collectOutcomeAndEnrich(
+    id: string,
+  ): Promise<ScenarioValue | undefined> {
     let session = await this.requireLiveSession(id);
     const runtime = this.requireRuntime(id);
     let outcome = await this.invoke(
