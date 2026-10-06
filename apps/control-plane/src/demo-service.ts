@@ -215,6 +215,7 @@ export class InteractiveDemoService {
         networkIdentityId: selected.network.id,
         personIdentityId: selected.person?.id ?? "none",
       });
+      this.scheduleEnrichmentWatch(session);
       return session;
     } catch (error) {
       await this.failSession(session, error);
@@ -307,6 +308,7 @@ export class InteractiveDemoService {
       activeGatewayRouteId: readString(route, "routeId"),
       enrichmentTriggeredAt: null,
       visitorStartedAt,
+      errorMessage: null,
     });
     await this.timeline(updated, "visitor-profile-applied", {
       networkIdentityId: selected.network.id,
@@ -314,6 +316,7 @@ export class InteractiveDemoService {
       browserIdentityId: selected.browser.id,
       resetVersion,
     });
+    this.scheduleEnrichmentWatch(updated);
     return updated;
   }
 
@@ -338,10 +341,12 @@ export class InteractiveDemoService {
       browserIdentityId: "clean",
       enrichmentTriggeredAt: null,
       visitorStartedAt,
+      errorMessage: null,
     });
     await this.timeline(updated, "visitor-browser-reset-requested", {
       resetVersion,
     });
+    this.scheduleEnrichmentWatch(updated);
     return updated;
   }
 
@@ -354,9 +359,21 @@ export class InteractiveDemoService {
       "target.collect-outcome",
       session.visitorStartedAt ? { since: session.visitorStartedAt } : undefined,
     );
+
+    const companyCount = readOptionalNumber(outcome, "companyCount") ?? 0;
+    const initialMaterialization = enrichmentMaterialization(
+      outcome,
+      session.personIdentityId !== undefined,
+    );
+    const priorMaterializationFailure =
+      session.errorMessage?.startsWith(
+        "GL-EYE enrichment did not materialize",
+      ) === true;
+
     if (
-      readOptionalNumber(outcome, "companyCount") &&
-      !session.enrichmentTriggeredAt
+      companyCount > 0 &&
+      !initialMaterialization.complete &&
+      !priorMaterializationFailure
     ) {
       await this.invoke(
         session,
@@ -364,17 +381,48 @@ export class InteractiveDemoService {
         "target.trigger-enrichment",
         session.visitorStartedAt ? { since: session.visitorStartedAt } : undefined,
       );
-      session = await this.sessions.update(id, {
-        enrichmentTriggeredAt: new Date().toISOString(),
+      await this.timeline(session, "target-enrichment-triggered", {
+        companyCount,
       });
-      await this.timeline(session, "target-enrichment-triggered", {});
+
       outcome = await this.invoke(
         session,
         runtime,
         "target.collect-outcome",
         session.visitorStartedAt ? { since: session.visitorStartedAt } : undefined,
       );
+
+      const materialization = enrichmentMaterialization(
+        outcome,
+        session.personIdentityId !== undefined,
+      );
+      if (materialization.complete || !materialization.known) {
+        session = await this.sessions.update(id, {
+          enrichmentTriggeredAt: new Date().toISOString(),
+          errorMessage: null,
+        });
+        await this.timeline(session, "target-enrichment-materialized", {
+          enrichedCompanyCount: materialization.enrichedCompanyCount ?? 0,
+          contactCount: materialization.contactCount ?? 0,
+        });
+      } else {
+        const errorMessage =
+          materialization.contactExpected &&
+          (materialization.contactCount ?? 0) === 0
+            ? "GL-EYE enrichment did not materialize the selected contact. Check the Testy Apollo/Hunter profile routing and restart the provider runtimes."
+            : "GL-EYE enrichment did not materialize company data. Check the Testy Apollo profile routing and restart the provider runtime.";
+
+        session = await this.sessions.update(id, {
+          enrichmentTriggeredAt: new Date().toISOString(),
+          errorMessage,
+        });
+        await this.timeline(session, "target-enrichment-incomplete", {
+          enrichedCompanyCount: materialization.enrichedCompanyCount ?? 0,
+          contactCount: materialization.contactCount ?? 0,
+        });
+      }
     }
+
     return outcome;
   }
 
@@ -658,6 +706,7 @@ export class InteractiveDemoService {
       personIdentityId: selected.person?.id ?? "none",
       browserIdentityId: selected.browser.id,
     });
+    this.scheduleEnrichmentWatch(resumed);
     return resumed;
   }
 
@@ -709,6 +758,41 @@ export class InteractiveDemoService {
     await this.sessions.update(session.id, {
       activeGatewayRouteId: null,
     });
+  }
+
+  private scheduleEnrichmentWatch(session: DemoSessionRecord): void {
+    const visitorStartedAt = session.visitorStartedAt;
+    const runtime = this.runtimes.get(session.id);
+    if (!visitorStartedAt || !runtime) return;
+
+    const signal = runtime.controller.signal;
+    void (async () => {
+      const deadline = Date.now() + 120_000;
+
+      while (Date.now() <= deadline && !signal.aborted) {
+        const current = await this.sessions.get(session.id);
+        if (
+          !current ||
+          current.visitorStartedAt !== visitorStartedAt ||
+          (current.status !== "READY" && current.status !== "ACTIVE")
+        ) {
+          return;
+        }
+
+        try {
+          const outcome = await this.outcome(session.id);
+          if ((readOptionalNumber(outcome, "companyCount") ?? 0) > 0) {
+            return;
+          }
+        } catch {
+          if (signal.aborted) return;
+          // Identification and provider runtimes can become ready on a later
+          // poll; keep the demo session alive and retry within the watch window.
+        }
+
+        await demoDelay(2_000, signal);
+      }
+    })().catch(() => undefined);
   }
 
   private async configureProviders(
@@ -928,6 +1012,65 @@ function readOptionalNumber(
     : undefined;
 }
 
+
+type EnrichmentMaterialization = {
+  readonly known: boolean;
+  readonly complete: boolean;
+  readonly contactExpected: boolean;
+  readonly enrichedCompanyCount?: number;
+  readonly contactCount?: number;
+};
+
+function enrichmentMaterialization(
+  outcome: ScenarioValue | undefined,
+  contactExpected: boolean,
+): EnrichmentMaterialization {
+  const companyCount = readOptionalNumber(outcome, "companyCount") ?? 0;
+  const enrichedCompanyCount = readOptionalNumber(
+    outcome,
+    "enrichedCompanyCount",
+  );
+  const contactCount = readOptionalNumber(outcome, "contactCount");
+  const known =
+    enrichedCompanyCount !== undefined &&
+    (!contactExpected || contactCount !== undefined);
+
+  if (!known) {
+    return {
+      known: false,
+      complete: false,
+      contactExpected,
+      ...(enrichedCompanyCount === undefined ? {} : { enrichedCompanyCount }),
+      ...(contactCount === undefined ? {} : { contactCount }),
+    };
+  }
+
+  return {
+    known: true,
+    complete:
+      companyCount > 0 &&
+      (enrichedCompanyCount ?? 0) >= companyCount &&
+      (!contactExpected || (contactCount ?? 0) > 0),
+    contactExpected,
+    enrichedCompanyCount,
+    contactCount,
+  };
+}
+
+async function demoDelay(
+  milliseconds: number,
+  signal: AbortSignal,
+): Promise<void> {
+  if (signal.aborted) return;
+  await new Promise<void>((resolve) => {
+    const timer = setTimeout(resolve, milliseconds);
+    const abort = (): void => {
+      clearTimeout(timer);
+      resolve();
+    };
+    signal.addEventListener("abort", abort, { once: true });
+  });
+}
 
 function readArray(
   value: ScenarioValue | undefined,
