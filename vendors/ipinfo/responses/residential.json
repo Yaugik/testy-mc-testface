@@ -1,10 +1,20 @@
 {
   "ip": "198.51.100.20",
-  "company": null,
-  "privacy": {
-    "vpn": false,
-    "proxy": false,
-    "hosting": false
+  "geo": {
+    "country": "Germany",
+    "country_code": "DE",
+    "continent": "Europe",
+    "continent_code": "EU"
   },
-  "classification": "residential"
+  "as": {
+    "asn": "AS64510",
+    "name": "Synthetic Residential ISP",
+    "domain": "synthetic-isp.test",
+    "type": "isp"
+  },
+  "is_anonymous": false,
+  "is_anycast": false,
+  "is_hosting": false,
+  "is_mobile": false,
+  "is_satellite": false
 }

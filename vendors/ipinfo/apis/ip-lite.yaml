@@ -1,0 +1,70 @@
+schemaVersion: "1.0"
+operationId: ip-lite
+request:
+  method: GET
+  path: /lite/{ip}
+
+cases:
+  - id: lite-corporate
+    priority: 100
+    when:
+      path.ip: "198.51.100.10"
+    respond:
+      status: 200
+      body: responses/lite-corporate.json
+
+  - id: lite-acme-corporate
+    priority: 100
+    when:
+      path.ip: "198.51.100.11"
+    respond:
+      status: 200
+      body: responses/lite-acme-corporate.json
+
+  - id: lite-residential
+    priority: 100
+    when:
+      path.ip: "198.51.100.20"
+    respond:
+      status: 200
+      body: responses/lite-residential.json
+
+  - id: lite-vpn
+    priority: 100
+    when:
+      path.ip: "198.51.100.30"
+    respond:
+      status: 200
+      body: responses/lite-vpn.json
+
+  - id: lite-hosting
+    priority: 100
+    when:
+      path.ip: "198.51.100.40"
+    respond:
+      status: 200
+      body: responses/lite-hosting.json
+
+  - id: lite-unknown
+    priority: 100
+    when:
+      path.ip: "198.51.100.50"
+    respond:
+      status: 200
+      body: responses/lite-unknown.json
+
+  - id: lite-bogon
+    priority: 110
+    when:
+      path.ip: "192.0.2.8"
+    respond:
+      status: 200
+      body: responses/bogon.json
+
+  - id: lite-timeout
+    priority: 100
+    when:
+      path.ip: "198.51.100.60"
+    transport:
+      type: timeout
+      duration: 5s

@@ -10,7 +10,7 @@ cases:
       - id: request
         request:
           method: GET
-          path: /198.51.100.10
+          path: /lookup/198.51.100.10
         expect:
           status: 200
           matchedCase: corporate-high-confidence
@@ -20,7 +20,7 @@ cases:
       - id: request
         request:
           method: GET
-          path: /198.51.100.20
+          path: /lookup/198.51.100.20
         expect:
           status: 200
           matchedCase: residential
@@ -30,17 +30,57 @@ cases:
       - id: request
         request:
           method: GET
-          path: /198.51.100.30
+          path: /lookup/198.51.100.50
         expect:
           status: 200
           matchedCase: unknown
+
+  - id: core-bogon
+    steps:
+      - id: reserved-ip
+        request:
+          method: GET
+          path: /lookup/192.0.2.8
+        expect:
+          status: 200
+          matchedCase: bogon
+
+  - id: lite-corporate
+    steps:
+      - id: request
+        request:
+          method: GET
+          path: /lite/198.51.100.10
+        expect:
+          status: 200
+          matchedCase: lite-corporate
+
+  - id: lite-unknown
+    steps:
+      - id: request
+        request:
+          method: GET
+          path: /lite/198.51.100.50
+        expect:
+          status: 200
+          matchedCase: lite-unknown
+
+  - id: lite-bogon
+    steps:
+      - id: reserved-ip
+        request:
+          method: GET
+          path: /lite/192.0.2.8
+        expect:
+          status: 200
+          matchedCase: lite-bogon
 
   - id: authentication
     steps:
       - id: invalid-token
         request:
           method: GET
-          path: /198.51.100.10
+          path: /lookup/198.51.100.10
           headers:
             Authorization: Bearer invalid-test-token
         expect:
@@ -51,7 +91,7 @@ cases:
       - id: timeout
         request:
           method: GET
-          path: /198.51.100.61
+          path: /lookup/198.51.100.61
           timeoutMs: 3000
         expect:
           transportError: true
@@ -60,7 +100,7 @@ cases:
       - id: unavailable
         request:
           method: GET
-          path: /198.51.100.61
+          path: /lookup/198.51.100.61
         expect:
           status: 503
           matchedCase: transient-recovery
@@ -68,7 +108,7 @@ cases:
       - id: recovered
         request:
           method: GET
-          path: /198.51.100.61
+          path: /lookup/198.51.100.61
         expect:
           status: 200
           matchedCase: transient-recovery
@@ -76,7 +116,7 @@ cases:
       - id: repeat-last
         request:
           method: GET
-          path: /198.51.100.61
+          path: /lookup/198.51.100.61
         expect:
           status: 200
           matchedCase: transient-recovery
@@ -108,7 +148,7 @@ cases:
       - id: enter-unavailable
         request:
           method: GET
-          path: /198.51.100.70
+          path: /lookup/198.51.100.70
         expect:
           status: 503
           matchedCase: enter-unavailable
@@ -116,7 +156,7 @@ cases:
       - id: unavailable-one
         request:
           method: GET
-          path: /198.51.100.10
+          path: /lookup/198.51.100.10
         expect:
           status: 503
           matchedCase: corporate-high-confidence
@@ -124,7 +164,7 @@ cases:
       - id: unavailable-two
         request:
           method: GET
-          path: /198.51.100.10
+          path: /lookup/198.51.100.10
         expect:
           status: 503
           matchedCase: corporate-high-confidence
@@ -132,7 +172,7 @@ cases:
       - id: unavailable-three
         request:
           method: GET
-          path: /198.51.100.10
+          path: /lookup/198.51.100.10
         expect:
           status: 503
           matchedCase: corporate-high-confidence
@@ -141,7 +181,7 @@ cases:
       - id: healthy
         request:
           method: GET
-          path: /198.51.100.10
+          path: /lookup/198.51.100.10
         expect:
           status: 200
           matchedCase: corporate-high-confidence
@@ -171,7 +211,7 @@ cases:
       - id: invalid-token
         request:
           method: GET
-          path: /198.51.100.10
+          path: /lookup/198.51.100.10
           headers:
             Authorization: Bearer invalid-test-token
         expect:
@@ -187,7 +227,7 @@ isolation:
   id: unavailable-state-isolated
   request:
     method: GET
-    path: /198.51.100.70
+    path: /lookup/198.51.100.70
   expect:
     status: 503
     matchedCase: enter-unavailable

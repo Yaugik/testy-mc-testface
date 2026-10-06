@@ -1,10 +1,26 @@
 {
   "ip": "198.51.100.30",
-  "company": null,
-  "privacy": {
-    "vpn": true,
-    "proxy": false,
-    "hosting": false
+  "geo": {
+    "country": "Netherlands",
+    "country_code": "NL",
+    "continent": "Europe",
+    "continent_code": "EU"
   },
-  "classification": "vpn"
+  "as": {
+    "asn": "AS64520",
+    "name": "Synthetic VPN Network",
+    "domain": "vpn-network.test",
+    "type": "hosting"
+  },
+  "anonymous": {
+    "is_proxy": false,
+    "is_relay": false,
+    "is_tor": false,
+    "is_vpn": true
+  },
+  "is_anonymous": true,
+  "is_anycast": false,
+  "is_hosting": true,
+  "is_mobile": false,
+  "is_satellite": false
 }
