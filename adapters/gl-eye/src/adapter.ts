@@ -238,6 +238,8 @@ export class GlEyeTargetAdapter implements TargetAdapter {
       ),
       context,
     );
+    const enrichedCompanyCount = optionalNumber(value, "enrichedCompanyCount");
+    const contactCount = optionalNumber(value, "contactCount");
     const processedEventCount = optionalNumber(value, "processedEventCount");
     const duplicateEventCount = optionalNumber(value, "duplicateEventCount");
     const companyFingerprint = optionalString(value, "companyFingerprint");
@@ -258,6 +260,8 @@ export class GlEyeTargetAdapter implements TargetAdapter {
       visibleTenantIds: requireStringArray(value, "visibleTenantIds"),
       scoreCount: requireNumber(value, "scoreCount"),
       companyCount: requireNumber(value, "companyCount"),
+      ...(enrichedCompanyCount === undefined ? {} : { enrichedCompanyCount }),
+      ...(contactCount === undefined ? {} : { contactCount }),
       ...(processedEventCount === undefined ? {} : { processedEventCount }),
       ...(duplicateEventCount === undefined ? {} : { duplicateEventCount }),
       ...(companyFingerprint ? { companyFingerprint } : {}),
