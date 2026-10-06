@@ -1063,12 +1063,19 @@ async function demoDelay(
 ): Promise<void> {
   if (signal.aborted) return;
   await new Promise<void>((resolve) => {
-    const timer = setTimeout(resolve, milliseconds);
-    const abort = (): void => {
+    let settled = false;
+    let timer: ReturnType<typeof setTimeout>;
+
+    const finish = (): void => {
+      if (settled) return;
+      settled = true;
       clearTimeout(timer);
+      signal.removeEventListener("abort", finish);
       resolve();
     };
-    signal.addEventListener("abort", abort, { once: true });
+
+    timer = setTimeout(finish, milliseconds);
+    signal.addEventListener("abort", finish, { once: true });
   });
 }
 
