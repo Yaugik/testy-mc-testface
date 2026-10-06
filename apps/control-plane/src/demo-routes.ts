@@ -3,6 +3,7 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import {
   InteractiveDemoService,
   type ApplyDemoVisitorInput,
+  type CreateDemoSessionInput,
 } from "./demo-service.js";
 
 interface DemoParams {
@@ -35,10 +36,17 @@ export function registerInteractiveDemoRoutes(
     profiles: await demos.profiles(),
   }));
 
-  app.post("/v1/demo-sessions", async (_request, reply) => {
-    const session = await demos.create();
-    return reply.status(201).send(presentSession(demos, session));
-  });
+  app.post<{ Body: CreateDemoSessionInput }>(
+    "/v1/demo-sessions",
+    async (request, reply) => {
+      try {
+        const session = await demos.create(readCreateDemoInput(request.body));
+        return reply.status(201).send(presentSession(demos, session));
+      } catch (error) {
+        return sendDemoError(reply, error);
+      }
+    },
+  );
 
   app.get<{ Params: DemoParams }>(
     "/v1/demo-sessions/:id",
@@ -175,11 +183,31 @@ function presentSession(
 ) {
   return {
     ...session,
+    workspaceName: demos.workspaceName(session),
     websiteUrl:
       session.status === "READY" || session.status === "ACTIVE"
         ? demos.websiteUrl(session)
         : undefined,
   };
+}
+
+function readCreateDemoInput(value: unknown): CreateDemoSessionInput {
+  if (value === undefined || value === null) {
+    return {};
+  }
+  if (typeof value !== "object" || Array.isArray(value)) {
+    throw new Error("Demo session options must be an object.");
+  }
+  const record = value as Record<string, unknown>;
+  const credentialMode = record.credentialMode;
+  if (
+    credentialMode !== undefined &&
+    credentialMode !== "shared" &&
+    credentialMode !== "generated"
+  ) {
+    throw new Error("Demo credential mode must be shared or generated.");
+  }
+  return credentialMode ? { credentialMode } : {};
 }
 
 function readVisitorInput(value: unknown): ApplyDemoVisitorInput {
@@ -211,6 +239,7 @@ function sendDemoError(reply: FastifyReply, error: unknown) {
     message.includes("does not belong") ||
     message.includes("cannot select") ||
     message.includes("must be an object") ||
+    message.includes("credential mode") ||
     message.includes("incomplete")
   ) {
     return reply.status(400).send({
