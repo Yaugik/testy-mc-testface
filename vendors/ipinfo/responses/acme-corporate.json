@@ -1,20 +1,10 @@
 {
   "ip": "198.51.100.11",
-  "company": {
-    "name": "Acme Synthetic Ltd",
-    "domain": "acme-synthetic.test",
-    "type": "business"
-  },
-  "privacy": {
-    "vpn": false,
-    "proxy": false,
-    "hosting": false
-  },
-  "confidence": "high",
-  "asn": {
-    "asn": "AS64502",
-    "name": "Acme Synthetic Network",
-    "type": "business"
-  },
-  "country": "GB"
+  "asn": "AS64502",
+  "as_name": "Acme Synthetic Ltd",
+  "as_domain": "acme-synthetic.test",
+  "country_code": "GB",
+  "country": "United Kingdom",
+  "continent_code": "EU",
+  "continent": "Europe"
 }
