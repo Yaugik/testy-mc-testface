@@ -29,6 +29,14 @@ cases:
       status: 200
       body: responses/unknown.json
 
+  - id: bogon
+    priority: 110
+    when:
+      path.ip: "192.168.1.8"
+    respond:
+      status: 200
+      body: responses/bogon.json
+
   - id: timeout
     priority: 100
     when:
