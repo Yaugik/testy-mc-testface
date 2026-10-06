@@ -1,10 +1,14 @@
 {
   "ip": "198.51.100.50",
-  "asn": "AS64530",
-  "as_name": "",
-  "as_domain": "",
-  "country_code": "DE",
-  "country": "Germany",
-  "continent_code": "EU",
-  "continent": "Europe"
+  "geo": {
+    "country": "Germany",
+    "country_code": "DE",
+    "continent": "Europe",
+    "continent_code": "EU"
+  },
+  "is_anonymous": false,
+  "is_anycast": false,
+  "is_hosting": false,
+  "is_mobile": false,
+  "is_satellite": false
 }
