@@ -1,0 +1,10 @@
+{
+  "ip": "198.51.100.11",
+  "asn": "AS64502",
+  "as_name": "Acme Synthetic Ltd",
+  "as_domain": "acme-synthetic.test",
+  "country_code": "GB",
+  "country": "United Kingdom",
+  "continent_code": "EU",
+  "continent": "Europe"
+}
