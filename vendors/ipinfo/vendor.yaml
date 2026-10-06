@@ -5,7 +5,7 @@ vendor:
   contractVersion: "2026-test"
 
 server:
-  basePath: /ipinfo/lite
+  basePath: /ipinfo
   defaultContentType: application/json
 
 authentication:
