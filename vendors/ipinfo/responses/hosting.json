@@ -1,20 +1,10 @@
 {
   "ip": "198.51.100.40",
-  "company": {
-    "name": "Synthetic Hosting Example",
-    "domain": "hosting-example.test",
-    "type": "hosting"
-  },
-  "privacy": {
-    "vpn": false,
-    "proxy": false,
-    "hosting": true
-  },
-  "asn": {
-    "asn": "AS64501",
-    "name": "Synthetic Hosting Network",
-    "type": "hosting"
-  },
-  "country": "DE",
-  "classification": "hosting"
+  "asn": "AS64501",
+  "as_name": "Synthetic Hosting Example",
+  "as_domain": "",
+  "country_code": "DE",
+  "country": "Germany",
+  "continent_code": "EU",
+  "continent": "Europe"
 }
