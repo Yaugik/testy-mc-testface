@@ -58,7 +58,7 @@ export function loadConfig(
   environment: NodeJS.ProcessEnv = process.env,
 ): ControlPlaneConfig {
   const targetIntegration = loadTargetIntegration(environment);
-  const runtimeImage = nonEmpty(environment.TESTY_IMPOSTER_IMAGE);
+  const runtimeImage = nonEmpty(environment.TESTY_IMPOSTER_RUNTIME_IMAGE);
   const runtimeNetworkName = nonEmpty(environment.TESTY_DOCKER_NETWORK);
   const publicDemoBaseUrl = parsePublicDemoBaseUrl(
     environment.TESTY_PUBLIC_DEMO_BASE_URL,

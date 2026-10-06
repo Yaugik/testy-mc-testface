@@ -61,7 +61,7 @@ services:
       VENDOR_PACKAGES_DIR: /workspace/vendors
       BROWSER_PACKAGES_DIR: /workspace/customers
       GENERATED_RUNS_DIR: /var/lib/testy/generated/runs
-      TESTY_IMPOSTER_IMAGE: "${TESTY_IMPOSTER_RUNTIME_IMAGE:-outofcoffee/imposter:5-beta}"
+      TESTY_IMPOSTER_RUNTIME_IMAGE: "${TESTY_IMPOSTER_RUNTIME_IMAGE:-outofcoffee/imposter:5-beta}"
       TESTY_DOCKER_NETWORK: "${TESTY_GL_EYE_NETWORK:-testy-gl-eye}"
       TESTY_BROWSER: "${TESTY_BROWSER:-chromium}"
       TESTY_HEADLESS: "${TESTY_HEADLESS:-true}"
