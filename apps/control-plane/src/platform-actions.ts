@@ -124,7 +124,17 @@ function createTargetActions(
           authToken: integration.glEyeAuthToken,
           allowedOrigins: integration.glEyeAllowedOrigins,
         });
-  const target = createGatewayTargetScenarioActionBundle({ gateway, adapter });
+  const target = createGatewayTargetScenarioActionBundle({
+    gateway,
+    adapter,
+    ...(config.publicDemoBaseUrl
+      ? {
+          approvedSyntheticHostnameSuffixes: [
+            new URL(config.publicDemoBaseUrl).hostname,
+          ],
+        }
+      : {}),
+  });
   const traffic = createTrafficScenarioActions({
     routeFor: target.routeFor,
     recordEvidence: async (selected, context) =>
