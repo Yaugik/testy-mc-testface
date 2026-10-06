@@ -156,12 +156,25 @@ export function createGatewayTargetScenarioActionBundle(
         })),
       };
     },
-    "target.prepare-run": async (_input, context) => {
+    "target.prepare-run": async (input, context) => {
       const state = stateFor(context);
       if (!state.prepared) {
-        state.prepared = await options.adapter.prepareRun(
-          adapterContext(context),
-        );
+        const value = input === undefined ? undefined : readObject(input);
+        const demoSessionId = value ? readOptionalString(value, "demoSessionId") : undefined;
+        const credentialValue = value?.demoCredential;
+        const demoCredential =
+          credentialValue && typeof credentialValue === "object" && !Array.isArray(credentialValue)
+            ? {
+                mode: readCredentialMode(credentialValue),
+                email: readString(credentialValue, "email"),
+                password: readString(credentialValue, "password"),
+              }
+            : undefined;
+        state.prepared = await options.adapter.prepareRun({
+          ...adapterContext(context),
+          ...(demoSessionId ? { demoSessionId } : {}),
+          ...(demoCredential ? { demoCredential } : {}),
+        });
       }
       if (!state.targetLeaseRegistered) {
         const prepared = state.prepared;
@@ -549,6 +562,16 @@ function readOptionalString(
   return typeof result === "string" && result.length > 0
     ? result
     : undefined;
+}
+
+function readCredentialMode(
+  value: Readonly<Record<string, ScenarioValue>>,
+): "shared" | "generated" {
+  const mode = readString(value, "mode");
+  if (mode !== "shared" && mode !== "generated") {
+    throw new Error("Demo credential mode must be shared or generated.");
+  }
+  return mode;
 }
 
 function readOptionalNumber(
