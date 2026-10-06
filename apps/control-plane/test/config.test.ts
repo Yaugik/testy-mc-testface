@@ -26,4 +26,13 @@ describe("control plane public demo configuration", () => {
       }),
     ).toThrow(/TESTY_PUBLIC_DEMO_BASE_URL/u);
   });
+  it("uses the dedicated Imposter runtime image variable and ignores the legacy key", () => {
+    const config = loadConfig({
+      TESTY_IMPOSTER_RUNTIME_IMAGE: "outofcoffee/imposter:5-beta",
+      TESTY_IMPOSTER_IMAGE: "outofcoffee/imposter:5",
+    });
+
+    expect(config.runtimeImage).toBe("outofcoffee/imposter:5-beta");
+  });
+
 });
