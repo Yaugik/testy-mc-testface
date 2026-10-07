@@ -162,14 +162,17 @@ export function createGatewayTargetScenarioActionBundle(
         const value = input === undefined ? undefined : readObject(input);
         const demoSessionId = value ? readOptionalString(value, "demoSessionId") : undefined;
         const credentialValue = value?.demoCredential;
-        const demoCredential =
-          credentialValue && typeof credentialValue === "object" && !Array.isArray(credentialValue)
-            ? {
-                mode: readCredentialMode(credentialValue),
-                email: readString(credentialValue, "email"),
-                password: readString(credentialValue, "password"),
-              }
-            : undefined;
+        const credential =
+          credentialValue === undefined
+            ? undefined
+            : readObject(credentialValue);
+        const demoCredential = credential
+          ? {
+              mode: readCredentialMode(credential),
+              email: readString(credential, "email"),
+              password: readString(credential, "password"),
+            }
+          : undefined;
         state.prepared = await options.adapter.prepareRun({
           ...adapterContext(context),
           ...(demoSessionId ? { demoSessionId } : {}),
