@@ -21,15 +21,16 @@ Terminal 2, in Testy:
 Open the Control Plane at `http://127.0.0.1:23000`, choose **Interactive Demo**,
 then:
 
-1. Start Demo.
-2. Select a network identity, compatible person identity, and browser identity.
-3. Apply Visitor.
-4. Open Demo Website.
-5. Browse the synthetic site normally in Safari, Chrome, or another host browser.
-6. Watch site activity, Traffic Gateway forwarding, provider calls, and the real
+1. Choose **Reusable credential** or **Generate for this session**, then Start Demo.
+2. Copy the displayed GL-EYE email/password and note the unique session/workspace id.
+3. Select a network identity, compatible person identity, and browser identity.
+4. Apply Visitor.
+5. Open Demo Website.
+6. Browse the synthetic site normally in Safari, Chrome, or another host browser.
+7. Watch site activity, Traffic Gateway forwarding, provider calls, and the real
    GL-EYE test-support outcome.
-7. Switch visitors and repeat.
-8. Stop Demo.
+8. Switch visitors and repeat.
+9. Stop Demo. The session workspace is hard-deleted at this point.
 
 ## Architecture
 
@@ -50,8 +51,27 @@ The session lifecycle is:
 `CREATE -> PROVISIONING -> READY -> ACTIVE -> STOPPING -> STOPPED`
 
 Provisioning failures become `FAILED`. Active sessions have a bounded TTL.
-Normal Control Plane shutdown stops live sessions. Sessions left behind by an
-interrupted process are terminated and cleaned during startup recovery.
+Each session has a UUID and a dedicated GL-EYE workspace named from that UUID.
+The Control Plane can use the stable seeded demo login or generate a new
+session-specific login. The active password is retained only while the demo is
+live so restart recovery can re-provision the same target run.
+
+Normal Control Plane shutdown suspends local runtimes for recovery. Explicit
+Stop Demo or TTL expiry performs target cleanup; for Interactive Demo that
+cleanup hard-deletes the session workspace and tenant-scoped data. Testy keeps
+the stopped session/evidence record but clears the stored demo password.
+
+## Demo login and workspace lifecycle
+
+**Reusable** mode uses `admin@example.com` / `Demo-Access9!` and attaches that
+existing demo user to each new session workspace. **Generated** mode creates a
+unique `demo-<session>@example.com` account and random password for the session.
+
+Both modes create a fresh workspace for every session. Credentials are shown in
+the Control Plane together with the session ID and workspace name. Stopping the
+session removes the workspace completely. A generated user is removed when it
+has no remaining workspace memberships; the reusable account remains because
+it is also a member of the seeded demo workspace.
 
 ## Visitor model
 

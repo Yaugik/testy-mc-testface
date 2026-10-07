@@ -1,7 +1,15 @@
 import type { RunContext, RunId } from "@testy/shared-types";
 
+export interface DemoCredentialContext {
+  readonly mode: "shared" | "generated";
+  readonly email: string;
+  readonly password: string;
+}
+
 export interface AdapterRunContext extends RunContext {
   readonly signal?: AbortSignal;
+  readonly demoSessionId?: string;
+  readonly demoCredential?: DemoCredentialContext;
 }
 
 export interface PreparedTarget {

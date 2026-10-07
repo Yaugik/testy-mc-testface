@@ -26,6 +26,9 @@ describe("interactive demo service", () => {
         websiteHostname: string,
         customerPackage: string,
         expiresAt: string,
+        credentialMode: "shared" | "generated",
+        credentialEmail: string,
+        credentialPassword: string,
       ) {
         const now = new Date().toISOString();
         const session: DemoSessionRecord = {
@@ -34,6 +37,9 @@ describe("interactive demo service", () => {
           status: "CREATE",
           customerPackage,
           websiteHostname,
+          credentialMode,
+          credentialEmail,
+          credentialPassword,
           resetVersion: 0,
           startedAt: now,
           expiresAt,
@@ -125,6 +131,7 @@ describe("interactive demo service", () => {
     let route = 0;
     let enrichmentTriggers = 0;
     let targetCleanupCalls = 0;
+    const preparedInputs: ScenarioValue[] = [];
     const actions: ScenarioActionRegistry = {
       "vendor.compile": async (input) => ({
         vendorId: readInputString(input, "package"),
@@ -136,7 +143,8 @@ describe("interactive demo service", () => {
           providerBaseUrl: `http://${vendorId}.test/${vendorId}`,
         };
       },
-      "target.prepare-run": async (_input, context) => {
+      "target.prepare-run": async (input, context) => {
+        if (input !== undefined) preparedInputs.push(input);
         await context.registerResourceLease(
           "target-run",
           "target-run-1",
@@ -221,6 +229,13 @@ describe("interactive demo service", () => {
 
     const created = await service.create();
     expect(created.status).toBe("READY");
+    expect(created.credentialMode).toBe("shared");
+    expect(created.credentialEmail).toBe("admin@example.com");
+    expect(created.credentialPassword).toBe("Demo-Access9!");
+    expect(asRecord(preparedInputs[0]).demoSessionId).toBe(created.id);
+    expect(asRecord(asRecord(preparedInputs[0]).demoCredential).email).toBe(
+      "admin@example.com",
+    );
     expect(created.networkIdentityId).toBe("nordlicht-corporate");
     expect(created.personIdentityId).toBe("alex-sales");
     expect(service.websiteUrl(created)).toMatch(
@@ -282,9 +297,126 @@ describe("interactive demo service", () => {
 
     const stopped = await restarted.stop(created.id);
     expect(stopped?.status).toBe("STOPPED");
+    expect(stopped?.credentialPassword).toBeUndefined();
     expect(finishedRuns.at(-1)).toBe("PASSED");
     expect(targetCleanupCalls).toBe(1);
     expect(timeline.length).toBeGreaterThan(0);
+  });
+
+  it("generates a session-specific demo credential when selected", async () => {
+    const sessionStore = new Map<string, DemoSessionRecord>();
+    const sessions = {
+      async create(
+        id: string,
+        runId: RunId,
+        websiteHostname: string,
+        customerPackage: string,
+        expiresAt: string,
+        credentialMode: "shared" | "generated",
+        credentialEmail: string,
+        credentialPassword: string,
+      ) {
+        const now = new Date().toISOString();
+        const session: DemoSessionRecord = {
+          id,
+          runId,
+          status: "CREATE",
+          customerPackage,
+          websiteHostname,
+          credentialMode,
+          credentialEmail,
+          credentialPassword,
+          resetVersion: 0,
+          startedAt: now,
+          expiresAt,
+          createdAt: now,
+          updatedAt: now,
+        };
+        sessionStore.set(id, session);
+        return session;
+      },
+      async get(id: string) {
+        return sessionStore.get(id);
+      },
+      async update(id: string, patch: Record<string, unknown>) {
+        const current = sessionStore.get(id);
+        if (!current) throw new Error("missing test session");
+        const next = mergeSession(current, patch);
+        sessionStore.set(id, next);
+        return next;
+      },
+      async finishRun() {},
+      async listInterrupted() {
+        return [];
+      },
+      async getByHostname() {
+        return undefined;
+      },
+    } as unknown as DemoSessionRepository;
+
+    const evidence = {
+      async appendTimeline() {},
+      async createResourceLease() {},
+      async listActiveResourceLeases() {
+        return [];
+      },
+      async releaseResourceLease() {},
+    } as unknown as ScenarioRunRepository;
+
+    const preparedInputs: ScenarioValue[] = [];
+    const actions = {
+      "vendor.compile": async (input: ScenarioValue | undefined) => ({
+        vendorId: readInputString(input, "package"),
+      }),
+      "vendor.start-runtime": async (input: ScenarioValue | undefined) => {
+        const vendorId = readInputString(input, "vendorId");
+        return { vendorId, providerBaseUrl: `http://${vendorId}.test/${vendorId}` };
+      },
+      "target.prepare-run": async (input: ScenarioValue | undefined) => {
+        if (input !== undefined) preparedInputs.push(input);
+        return {
+          targetRunId: "target-run-generated",
+          tenantId: "tenant-generated",
+          siteId: "site-generated",
+          targetOrigin: "http://gl-eye.test",
+        };
+      },
+      "gateway.create-route": async () => ({ routeId: "route-generated" }),
+      "browser.load-package": async () => ({ customerId: "customer-alpha" }),
+      "site.start": async () => ({
+        hostname: "demo.localhost",
+        localOrigin: "http://127.0.0.1:43123",
+      }),
+      "target.configure-vendors": async () => ({ configured: true }),
+      "target.configure-site": async () => ({ configured: true }),
+      "target.start-observation": async () => ({ observationId: "observation-generated" }),
+      "site.configure-manual-tracking": async () => ({ configured: true }),
+    } as unknown as ScenarioActionRegistry;
+
+    const service = new InteractiveDemoService(
+      testConfig(),
+      sessions,
+      evidence,
+      actions,
+      {},
+    );
+
+    const first = await service.create({ credentialMode: "generated" });
+    expect(first.credentialMode).toBe("generated");
+    expect(first.credentialEmail).toMatch(/^demo-[a-f0-9]{12}@example\.com$/u);
+    expect(first.credentialPassword).toMatch(/^Demo-[A-Za-z0-9_-]+9!Aa$/u);
+    expect(first.credentialPassword).not.toBe("Demo-Access9!");
+    expect(asRecord(preparedInputs[0]).demoSessionId).toBe(first.id);
+    expect(asRecord(asRecord(preparedInputs[0]).demoCredential).email).toBe(
+      first.credentialEmail,
+    );
+    expect(service.workspaceName(first)).toBe(
+      "Testy Demo - " + first.id.replaceAll("-", "").slice(0, 8),
+    );
+
+    const stopped = await service.stop(first.id);
+    expect(stopped?.status).toBe("STOPPED");
+    expect(stopped?.credentialPassword).toBeUndefined();
   });
 
   it("builds browser URLs for a configured remote demo domain", () => {

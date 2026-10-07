@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { randomBytes, randomUUID } from "node:crypto";
 
 import type { ResourceLease, RunId, ScenarioId } from "@testy/shared-types";
 import type {
@@ -29,6 +29,12 @@ interface DemoRuntime {
   targetOrigin?: string;
   localSiteOrigin?: string;
   outcomeInFlight?: Promise<ScenarioValue | undefined>;
+}
+
+export type DemoCredentialMode = "shared" | "generated";
+
+export interface CreateDemoSessionInput {
+  readonly credentialMode?: DemoCredentialMode;
 }
 
 export interface ApplyDemoVisitorInput {
@@ -70,7 +76,9 @@ export class InteractiveDemoService {
     return this.catalogPromise;
   }
 
-  public async create(): Promise<DemoSessionRecord> {
+  public async create(
+    input: CreateDemoSessionInput = {},
+  ): Promise<DemoSessionRecord> {
     if (!this.config.targetIntegration) {
       throw new Error("Interactive Demo requires target integration.");
     }
@@ -84,6 +92,10 @@ export class InteractiveDemoService {
     const sessionId = randomUUID();
     const runId = randomUUID() as RunId;
     const hostname = this.demoHostname(sessionId);
+    const credential = this.demoCredential(
+      sessionId,
+      input.credentialMode ?? "shared",
+    );
     const expiresAt = new Date(
       Date.now() + this.config.demoSessionTtlMs,
     ).toISOString();
@@ -93,6 +105,9 @@ export class InteractiveDemoService {
       hostname,
       "customer-alpha",
       expiresAt,
+      credential.mode,
+      credential.email,
+      credential.password,
     );
     const runtime: DemoRuntime = {
       controller: new AbortController(),
@@ -104,6 +119,8 @@ export class InteractiveDemoService {
     this.runtimes.set(sessionId, runtime);
     await this.timeline(session, "demo-session-created", {
       websiteHostname: hostname,
+      credentialMode: credential.mode,
+      credentialEmail: credential.email,
     });
 
     try {
@@ -137,7 +154,7 @@ export class InteractiveDemoService {
         session,
         runtime,
         "target.prepare-run",
-        undefined,
+        this.targetPrepareInput(session),
         "prepare-target",
       );
       runtime.targetOrigin = readString(prepared, "targetOrigin");
@@ -530,6 +547,7 @@ export class InteractiveDemoService {
     session = await this.sessions.update(id, {
       status: errors.length === 0 ? "STOPPED" : "FAILED",
       stoppedAt,
+      ...(errors.length === 0 ? { credentialPassword: null } : {}),
       ...(errors.length > 0 ? { errorMessage: errors.join("; ") } : {}),
     });
     await this.sessions.finishRun(
@@ -564,6 +582,7 @@ export class InteractiveDemoService {
       const recovered = await this.sessions.update(session.id, {
         status: errors.length === 0 ? "STOPPED" : "FAILED",
         stoppedAt: new Date().toISOString(),
+        ...(errors.length === 0 ? { credentialPassword: null } : {}),
         errorMessage:
           errors.length === 0
             ? "Incomplete session terminated during Control Plane restart recovery."
@@ -645,7 +664,7 @@ export class InteractiveDemoService {
       session,
       runtime,
       "target.prepare-run",
-      undefined,
+      this.targetPrepareInput(session),
       "prepare-target",
     );
     runtime.targetOrigin = readString(prepared, "targetOrigin");
@@ -978,6 +997,7 @@ export class InteractiveDemoService {
     await this.sessions.update(session.id, {
       status: "FAILED",
       stoppedAt: new Date().toISOString(),
+      ...(cleanupErrors.length === 0 ? { credentialPassword: null } : {}),
       errorMessage: [message, ...cleanupErrors].join("; "),
     });
     await this.sessions.finishRun(session.runId, "FAILED");
@@ -1002,6 +1022,51 @@ export class InteractiveDemoService {
       );
     }
     return runtime;
+  }
+
+  public workspaceName(session: DemoSessionRecord): string {
+    return `Testy Demo - ${session.id.replaceAll("-", "").slice(0, 8).toLowerCase()}`;
+  }
+
+  private targetPrepareInput(session: DemoSessionRecord): ScenarioValue {
+    if (!session.credentialPassword) {
+      throw new Error(
+        "Interactive Demo credential is unavailable for target provisioning.",
+      );
+    }
+
+    return {
+      demoSessionId: session.id,
+      demoCredential: {
+        mode: session.credentialMode,
+        email: session.credentialEmail,
+        password: session.credentialPassword,
+      },
+    };
+  }
+
+  private demoCredential(
+    sessionId: string,
+    mode: DemoCredentialMode,
+  ): {
+    readonly mode: DemoCredentialMode;
+    readonly email: string;
+    readonly password: string;
+  } {
+    if (mode === "shared") {
+      return {
+        mode,
+        email: "admin@example.com",
+        password: "Demo-Access9!",
+      };
+    }
+
+    const suffix = sessionId.replaceAll("-", "").slice(0, 12).toLowerCase();
+    return {
+      mode,
+      email: `demo-${suffix}@example.com`,
+      password: `Demo-${randomBytes(12).toString("base64url")}9!Aa`,
+    };
   }
 
   private demoHostname(sessionId: string): string {
