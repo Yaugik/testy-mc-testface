@@ -712,8 +712,9 @@ const CONTROL_PLANE_HTML = `<!doctype html>
       document.getElementById("applyDemoVisitor").hidden = !active;
       document.getElementById("openDemoWebsite").hidden = !active;
       document.getElementById("resetDemoVisitor").hidden = !active;
-      document.getElementById("hibernateDemo").hidden = !currentDemo || !["READY","ACTIVE","HIBERNATING"].includes(currentDemo.status);
-      document.getElementById("hibernateDemo").disabled = demoActionBusy || currentDemo?.status === "HIBERNATING";
+      document.getElementById("hibernateDemo").hidden = !currentDemo || !(["READY","ACTIVE","HIBERNATING"].includes(currentDemo.status) || (currentDemo.status === "FAILED" && currentDemo.targetRunId && currentDemo.keepWorkspace));
+      document.getElementById("hibernateDemo").disabled = demoActionBusy;
+      document.getElementById("hibernateDemo").textContent = currentDemo?.status === "FAILED" ? "Retry save & pause" : "Save & pause";
       document.getElementById("resumeDemo").hidden = !currentDemo || currentDemo.status !== "HIBERNATED";
       document.getElementById("stopDemo").hidden = !currentDemo || currentDemo.status === "STOPPED";
       document.getElementById("refreshDemoResult").hidden = !active;
