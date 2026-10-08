@@ -4,6 +4,9 @@ import type { RunId } from "@testy/shared-types";
 import type {
   AdapterRunContext,
   CompletionCondition,
+  DemoWorkspaceAccount,
+  DemoWorkspaceAccounts,
+  GeneratedDemoWorkspaceAccount,
   ObservationHandle,
   ObservationResult,
   PreparedTarget,
@@ -24,6 +27,8 @@ export interface GlEyeEndpointTemplates {
   readonly cleanup: string;
   readonly hibernate: string;
   readonly resume: string;
+  readonly demoAccounts: string;
+  readonly demoAccount: string;
 }
 
 export const defaultGlEyeTestSupportEndpoints: GlEyeEndpointTemplates = {
@@ -37,6 +42,8 @@ export const defaultGlEyeTestSupportEndpoints: GlEyeEndpointTemplates = {
   cleanup: "/test-support/v1/runs/{targetRunId}",
   hibernate: "/test-support/v1/runs/{targetRunId}/hibernate",
   resume: "/test-support/v1/runs/{targetRunId}/resume",
+  demoAccounts: "/test-support/v1/runs/{targetRunId}/accounts",
+  demoAccount: "/test-support/v1/runs/{targetRunId}/accounts/{accountId}",
 };
 
 export interface GlEyeTargetAdapterOptions {
@@ -96,6 +103,9 @@ export class GlEyeTargetAdapter implements TargetAdapter {
         environment: this.options.environment,
         ...(context.demoSessionId ? { demoSessionId: context.demoSessionId } : {}),
         ...(context.demoCredential ? { demoCredential: context.demoCredential } : {}),
+        ...(context.shareSeededDemoAccounts === undefined ? {} : {
+          shareSeededDemoAccounts: context.shareSeededDemoAccounts,
+        }),
       },
       [200, 201],
     );
@@ -309,6 +319,54 @@ export class GlEyeTargetAdapter implements TargetAdapter {
     );
   }
 
+  public async listDemoUsers(targetRunId: string): Promise<DemoWorkspaceAccounts> {
+    const result = await this.requestJson(
+      "GET", expandEndpoint(this.endpoints.demoAccounts, targetRunId),
+      undefined, undefined, [200],
+    );
+    if (!Array.isArray(result.accounts) || typeof result.shareSeededDemoAccounts !== "boolean") {
+      throw new Error("GL-EYE returned an invalid demo account listing.");
+    }
+    return {
+      targetRunId,
+      shareSeededDemoAccounts: result.shareSeededDemoAccounts,
+      hibernated: result.hibernated === true,
+      accounts: result.accounts.map(parseDemoAccount),
+    };
+  }
+
+  public async createDemoUser(
+    targetRunId: string,
+    role: "admin" | "sales" | "read_only",
+  ): Promise<GeneratedDemoWorkspaceAccount> {
+    const result = await this.requestJson(
+      "POST", expandEndpoint(this.endpoints.demoAccounts, targetRunId),
+      undefined, { role }, [201],
+    );
+    if (!result.account || typeof result.account !== "object" || Array.isArray(result.account)
+        || !result.credentials || typeof result.credentials !== "object"
+        || Array.isArray(result.credentials)) {
+      throw new Error("GL-EYE returned an invalid generated demo account.");
+    }
+    const credentials = result.credentials as Record<string, unknown>;
+    return {
+      account: parseDemoAccount(result.account),
+      credentials: {
+        email: requireString(credentials, "email"),
+        password: requireString(credentials, "password"),
+      },
+    };
+  }
+
+  public async revokeDemoUser(targetRunId: string, accountId: string): Promise<void> {
+    await this.requestJson(
+      "DELETE",
+      expandEndpoint(this.endpoints.demoAccount, targetRunId)
+        .replaceAll("{accountId}", encodeURIComponent(accountId)),
+      undefined, undefined, [200],
+    );
+  }
+
   public async cleanupRun(context: AdapterRunContext): Promise<void> {
     const prepared = this.prepared.get(context.runId);
     if (!prepared) return;
@@ -405,6 +463,26 @@ function validateEndpointTemplate(value: string): void {
   if (!value.startsWith("/") || value.startsWith("//") || value.includes("..")) {
     throw new Error("GL-EYE endpoint templates must be confined relative paths.");
   }
+}
+
+function parseDemoAccount(raw: unknown): DemoWorkspaceAccount {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    throw new Error("GL-EYE returned an invalid demo account.");
+  }
+  const row = raw as Record<string, unknown>;
+  const role = optionalEnum(row, "role", ["admin", "sales", "read_only"] as const);
+  const kind = optionalEnum(row, "kind", ["seeded", "protected_admin", "managed", "external"] as const);
+  if (!role || !kind || typeof row.removable !== "boolean") {
+    throw new Error("GL-EYE returned invalid demo account permissions.");
+  }
+  return {
+    id: requireString(row, "id"),
+    userId: requireString(row, "userId"),
+    email: requireString(row, "email"),
+    role,
+    kind,
+    removable: row.removable,
+  };
 }
 
 function expandEndpoint(template: string, targetRunId: string, observationId?: string): string {
