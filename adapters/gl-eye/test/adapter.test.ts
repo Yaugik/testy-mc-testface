@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { RunId, ScenarioId } from "@testy/shared-types";
 import type { AdapterRunContext } from "@testy/target-adapter";
-import { GlEyeTargetAdapter } from "../src/index.js";
+import { GlEyeTargetAdapter, GlEyeTestSupportError } from "../src/index.js";
 
 const context: AdapterRunContext = {
   runId: "run-1" as RunId,
@@ -133,6 +133,45 @@ describe("GL-EYE adapter", () => {
       call.url === "https://gl-eye.example.test/test-support/v1/runs/target-1/enrichment"
       && call.method === "POST"
     )).toBe(true);
+  });
+
+  it("preserves actionable GL-EYE 422 responses without exposing unknown server details", async () => {
+    const valid = new GlEyeTargetAdapter({
+      baseUrl: "https://gl-eye.example.test",
+      environment: "test",
+      authToken: "test-support-token",
+      allowedOrigins: ["https://gl-eye.example.test"],
+      fetchImpl: async () => new Response(JSON.stringify({
+        message: "Shared Testy demo accounts are not seeded. Run ./bin/seed-demo first.",
+      }), { status: 422, headers: { "content-type": "application/json" } }),
+    });
+    await expect(valid.prepareRun(context)).rejects.toMatchObject({
+      name: "GlEyeTestSupportError",
+      targetStatus: 422,
+      message: "Shared Testy demo accounts are not seeded. Run ./bin/seed-demo first.",
+    });
+
+    const unsafe = new GlEyeTargetAdapter({
+      baseUrl: "https://gl-eye.example.test",
+      environment: "test",
+      authToken: "test-support-token",
+      allowedOrigins: ["https://gl-eye.example.test"],
+      fetchImpl: async () => new Response(JSON.stringify({
+        message: "Production internal secret: never expose this value",
+      }), { status: 422, headers: { "content-type": "application/json" } }),
+    });
+    let error: unknown;
+    try {
+      await unsafe.prepareRun(context);
+    } catch (caught) {
+      error = caught;
+    }
+    expect(error).toBeInstanceOf(GlEyeTestSupportError);
+    expect(error).toMatchObject({
+      targetStatus: 422,
+      message: "GL-EYE test-support request failed with status 422.",
+    });
+    expect(String(error)).not.toContain("secret");
   });
 
   it("rejects production and non-allowlisted origins", () => {
