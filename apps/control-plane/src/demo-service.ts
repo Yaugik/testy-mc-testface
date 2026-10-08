@@ -578,7 +578,7 @@ export class InteractiveDemoService {
     let session = await this.sessions.get(id);
     if (!session) return undefined;
     if (session.status === "HIBERNATED") return session;
-    if (!["READY", "ACTIVE", "HIBERNATING", "RESUMING"].includes(session.status)) {
+    if (!["READY", "ACTIVE", "HIBERNATING", "RESUMING", "PROVISIONING"].includes(session.status)) {
       throw new Error(`Demo session cannot hibernate while ${session.status}.`);
     }
     if (!session.targetRunId) {
@@ -785,7 +785,7 @@ export class InteractiveDemoService {
     };
     this.runtimes.set(session.id, runtime);
     await this.sessions.update(session.id, {
-      status: "PROVISIONING",
+      status: fromHibernate ? "RESUMING" : "PROVISIONING",
       activeGatewayRouteId: null,
       errorMessage: null,
       stoppedAt: null,
