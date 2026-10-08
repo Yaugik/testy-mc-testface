@@ -30,4 +30,4 @@ jobs:
           pnpm --filter @testy/traffic-gateway exec tsc -p tsconfig.test.json --noEmit
           pnpm --filter @testy/target-adapter exec tsc -p tsconfig.test.json --noEmit
           pnpm --filter @testy/gl-eye-adapter exec tsc -p tsconfig.test.json --noEmit
-          pnpm --filter @testy/control-plane exec tsc -p tsconfig.test.json --noEmit
+          pnpm --filter @testy/control-plane exec tsc -p tsconfig.json --noEmit
