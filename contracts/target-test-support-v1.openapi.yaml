@@ -125,6 +125,24 @@ paths:
               schema:
                 $ref: '#/components/schemas/TargetOutcome'
         '404': { $ref: '#/components/responses/NotFound' }
+  /test-support/v1/runs/{targetRunId}/hibernate:
+    post:
+      operationId: hibernateDemoRun
+      description: Disable live tracking for a demo while retaining its workspace and all historical data.
+      parameters:
+        - $ref: '#/components/parameters/TargetRunId'
+      responses:
+        '200': { description: Demo workspace hibernated. }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /test-support/v1/runs/{targetRunId}/resume:
+    post:
+      operationId: resumeDemoRun
+      description: Re-enable tracking on the same existing demo workspace.
+      parameters:
+        - $ref: '#/components/parameters/TargetRunId'
+      responses:
+        '200': { description: Existing demo workspace resumed. }
+        '404': { $ref: '#/components/responses/NotFound' }
   /test-support/v1/runs/{targetRunId}:
     delete:
       operationId: cleanupRun
