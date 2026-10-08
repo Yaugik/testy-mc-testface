@@ -446,6 +446,7 @@ describe("interactive demo service", () => {
       "target.configure-vendors": async () => ({ configured: true }),
       "target.configure-site": async () => ({ configured: true }),
       "target.start-observation": async () => ({ observationId: "observation-generated" }),
+      "target.cleanup-target": async () => ({ cleaned: true }),
       "site.configure-manual-tracking": async () => ({ configured: true }),
     } as unknown as ScenarioActionRegistry;
 
