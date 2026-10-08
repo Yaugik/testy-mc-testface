@@ -100,45 +100,155 @@ const CONTROL_PLANE_HTML = `<!doctype html>
       .topbar { align-items: flex-start; flex-direction: column; }
       .health { justify-content: flex-start; }
     }
+
+    /* Testy control panel design tokens and responsive workspace styling */
+    :root { --ink:#17233c; --muted:#64748b; --line:#dfe7f2; --accent:#2659ce; }
+    body { color:var(--ink); background:linear-gradient(180deg,#eef3ff 0,#f5f7fc 300px,#f6f8fb 100%); min-height:100vh; }
+    .shell { max-width:1480px; padding:34px 40px 72px; }
+    .brand { display:flex; align-items:center; gap:14px; }
+    .brand-logo { width:48px; height:48px; flex:none; display:grid; place-items:center; border-radius:14px; background:#2354c4; color:white; font-size:21px; font-weight:850; letter-spacing:-.07em; box-shadow:0 8px 24px #2354c433; }
+    h1 { font-size:26px; font-weight:800; letter-spacing:-.045em; }
+    .sub { color:var(--muted); }
+    .eyebrow { display:block; color:#355fb2; font-size:11px; font-weight:800; letter-spacing:.11em; text-transform:uppercase; margin-bottom:3px; }
+    .health { padding:8px; border:1px solid var(--line); border-radius:12px; background:#ffffffcb; }
+    .badge { display:inline-flex; align-items:center; gap:6px; border-color:var(--line); font-weight:750; }
+    .badge:before { content:""; display:inline-block; width:6px; height:6px; border-radius:50%; background:currentColor; opacity:.75; }
+    .mode-switch { width:100%; gap:8px; background:transparent; padding:0; margin-bottom:20px; border-bottom:1px solid var(--line); border-radius:0; }
+    .mode-button { border-radius:10px 10px 0 0; border:1px solid transparent; border-bottom:3px solid transparent; padding:13px 18px 12px; color:var(--muted); }
+    .mode-button.active { background:white; color:var(--accent); border-color:var(--line); border-bottom-color:var(--accent); box-shadow:none; }
+    .context-banner { display:flex; align-items:center; justify-content:space-between; gap:16px; margin:0 0 21px; padding:18px 20px; background:white; border:1px solid var(--line); border-left:4px solid var(--accent); border-radius:12px; }
+    .context-banner h2 { margin:0; font-size:16px; letter-spacing:-.015em; }
+    .context-banner p { margin:5px 0 0; color:var(--muted); font-size:13px; line-height:1.55; }
+    .live-caption { white-space:nowrap; color:#526680; display:flex; align-items:center; gap:8px; font-size:12px; font-weight:700; }
+    .live-dot { width:8px; height:8px; border-radius:50%; background:#16a34a; box-shadow:0 0 0 3px #dcfce7; }
+    .grid { grid-template-columns:minmax(340px,.9fr) minmax(0,1.6fr); gap:22px; }
+    .demo-grid { grid-template-columns:minmax(360px,.95fr) minmax(0,1.3fr); gap:22px; }
+    .card { border:1px solid var(--line); border-radius:15px; box-shadow:0 5px 24px #21395f09; }
+    .card-head { padding:17px 21px; gap:14px; }
+    .card-head h2 { font-size:16px; font-weight:780; }
+    .card-body { padding:20px 21px; }
+    .heading-description { font-size:12px; color:var(--muted); margin-top:4px; line-height:1.45; }
+    .toolbar { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+    .search-input, .field select, .confirm-input { width:100%; font:inherit; border:1px solid #cbd5e1; background:white; border-radius:9px; padding:10px 11px; color:var(--ink); font-size:13px; transition:border-color .15s,box-shadow .15s; }
+    .search-input { max-width:225px; }
+    .search-input:focus, .field select:focus, .confirm-input:focus { outline:none; border-color:#4b7aeb; box-shadow:0 0 0 3px #406cd522; }
+    .btn { border-radius:9px; padding:10px 14px; font-size:13px; transition:transform .15s,background .15s; line-height:1.3; }
+    .btn:hover:not(:disabled) { transform:translateY(-1px); }
+    .btn.primary { background:#2558cc; color:white; }
+    .btn.primary:hover:not(:disabled) { background:#1848b5; }
+    .btn.secondary { background:#f1f5fb; color:#30435d; border:1px solid #e1e9f5; }
+    .btn.danger { border:1px solid #fecaca; background:#fff3f3; color:#b42318; }
+    .btn:disabled { opacity:.53; transform:none; cursor:not-allowed; }
+    button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible { outline:3px solid #3770e86b; outline-offset:2px; }
+    .scenario { padding:16px 0; }
+    .scenario-title { font-size:14px; color:var(--ink); }
+    .scenario-actions { margin-top:11px; }
+    .meta { color:var(--muted); }
+    .info-strip { background:#f0f6ff; border:1px solid #d4e4ff; color:#375273; padding:11px 13px; border-radius:10px; font-size:12px; line-height:1.5; }
+    .inline-note { font-size:12px; color:var(--muted); margin-top:9px; line-height:1.55; }
+    .empty { padding:29px 12px; color:#718096; font-size:13px; line-height:1.65; }
+    .empty strong { color:#334155; display:block; font-size:14px; }
+    .metric { background:#f9fbff; border-color:var(--line); }
+    .metric .value { color:#1f3b6d; }
+    .status-line { border:1px solid var(--line); }
+    .tabs { overflow-x:auto; }
+    .tab { white-space:nowrap; padding:11px 12px; }
+    .tab.active { color:var(--accent); border-bottom-color:var(--accent); }
+    .demo-session-tabs { background:#e8eef8; }
+    .demo-session-tab.active { color:var(--accent); }
+    .demo-session-list { display:grid; grid-template-columns:repeat(auto-fit,minmax(310px,1fr)); gap:10px; max-height:318px; overflow:auto; }
+    .demo-session-item { min-width:0; align-items:flex-start; border-color:var(--line); padding:15px; }
+    .demo-session-item.selected { background:#f0f5ff; border-color:#83a8f2; box-shadow:inset 3px 0 #2e62d4; }
+    .demo-session-item > div { min-width:0; }
+    .demo-session-item strong { display:block; font-size:14px; margin-bottom:5px; }
+    .session-meta-row { display:flex; flex-wrap:wrap; align-items:center; gap:7px; margin:7px 0; font-size:12px; color:var(--muted); }
+    .session-meta-row .badge { padding:4px 8px; font-size:10px; }
+    .session-id { font-size:11px; color:#94a3b8; overflow-wrap:anywhere; }
+    .new-session-card { margin-bottom:20px; }
+    .demo-steps { display:grid; gap:8px; margin:18px 0; }
+    .demo-step { display:flex; align-items:center; flex-wrap:wrap; gap:10px; border:1px solid var(--line); border-radius:10px; padding:10px 12px; background:#fbfcff; font-size:12px; color:var(--muted); }
+    .demo-step strong { color:#334155; font-weight:750; }
+    .demo-step.active { border-color:#abc6ff; background:#f1f6ff; }
+    .demo-step.done .step-index { background:#dcfce7; color:#166534; }
+    .step-index { width:25px; height:25px; display:grid; place-items:center; border-radius:8px; background:#e9edf5; color:#63758b; font-weight:850; flex:none; }
+    .result-cell { min-width:0; background:#fbfcff; border-color:var(--line); }
+    .result-cell strong { display:block; overflow-wrap:anywhere; line-height:1.4; margin-top:4px; font-size:13px; }
+    .cell-actions { margin-top:9px; display:flex; gap:8px; }
+    .text-button { padding:3px 0; font:inherit; font-weight:750; font-size:12px; border:none; background:none; color:var(--accent); cursor:pointer; }
+    .demo-actions { padding-top:13px; border-top:1px solid var(--line); }
+    .demo-actions .btn.primary { order:-1; }
+    .danger-zone { border-top:1px dashed #fecaca; margin-top:14px; padding-top:13px; }
+    .danger-zone .btn { width:100%; }
+    .service-row:last-child { border-bottom:0; }
+    .error-box { line-height:1.5; overflow-wrap:anywhere; }
+    .toast { position:fixed; bottom:24px; right:24px; z-index:30; background:#182e51; color:#fff; border-radius:10px; padding:12px 17px; box-shadow:0 10px 30px #172b4d40; font-size:13px; max-width:calc(100vw - 32px); }
+    .confirm-dialog { width:min(440px,calc(100% - 32px)); border:1px solid var(--line); border-radius:16px; padding:24px; box-shadow:0 24px 70px #172b4d66; color:var(--ink); }
+    .confirm-dialog::backdrop { background:#0a183088; }
+    .confirm-dialog h2 { margin:0 0 10px; font-size:20px; }
+    .confirm-dialog p { font-size:13px; color:var(--muted); line-height:1.6; }
+    .confirm-dialog .toolbar { justify-content:flex-end; margin-top:20px; }
+    .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+    @media (max-width:1000px) { .grid,.demo-grid { grid-template-columns:1fr; } .shell { padding:24px; } }
+    @media (max-width:620px) {
+      .shell { padding:15px 12px 38px; }
+      .topbar { align-items:flex-start; flex-direction:column; gap:14px; }
+      .health { justify-content:flex-start; width:100%; }
+      h1 { font-size:23px; }
+      .mode-button { padding:12px 10px; flex:1; }
+      .mode-switch { display:flex; }
+      .context-banner { flex-direction:column; gap:12px; padding:15px; }
+      .card-head { flex-wrap:wrap; padding:16px; }
+      .card-body { padding:16px; }
+      .toolbar { width:100%; }
+      .toolbar .search-input { flex:1; max-width:none; min-width:140px; }
+      .run-summary,.result-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+      .demo-session-list { grid-template-columns:1fr; }
+      .demo-event,.event { grid-template-columns:85px 1fr; }
+      .event .cat { grid-column:2; }
+      .status-line { flex-wrap:wrap; }
+      .toast { right:12px; bottom:12px; }
+    }
+    @media (max-width:390px) { .run-summary,.result-grid { grid-template-columns:1fr; } }
+    @media (prefers-reduced-motion:reduce) { *,*::before,*::after { transition:none!important; } }
   </style>
 </head>
 <body>
   <main class="shell">
     <header class="topbar">
-      <div>
-        <h1>Testy Control Plane</h1>
-        <div class="sub">Scenario-driven integration testing and evidence</div>
-      </div>
+      <div class="brand"><div class="brand-logo" aria-hidden="true">T.</div><div><span class="eyebrow">Testing operations</span>
+        <h1>Testy control panel</h1>
+        <div class="sub">Run tests, simulate visitors, and inspect GL-EYE evidence.</div>
+      </div></div>
       <div class="health">
         <span id="controlHealth" class="badge warn">Control Plane · checking</span>
         <span id="targetHealth" class="badge warn">Target · checking</span>
       </div>
     </header>
 
-    <div class="mode-switch">
-      <button id="automatedModeButton" class="mode-button active">Automated Tests</button>
-      <button id="interactiveModeButton" class="mode-button">Interactive Demo</button>
-    </div>
+    <nav class="mode-switch" role="tablist" aria-label="Testing modes">
+      <button id="automatedModeButton" class="mode-button active" role="tab" aria-controls="automatedMode" aria-selected="true">Automated tests</button>
+      <button id="interactiveModeButton" class="mode-button" role="tab" aria-controls="interactiveMode" aria-selected="false">Interactive demo</button>
+    </nav>
+    <div class="context-banner"><div><h2 id="modeHeading">Automated testing</h2><p id="modeDescription">Choose a scenario and inspect its execution and evidence.</p></div><div class="live-caption"><span class="live-dot" aria-hidden="true"></span>Live status</div></div>
 
     <section id="automatedMode" class="mode-view active">
     <div class="grid">
       <section class="card">
         <div class="card-head">
-          <h2>Scenarios</h2>
-          <button class="btn secondary" id="refreshScenarios">Refresh</button>
+          <div><h2>Scenarios <span id="scenarioCount" class="meta"></span></h2><div class="heading-description">Choose a test to launch</div></div><div class="toolbar"><label for="scenarioSearch" class="sr-only">Search scenarios</label><input id="scenarioSearch" class="search-input" type="search" placeholder="Search scenarios"><button class="btn secondary" id="refreshScenarios">Refresh</button></div>
         </div>
-        <div class="card-body" id="scenarioList"><div class="empty">Loading scenarios…</div></div>
+        <div class="card-body"><div id="scenarioActionMessage" class="error-box" role="alert" hidden></div><div id="scenarioList"><div class="empty">Loading scenarios…</div></div></div>
       </section>
 
       <section class="card">
         <div class="card-head">
-          <h2>Run console</h2>
+          <div><h2>Run inspector</h2><div class="heading-description">Live execution, assertions and evidence</div></div>
           <div>
-            <a id="htmlReportLink" class="link" href="#" target="_blank" hidden>Open HTML report</a>
+            <button id="copyRunId" class="btn secondary" hidden>Copy ID</button> <button id="refreshRun" class="btn secondary" hidden>Refresh</button> <a id="htmlReportLink" class="link" href="#" target="_blank" rel="noopener" hidden>Open report ↗</a>
           </div>
         </div>
         <div class="card-body">
-          <div id="noRun" class="empty">Choose a scenario and press Run.</div>
+          <div id="noRun" class="empty"><strong>Ready for your first run</strong>Choose a scenario on the left and press Run to follow its progress here.</div>
           <div id="runConsole" hidden>
             <div class="status-line">
               <div>
@@ -167,7 +277,7 @@ const CONTROL_PLANE_HTML = `<!doctype html>
             <div id="timelinePanel" class="panel active"><div id="timeline" class="timeline"></div></div>
             <div id="assertionsPanel" class="panel"><div id="assertions"></div></div>
             <div id="providersPanel" class="panel"><div id="providers"></div></div>
-            <div id="runError" class="error-box" hidden></div>
+            <div id="runError" class="error-box" role="alert" hidden></div>
           </div>
         </div>
       </section>
@@ -177,12 +287,11 @@ const CONTROL_PLANE_HTML = `<!doctype html>
     <section id="interactiveMode" class="mode-view">
       <div class="demo-session-tabs" role="tablist" aria-label="Demo session lists">
         <button id="demoActiveTab" class="demo-session-tab active" data-demo-tab="active" role="tab" aria-selected="true">Active <span id="demoActiveCount">0</span></button>
-        <button id="demoHibernatedTab" class="demo-session-tab" data-demo-tab="hibernated" role="tab" aria-selected="false">Hibernated <span id="demoHibernatedCount">0</span></button>
+        <button id="demoHibernatedTab" class="demo-session-tab" data-demo-tab="hibernated" role="tab" aria-selected="false">Saved / failed <span id="demoHibernatedCount">0</span></button>
       </div>
       <section class="card" style="margin-bottom:20px">
         <div class="card-head">
-          <h2 id="demoSessionListTitle">Active sessions</h2>
-          <button id="refreshDemoSessions" class="btn secondary">Refresh sessions</button>
+          <div><h2 id="demoSessionListTitle">Active sessions</h2><div class="heading-description">Manage and join existing test workspaces</div></div><div class="toolbar"><label for="demoSessionSearch" class="sr-only">Search sessions</label><input id="demoSessionSearch" class="search-input" type="search" placeholder="Search workspace or email"><button id="refreshDemoSessions" class="btn secondary">Refresh</button></div>
         </div>
         <div class="card-body">
           <div class="meta" style="margin-bottom:12px">Sessions are shared by this control panel. Any open tab or computer can join and control a session. Your selected session is synchronized across this browser's tabs.</div>
@@ -193,11 +302,11 @@ const CONTROL_PLANE_HTML = `<!doctype html>
         <div>
           <section class="card">
             <div class="card-head">
-              <h2>Interactive Demo</h2>
+              <h2>Selected demo session</h2>
               <span id="demoStatus" class="badge warn">Not started</span>
             </div>
             <div class="card-body">
-              <div class="meta" id="demoSessionMeta">Start a long-lived Testy session for manual browser QA.</div>
+              <div class="info-strip" id="demoSessionMeta">Create a test workspace or choose a shared session above.</div>
               <div class="field" id="demoCredentialModeField" style="margin-top:18px">
                 <label for="demoCredentialMode">Demo login</label>
                 <select id="demoCredentialMode">
@@ -213,10 +322,10 @@ const CONTROL_PLANE_HTML = `<!doctype html>
               <div id="demoCredentialPanel" class="result-grid" hidden style="margin-top:18px">
                 <div class="result-cell"><div class="meta">Workspace</div><strong id="demoWorkspaceName">—</strong></div>
                 <div class="result-cell"><div class="meta">Session ID</div><strong id="demoCredentialSessionId">—</strong></div>
-                <div class="result-cell"><div class="meta">Email</div><strong id="demoCredentialEmail">—</strong></div>
-                <div class="result-cell"><div class="meta">Password</div><strong id="demoCredentialPassword">—</strong></div>
+                <div class="result-cell"><div class="meta">Email</div><strong id="demoCredentialEmail">—</strong><div class="cell-actions"><button id="copyDemoEmail" class="text-button">Copy email</button></div></div>
+                <div class="result-cell"><div class="meta">Password</div><strong id="demoCredentialPassword">—</strong><div class="cell-actions"><button id="toggleDemoPassword" class="text-button" aria-pressed="false">Show</button><button id="copyDemoPassword" class="text-button">Copy password</button></div></div>
               </div>
-              <div id="demoVisitorControls" hidden style="margin-top:18px">
+              <div id="demoVisitorControls" hidden style="margin-top:18px"><div class="info-strip" style="margin-bottom:14px">Choose a synthetic network, person and browser. Apply your selection before opening the website.</div>
                 <div class="field">
                   <label for="demoNetwork">Network identity</label>
                   <select id="demoNetwork"></select>
@@ -232,20 +341,20 @@ const CONTROL_PLANE_HTML = `<!doctype html>
                 <div id="demoIdentitySummary" class="meta"></div>
               </div>
               <div class="demo-actions">
-                <button id="startDemo" class="btn primary">Start New Demo</button>
+                <button id="startDemo" class="btn primary">Create new session</button>
                 <button id="applyDemoVisitor" class="btn primary" hidden>Apply Visitor</button>
                 <button id="openDemoWebsite" class="btn secondary" hidden>Open Demo Website</button>
                 <button id="resetDemoVisitor" class="btn secondary" hidden>Reset Visitor</button>
                 <button id="hibernateDemo" class="btn secondary" hidden>Hibernate · Keep Workspace</button>
                 <button id="resumeDemo" class="btn primary" hidden>Resume Session</button>
-                <button id="stopDemo" class="btn danger" hidden>Delete Session &amp; Workspace</button>
+                
               </div>
-              <div id="demoError" class="error-box" hidden></div>
+              <div class="danger-zone"><button id="stopDemo" class="btn danger" hidden>Delete session and workspace permanently</button></div><div id="demoError" class="error-box" role="alert" hidden></div>
             </div>
           </section>
 
           <section class="card" style="margin-top:20px">
-            <div class="card-head"><h2>Services</h2></div>
+            <div class="card-head"><div><h2>Connected services</h2><div class="heading-description">Target and simulated external providers</div></div></div>
             <div class="card-body service-list">
               <div class="service-row"><span>GL-EYE</span><strong id="demoGlEyeService">Checking</strong></div>
               <div class="service-row"><span>GL-EYE workspace</span><strong id="demoWorkspaceService">Created per session</strong></div>
@@ -260,7 +369,7 @@ const CONTROL_PLANE_HTML = `<!doctype html>
         <div>
           <section class="card">
             <div class="card-head">
-              <h2>GL-EYE Result</h2>
+              <div><h2>GL-EYE outcome</h2><div class="heading-description">Evidence produced by this workspace</div></div>
               <button id="refreshDemoResult" class="btn secondary" hidden>Refresh GL-EYE Result</button>
             </div>
             <div class="card-body">
@@ -277,7 +386,7 @@ const CONTROL_PLANE_HTML = `<!doctype html>
           </section>
 
           <section class="card" style="margin-top:20px">
-            <div class="card-head"><h2>Live Activity</h2></div>
+            <div class="card-head"><div><h2>Activity stream</h2><div class="heading-description">Visitor, provider and gateway events</div></div><button id="refreshDemoActivity" class="btn secondary" hidden>Refresh</button></div>
             <div class="card-body">
               <div id="demoActivity" class="demo-activity"><div class="empty">No demo activity yet.</div></div>
             </div>
@@ -286,7 +395,7 @@ const CONTROL_PLANE_HTML = `<!doctype html>
       </div>
     </section>
   </main>
-
+  <dialog id="deleteDemoDialog" class="confirm-dialog" aria-labelledby="deleteDemoTitle"><h2 id="deleteDemoTitle">Permanently delete workspace?</h2><p>The session, GL-EYE workspace and all of its data will be removed. Hibernate instead if you want to preserve it.</p><div class="info-strip"><strong id="deleteDemoWorkspace">—</strong><div id="deleteDemoId" class="session-id"></div></div><label class="field" style="margin-top:16px"><span>Type <strong>DELETE</strong> to continue</span><input id="deleteDemoConfirmation" class="confirm-input" autocomplete="off" spellcheck="false"></label><div class="toolbar"><button id="cancelDeleteDemo" class="btn secondary">Keep workspace</button><button id="confirmDeleteDemo" class="btn danger" disabled>Delete permanently</button></div></dialog><div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
   <script>
     const terminalStatuses = new Set(["PASSED", "FAILED", "CANCELLED"]);
     const statusOrder = ["CREATED","VALIDATING","ALLOCATING","COMPILING","CONFIGURING","RUNNING","OBSERVING","ASSERTING","CLEANUP","PASSED"];
@@ -301,6 +410,10 @@ const CONTROL_PLANE_HTML = `<!doctype html>
     let demoSelectorsSessionId = "";
     let demoSessions = [];
     let demoSessionTab = localStorage.getItem("testy.demoSessionTab") === "hibernated" ? "hibernated" : "active";
+    let toastTimer;
+    let demoPasswordVisible = false;
+    let demoActionBusy = false;
+    let demoRefreshGeneration = 0;
 
 
     function escapeHtml(value) {
@@ -310,6 +423,72 @@ const CONTROL_PLANE_HTML = `<!doctype html>
         .replaceAll(">", "&gt;")
         .replaceAll('"', "&quot;")
         .replaceAll("'", "&#039;");
+    }
+
+    function notify(message) {
+      const toast = document.getElementById("toast");
+      toast.textContent = message;
+      toast.hidden = false;
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(function () { toast.hidden = true; }, 3500);
+    }
+    async function copyText(value, label) {
+      if (!value || value === "—") return;
+      try {
+        await navigator.clipboard.writeText(value);
+        notify(label + " copied");
+      } catch {
+        notify("Clipboard unavailable. Select the text to copy.");
+      }
+    }
+    function renderDemoPassword() {
+      const value = currentDemo?.credentialPassword;
+      document.getElementById("demoCredentialPassword").textContent =
+        !value ? "Not available" : demoPasswordVisible ? value : "••••••••••••";
+      document.getElementById("toggleDemoPassword").textContent = demoPasswordVisible ? "Hide" : "Show";
+      document.getElementById("toggleDemoPassword").setAttribute("aria-pressed", String(demoPasswordVisible));
+      document.getElementById("copyDemoPassword").disabled = !value;
+    }
+    function setDemoBusy(busy) {
+      demoActionBusy = busy;
+      document.querySelectorAll("#interactiveMode button[data-demo-action]").forEach(function (button) {
+        button.disabled = busy;
+      });
+    }
+    function clearDemoResults() {
+      document.getElementById("demoResult").hidden = true;
+      document.getElementById("demoResultEmpty").hidden = false;
+      document.getElementById("demoResultEmpty").textContent = "Open a ready session and browse the website to generate GL-EYE results.";
+      document.getElementById("demoActivity").innerHTML = '<div class="empty">No activity for this session yet.</div>';
+    }
+    function renderFilteredScenarios() {
+      const term = document.getElementById("scenarioSearch").value.trim().toLowerCase();
+      document.querySelectorAll("#scenarioList .scenario").forEach(function (item) {
+        item.hidden = !item.textContent.toLowerCase().includes(term);
+      });
+      const matching = [...document.querySelectorAll("#scenarioList .scenario")].filter(function (item) { return !item.hidden; }).length;
+      document.getElementById("scenarioCount").textContent = "(" + matching + "/" + scenarios.length + ")";
+      let empty = document.getElementById("scenarioSearchEmpty");
+      if (!empty) {
+        empty = document.createElement("div");
+        empty.id = "scenarioSearchEmpty";
+        empty.className = "empty";
+        document.getElementById("scenarioList").append(empty);
+      }
+      empty.textContent = "No scenarios match your search.";
+      empty.hidden = !term || matching > 0 || scenarios.length === 0;
+    }
+    function formatDate(value) {
+      const date = new Date(value);
+      return Number.isNaN(date.getTime()) ? "Unknown" : date.toLocaleString();
+    }
+    function displaySessionStatus(status) {
+      return ({ READY:"Ready", ACTIVE:"Active", HIBERNATED:"Saved", HIBERNATING:"Saving", RESUMING:"Resuming", PROVISIONING:"Preparing", FAILED:"Failed", STOPPED:"Deleted" })[status] || status;
+    }
+    async function withDemoAction(callback) {
+      if (demoActionBusy) return;
+      setDemoBusy(true);
+      try { await callback(); } finally { setDemoBusy(false); }
     }
 
     async function requestJson(url, options) {
@@ -333,6 +512,10 @@ const CONTROL_PLANE_HTML = `<!doctype html>
       document.getElementById("interactiveMode").classList.toggle("active", !automated);
       document.getElementById("automatedModeButton").classList.toggle("active", automated);
       document.getElementById("interactiveModeButton").classList.toggle("active", !automated);
+      document.getElementById("automatedModeButton").setAttribute("aria-selected", String(automated));
+      document.getElementById("interactiveModeButton").setAttribute("aria-selected", String(!automated));
+      document.getElementById("modeHeading").textContent = automated ? "Automated testing" : "Interactive visitor simulator";
+      document.getElementById("modeDescription").textContent = automated ? "Choose a scenario, launch a run, and review the evidence." : "Create or open a workspace, apply a visitor identity, browse the test site, and inspect GL-EYE activity.";
       localStorage.setItem("testy.mode", mode);
       if (!automated) {
         void loadDemoProfiles();
@@ -383,8 +566,8 @@ const CONTROL_PLANE_HTML = `<!doctype html>
       select.innerHTML = '<option value="">Anonymous / none</option>' + people.map(function (person) {
         return '<option value="' + escapeHtml(person.id) + '">' + escapeHtml(person.displayName) + '</option>';
       }).join("");
-      const currentSelected = select.value;
-      const desired = currentSelected || currentDemo?.personIdentityId || demoProfiles.defaults.personId;
+      const desired = select.dataset.networkId === networkId ? select.value : (currentDemo?.personIdentityId || demoProfiles.defaults.personId);
+      select.dataset.networkId = networkId;
       select.value = people.some(function (person) { return person.id === desired; })
         ? desired
         : (people[0]?.id || "");
@@ -412,11 +595,15 @@ const CONTROL_PLANE_HTML = `<!doctype html>
     async function startInteractiveDemo() {
       clearTimeout(demoPollTimer);
       document.getElementById("startDemo").disabled = true;
+      document.getElementById("startDemo").textContent = "Creating session…";
       showDemoError("");
       try {
         await loadDemoProfiles();
+        demoRefreshGeneration++;
         currentDemoId = "";
         currentDemo = undefined;
+        demoPasswordVisible = false;
+        clearDemoResults();
         localStorage.removeItem("testy.currentDemoId");
         demoSelectorsSessionId = "";
         currentDemo = await requestJson("/v1/demo-sessions", {
@@ -433,11 +620,13 @@ const CONTROL_PLANE_HTML = `<!doctype html>
         renderDemoSelectors(true);
         await refreshDemoActivity();
         await refreshDemoList();
+        notify("Demo workspace created");
         scheduleDemoPoll();
       } catch (error) {
         showDemoError("Unable to start demo: " + error.message);
       } finally {
         document.getElementById("startDemo").disabled = false;
+        document.getElementById("startDemo").textContent = "Create new session";
       }
     }
 
@@ -463,22 +652,22 @@ const CONTROL_PLANE_HTML = `<!doctype html>
       });
       document.getElementById("demoActiveCount").textContent = String(active.length);
       document.getElementById("demoHibernatedCount").textContent = String(hibernated.length);
-      const shown = demoSessionTab === "active" ? active : hibernated;
+      const query = document.getElementById("demoSessionSearch").value.trim().toLowerCase();
+      const shown = (demoSessionTab === "active" ? active : hibernated).filter(function (item) { return [item.id,item.workspaceName,item.credentialEmail,item.status].some(function (field) { return String(field || "").toLowerCase().includes(query); }); });
       document.getElementById("demoSessionList").innerHTML = shown.length
         ? shown.map(function (session) {
             const selected = session.id === currentDemoId;
             const status = escapeHtml(session.status);
             return '<div class="demo-session-item' + (selected ? ' selected' : '') + '">' +
               '<div><strong>' + escapeHtml(session.workspaceName) + '</strong>' +
-              '<div class="meta">' + escapeHtml(session.credentialEmail) + ' · ' + status +
-              ' · ' + escapeHtml(new Date(session.updatedAt).toLocaleString()) + '</div>' +
-              '<div class="meta">Session ' + escapeHtml(session.id) + '</div></div>' +
+              '<div class="session-meta-row"><span class="badge ' + (session.status === "FAILED" ? "bad" : session.status === "HIBERNATED" ? "warn" : "ok") + '">' + escapeHtml(displaySessionStatus(session.status)) + '</span><span>' + escapeHtml(formatDate(session.updatedAt)) + '</span></div>' +
+              '<div class="meta">' + escapeHtml(session.credentialEmail || "No email") + '</div>' +
+              '<div class="session-id">Session ' + escapeHtml(session.id) + '</div></div>' +
               '<button class="btn ' + (selected ? 'primary' : 'secondary') +
               '" data-demo-id="' + escapeHtml(session.id) + '">' + (selected ? 'Selected' : 'Join / Open') + '</button>' +
               '</div>';
           }).join("")
-        : '<div class="empty">No ' + (demoSessionTab === "active" ? 'active' : 'hibernated') +
-          ' sessions. Start a new demo or join an existing one when it appears.</div>';
+        : '<div class="empty"><strong>No matching sessions</strong>Try another search, select a different tab, or create a new session.</div>';
     }
 
     async function refreshDemoList() {
@@ -494,8 +683,12 @@ const CONTROL_PLANE_HTML = `<!doctype html>
 
     async function selectDemoSession(id) {
       if (!id) return;
+      demoRefreshGeneration++;
       currentDemoId = id;
       currentDemo = undefined;
+      demoPasswordVisible = false;
+      clearDemoResults();
+      renderDemoSession();
       demoSelectorsSessionId = "";
       localStorage.setItem("testy.currentDemoId", id);
       showDemoError("");
@@ -511,9 +704,10 @@ const CONTROL_PLANE_HTML = `<!doctype html>
         return;
       }
       const requestedId = currentDemoId;
+      const requestedGeneration = demoRefreshGeneration;
       try {
         const fetched = await requestJson("/v1/demo-sessions/" + encodeURIComponent(requestedId));
-        if (requestedId !== currentDemoId) return;
+        if (requestedId !== currentDemoId || requestedGeneration !== demoRefreshGeneration) return;
         if (fetched.status === "STOPPED") {
           currentDemoId = "";
           currentDemo = undefined;
@@ -531,6 +725,7 @@ const CONTROL_PLANE_HTML = `<!doctype html>
           await refreshDemoOutcome(false);
         }
       } catch (error) {
+        if (requestedId !== currentDemoId || requestedGeneration !== demoRefreshGeneration) return;
         if (error.status === 404 && requestedId === currentDemoId) {
           currentDemoId = "";
           currentDemo = undefined;
@@ -552,7 +747,7 @@ const CONTROL_PLANE_HTML = `<!doctype html>
       const credentialPanel = document.getElementById("demoCredentialPanel");
       const credentialMode = document.getElementById("demoCredentialMode");
       if (!currentDemo) {
-        setBadge(status, "Not started", "warn");
+        setBadge(status, "Not selected", "warn");
         document.getElementById("demoSessionMeta").textContent = "Start a long-lived Testy session for manual browser QA.";
         credentialPanel.hidden = true;
         credentialMode.disabled = false;
@@ -569,13 +764,14 @@ const CONTROL_PLANE_HTML = `<!doctype html>
         document.getElementById("demoWorkspaceName").textContent = currentDemo.workspaceName || "—";
         document.getElementById("demoCredentialSessionId").textContent = currentDemo.id || "—";
         document.getElementById("demoCredentialEmail").textContent = currentDemo.credentialEmail || "—";
-        document.getElementById("demoCredentialPassword").textContent =
-          currentDemo.credentialPassword || (currentDemo.status === "STOPPED" ? "Cleared" : "—");
+        renderDemoPassword();
         document.getElementById("demoWorkspaceService").textContent =
           currentDemo.status === "STOPPED"
             ? "Deleted"
             : (currentDemo.workspaceName || "Session managed");
       }
+      if (!currentDemo) renderDemoPassword();
+      document.getElementById("refreshDemoActivity").hidden = !active;
       document.getElementById("demoVisitorControls").hidden = !active;
       document.getElementById("applyDemoVisitor").hidden = !active;
       document.getElementById("openDemoWebsite").hidden = !active;
@@ -588,6 +784,7 @@ const CONTROL_PLANE_HTML = `<!doctype html>
 
       document.getElementById("refreshDemoResult").hidden = !active;
       document.getElementById("startDemo").hidden = false;
+      document.getElementById("demoCredentialModeField").classList.toggle("muted", Boolean(currentDemo));
       if (currentDemo?.status === "HIBERNATED") {
         document.getElementById("demoResultEmpty").textContent =
           "Workspace is saved and accessible in GL-EYE; live tracking is disabled. Resume this session to generate new activity.";
@@ -615,6 +812,7 @@ const CONTROL_PLANE_HTML = `<!doctype html>
         renderDemoSession();
         renderDemoSelectors(true);
         await refreshDemoActivity();
+        notify("Visitor identity applied");
       } catch (error) {
         showDemoError("Unable to apply visitor: " + error.message);
       }
@@ -643,6 +841,7 @@ const CONTROL_PLANE_HTML = `<!doctype html>
         chooseDemoSessionTab("hibernated");
         renderDemoSession();
         await refreshDemoList();
+        notify("Workspace hibernated");
       } catch (error) {
         showDemoError("Unable to hibernate demo: " + error.message);
       }
@@ -660,6 +859,7 @@ const CONTROL_PLANE_HTML = `<!doctype html>
         renderDemoSession();
         renderDemoSelectors(true);
         await refreshDemoList();
+        notify("Workspace resumed");
       } catch (error) {
         showDemoError("Unable to resume demo: " + error.message);
       }
@@ -667,7 +867,18 @@ const CONTROL_PLANE_HTML = `<!doctype html>
 
     async function stopInteractiveDemo() {
       if (!currentDemoId) return;
-      if (!confirm("Permanently delete this session AND its GL-EYE workspace, including all workspace data? This cannot be undone.")) return;
+      const dialog = document.getElementById("deleteDemoDialog");
+      document.getElementById("deleteDemoWorkspace").textContent = currentDemo?.workspaceName || "Selected workspace";
+      document.getElementById("deleteDemoId").textContent = currentDemoId;
+      document.getElementById("deleteDemoConfirmation").value = "";
+      document.getElementById("confirmDeleteDemo").disabled = true;
+      dialog.showModal();
+    }
+
+    async function confirmInteractiveDemoDeletion() {
+      if (!currentDemoId || document.getElementById("deleteDemoConfirmation").value !== "DELETE") return;
+      const dialog = document.getElementById("deleteDemoDialog");
+      document.getElementById("confirmDeleteDemo").disabled = true;
       showDemoError("");
       try {
         const deletedId = currentDemoId;
@@ -680,10 +891,17 @@ const CONTROL_PLANE_HTML = `<!doctype html>
           currentDemo = undefined;
           localStorage.removeItem("testy.currentDemoId");
         }
+        demoRefreshGeneration++;
+        demoPasswordVisible = false;
+        clearDemoResults();
         renderDemoSession();
         await refreshDemoList();
+        dialog.close();
+        notify("Workspace deleted");
       } catch (error) {
         showDemoError("Unable to permanently delete session: " + error.message);
+        document.getElementById("confirmDeleteDemo").disabled = false;
+        dialog.close();
       }
     }
 
@@ -693,8 +911,10 @@ const CONTROL_PLANE_HTML = `<!doctype html>
 
     async function refreshDemoOutcome(showErrors) {
       if (!currentDemoId || !currentDemo || !["READY","ACTIVE"].includes(currentDemo.status)) return;
+      const selectedId = currentDemoId;
       try {
         const result = await requestJson("/v1/demo-sessions/" + encodeURIComponent(currentDemoId) + "/outcome");
+        if (selectedId !== currentDemoId) return;
         const outcome = result.outcome || {};
         document.getElementById("demoResultEmpty").hidden = true;
         document.getElementById("demoResult").hidden = false;
@@ -712,8 +932,10 @@ const CONTROL_PLANE_HTML = `<!doctype html>
 
     async function refreshDemoActivity() {
       if (!currentDemoId || !currentDemo || !["READY","ACTIVE"].includes(currentDemo.status)) return;
+      const selectedId = currentDemoId;
       try {
         const result = await requestJson("/v1/demo-sessions/" + encodeURIComponent(currentDemoId) + "/activity");
+        if (selectedId !== currentDemoId) return;
         const events = [];
         (result.timeline || []).forEach(function (item) {
           events.push({ at: item.occurredAt, text: item.name });
@@ -829,6 +1051,7 @@ const CONTROL_PLANE_HTML = `<!doctype html>
           button.addEventListener("click", function () { void startRun(button.dataset.scenario); });
         });
         updateScenarioAvailability();
+        renderFilteredScenarios();
       } catch (error) {
         list.innerHTML = '<div class="error-box">Unable to load scenarios: ' + escapeHtml(error.message) + '</div>';
       }
@@ -841,6 +1064,8 @@ const CONTROL_PLANE_HTML = `<!doctype html>
         return;
       }
 
+      const errorBox = document.getElementById("scenarioActionMessage");
+      errorBox.hidden = true;
       document.querySelectorAll(".run-scenario").forEach(function (button) { button.disabled = true; });
       try {
         const run = await requestJson("/v1/runs", {
@@ -852,7 +1077,8 @@ const CONTROL_PLANE_HTML = `<!doctype html>
         localStorage.setItem("testy.currentRunId", currentRunId);
         await refreshRun();
       } catch (error) {
-        alert("Unable to start run: " + error.message);
+        errorBox.hidden = false;
+        errorBox.textContent = "Unable to start run: " + error.message;
       } finally {
         updateScenarioAvailability();
       }
@@ -877,6 +1103,8 @@ const CONTROL_PLANE_HTML = `<!doctype html>
         const run = await requestJson("/v1/runs/" + encodeURIComponent(currentRunId));
         document.getElementById("noRun").hidden = true;
         document.getElementById("runConsole").hidden = false;
+        document.getElementById("copyRunId").hidden = false;
+        document.getElementById("refreshRun").hidden = false;
         document.getElementById("runScenario").textContent = run.scenarioId;
         document.getElementById("runId").textContent = run.id;
         const status = document.getElementById("runStatus");
@@ -965,13 +1193,24 @@ const CONTROL_PLANE_HTML = `<!doctype html>
 
     document.getElementById("automatedModeButton").addEventListener("click", function () { setMode("automated"); });
     document.getElementById("interactiveModeButton").addEventListener("click", function () { setMode("interactive"); });
-    document.getElementById("startDemo").addEventListener("click", function () { void startInteractiveDemo(); });
-    document.getElementById("applyDemoVisitor").addEventListener("click", function () { void applyDemoVisitorSelection(); });
+    document.getElementById("scenarioSearch").addEventListener("input", renderFilteredScenarios);
+    document.getElementById("demoSessionSearch").addEventListener("input", renderDemoList);
+    document.getElementById("refreshRun").addEventListener("click", function () { void refreshRun(); });
+    document.getElementById("copyRunId").addEventListener("click", function () { void copyText(currentRunId, "Run ID"); });
+    document.getElementById("copyDemoEmail").addEventListener("click", function () { void copyText(currentDemo?.credentialEmail, "Email"); });
+    document.getElementById("copyDemoPassword").addEventListener("click", function () { void copyText(currentDemo?.credentialPassword, "Password"); });
+    document.getElementById("toggleDemoPassword").addEventListener("click", function () { demoPasswordVisible = !demoPasswordVisible; renderDemoPassword(); });
+    document.getElementById("refreshDemoActivity").addEventListener("click", function () { void refreshDemoActivity(); });
+    document.getElementById("cancelDeleteDemo").addEventListener("click", function () { document.getElementById("deleteDemoDialog").close(); });
+    document.getElementById("deleteDemoConfirmation").addEventListener("input", function (event) { document.getElementById("confirmDeleteDemo").disabled = event.target.value !== "DELETE"; });
+    document.getElementById("confirmDeleteDemo").addEventListener("click", function () { void confirmInteractiveDemoDeletion(); });
+    document.getElementById("startDemo").addEventListener("click", function () { void withDemoAction(startInteractiveDemo); });
+    document.getElementById("applyDemoVisitor").addEventListener("click", function () { void withDemoAction(applyDemoVisitorSelection); });
     document.getElementById("openDemoWebsite").addEventListener("click", openInteractiveWebsite);
-    document.getElementById("resetDemoVisitor").addEventListener("click", function () { void resetInteractiveVisitor(); });
+    document.getElementById("resetDemoVisitor").addEventListener("click", function () { void withDemoAction(resetInteractiveVisitor); });
     document.getElementById("stopDemo").addEventListener("click", function () { void stopInteractiveDemo(); });
-    document.getElementById("hibernateDemo").addEventListener("click", function () { void hibernateInteractiveDemo(); });
-    document.getElementById("resumeDemo").addEventListener("click", function () { void resumeInteractiveDemo(); });
+    document.getElementById("hibernateDemo").addEventListener("click", function () { void withDemoAction(hibernateInteractiveDemo); });
+    document.getElementById("resumeDemo").addEventListener("click", function () { void withDemoAction(resumeInteractiveDemo); });
     document.getElementById("refreshDemoSessions").addEventListener("click", function () { void refreshDemoList(); });
     document.getElementById("demoSessionList").addEventListener("click", function (event) {
       const button = event.target.closest("button[data-demo-id]");
@@ -982,7 +1221,10 @@ const CONTROL_PLANE_HTML = `<!doctype html>
     });
     window.addEventListener("storage", function (event) {
       if (event.key === "testy.currentDemoId") {
+        demoRefreshGeneration++;
+        demoPasswordVisible = false;
         currentDemoId = event.newValue || "";
+        clearDemoResults();
         currentDemo = undefined;
         demoSelectorsSessionId = "";
         void refreshDemoSession();
@@ -1027,7 +1269,7 @@ const CONTROL_PLANE_HTML = `<!doctype html>
     } else {
       void refreshDemoList();
     }
-    setInterval(function () { void refreshHealth(); }, 3000);
+    setInterval(function () { if (!document.hidden) void refreshHealth(); }, 7000);
   </script>
 </body>
 </html>`;
