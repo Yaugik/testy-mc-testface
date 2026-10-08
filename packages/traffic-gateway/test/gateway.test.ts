@@ -43,7 +43,9 @@ describe("traffic gateway", () => {
     let observed: Record<string, string | undefined> = {};
     const target = createServer((request, response) => {
       observed = {
-        forwarded: request.headers.forwarded,
+        forwarded: Array.isArray(request.headers.forwarded)
+          ? request.headers.forwarded.join(",")
+          : request.headers.forwarded,
         xForwardedFor: request.headers["x-forwarded-for"],
         internal: request.headers["x-testy-secret"] as string | undefined,
       };
