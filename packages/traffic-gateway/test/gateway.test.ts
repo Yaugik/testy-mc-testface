@@ -46,7 +46,9 @@ describe("traffic gateway", () => {
         forwarded: Array.isArray(request.headers.forwarded)
           ? request.headers.forwarded.join(",")
           : request.headers.forwarded,
-        xForwardedFor: request.headers["x-forwarded-for"],
+        xForwardedFor: Array.isArray(request.headers["x-forwarded-for"])
+          ? request.headers["x-forwarded-for"].join(",")
+          : request.headers["x-forwarded-for"],
         internal: request.headers["x-testy-secret"] as string | undefined,
       };
       response.statusCode = 204;
