@@ -149,6 +149,7 @@ describe("GL-EYE adapter", () => {
       name: "GlEyeTestSupportError",
       targetStatus: 422,
       message: "Shared Testy demo accounts are not seeded. Run ./bin/seed-demo first.",
+      operation: "prepare-workspace",
     });
 
     const unsafe = new GlEyeTargetAdapter({
@@ -170,8 +171,51 @@ describe("GL-EYE adapter", () => {
     expect(error).toMatchObject({
       targetStatus: 422,
       message: "GL-EYE test-support request failed with status 422.",
+      operation: "prepare-workspace",
     });
     expect(String(error)).not.toContain("secret");
+  });
+
+  it("identifies invalid synthetic-site origin without leaking request details", async () => {
+    const calls: string[] = [];
+    const adapter = new GlEyeTargetAdapter({
+      baseUrl: "https://gl-eye.example.test",
+      environment: "test",
+      authToken: "test-support-token",
+      allowedOrigins: ["https://gl-eye.example.test"],
+      fetchImpl: async (input, init) => {
+        const url = String(input);
+        calls.push(url);
+        if (init?.method === "PUT" && url.endsWith("/site")) {
+          return new Response(JSON.stringify({
+            message: "Synthetic site origin must match the configured hostname.",
+          }), { status: 422, headers: { "content-type": "application/json" } });
+        }
+        return new Response(JSON.stringify({
+          targetRunId: "target-1",
+          tenantId: "tenant-1",
+          siteId: "site-1",
+          trackingScriptUrl: "https://gl-eye.example.test/sdk/track.v1.min.js",
+        }), { status: 201, headers: { "content-type": "application/json" } });
+      },
+    });
+    await adapter.prepareRun(context);
+    await expect(adapter.configureSyntheticSite(context, {
+      hostname: "demo.test.localhost",
+      origin: "https://different.localhost:23000",
+      siteId: "site-1",
+      trackingScriptUrl: "https://gl-eye.example.test/sdk/track.v1.min.js",
+      gateway: {
+        proxyBaseUrl: "https://example.test/v1/proxy",
+        routeToken: "opaque-gateway-token",
+        runIdHeader: context.runId,
+      },
+    })).rejects.toMatchObject({
+      targetStatus: 422,
+      operation: "configure-site",
+      message: "Synthetic site origin must match the configured hostname.",
+    });
+    expect(calls).toHaveLength(2);
   });
 
   it("rejects production and non-allowlisted origins", () => {
