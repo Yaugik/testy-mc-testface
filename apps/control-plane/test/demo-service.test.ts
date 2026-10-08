@@ -30,6 +30,7 @@ describe("interactive demo service", () => {
         credentialEmail: string,
         credentialPassword: string,
         keepWorkspace: boolean,
+        shareSeededDemoAccounts = true,
       ) {
         const now = new Date().toISOString();
         const session: DemoSessionRecord = {
@@ -42,6 +43,7 @@ describe("interactive demo service", () => {
           credentialEmail,
           credentialPassword,
           keepWorkspace,
+          shareSeededDemoAccounts,
           resetVersion: 0,
           startedAt: now,
           expiresAt,
@@ -252,6 +254,8 @@ describe("interactive demo service", () => {
     expect(created.credentialMode).toBe("shared");
     expect(created.credentialEmail).toBe("admin@example.com");
     expect(created.credentialPassword).toBe("Demo-Access9!");
+    expect(created.shareSeededDemoAccounts).toBe(true);
+    expect(asRecord(preparedInputs[0]).shareSeededDemoAccounts).toBe(true);
     expect(asRecord(preparedInputs[0]).demoSessionId).toBe(created.id);
     expect(asRecord(asRecord(preparedInputs[0]).demoCredential).email).toBe(
       "admin@example.com",
@@ -370,6 +374,7 @@ describe("interactive demo service", () => {
         credentialEmail: string,
         credentialPassword: string,
         keepWorkspace: boolean,
+        shareSeededDemoAccounts = true,
       ) {
         const now = new Date().toISOString();
         const session: DemoSessionRecord = {
@@ -382,6 +387,7 @@ describe("interactive demo service", () => {
           credentialEmail,
           credentialPassword,
           keepWorkspace,
+          shareSeededDemoAccounts,
           resetVersion: 0,
           startedAt: now,
           expiresAt,
@@ -474,6 +480,17 @@ describe("interactive demo service", () => {
     const stopped = await service.stop(first.id);
     expect(stopped?.status).toBe("STOPPED");
     expect(stopped?.credentialPassword).toBeUndefined();
+
+    // Exclusive checkbox overrides any requested reusable-login mode.
+    const exclusive = await service.create({
+      credentialMode: "shared",
+      shareSeededDemoAccounts: false,
+    });
+    expect(exclusive.credentialMode).toBe("generated");
+    expect(exclusive.shareSeededDemoAccounts).toBe(false);
+    expect(exclusive.credentialEmail).toMatch(/^demo-[a-f0-9]{12}@example\.com$/u);
+    expect(asRecord(preparedInputs[1]).shareSeededDemoAccounts).toBe(false);
+    expect(asRecord(asRecord(preparedInputs[1]).demoCredential).mode).toBe("generated");
   });
 
   it("builds browser URLs for a configured remote demo domain", () => {
