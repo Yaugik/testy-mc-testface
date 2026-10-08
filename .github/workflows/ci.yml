@@ -25,5 +25,9 @@ jobs:
         run: pnpm build
       - name: Demo service tests
         run: pnpm --filter @testy/control-plane exec vitest run test/demo-service.test.ts test/demo-routes.test.ts
-      - name: Typecheck
-        run: pnpm typecheck
+      - name: Typecheck affected packages and tests
+        run: |
+          pnpm --filter @testy/traffic-gateway exec tsc -p tsconfig.test.json --noEmit
+          pnpm --filter @testy/target-adapter exec tsc -p tsconfig.test.json --noEmit
+          pnpm --filter @testy/gl-eye-adapter exec tsc -p tsconfig.test.json --noEmit
+          pnpm --filter @testy/control-plane exec tsc -p tsconfig.test.json --noEmit
