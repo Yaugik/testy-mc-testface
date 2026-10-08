@@ -105,6 +105,16 @@ const CONTROL_PLANE_HTML = `<!doctype html>
     .credential-grid strong { font-size:12px; font-weight:600; }
     .cell-actions { display:flex; gap:10px; align-items:center; margin-top:7px; }
     .session-id { font-size:11px; overflow-wrap:anywhere; color:var(--muted); }
+    .demo-account-list { display:grid; gap:0; border:1px solid var(--line); border-radius:8px; margin-bottom:14px; }
+    .demo-account-line { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:11px 12px; border-bottom:1px solid var(--line); overflow-wrap:anywhere; }
+    .demo-account-line:last-child { border-bottom:0; }
+    .demo-account-line strong { display:block; font-size:12px; margin-bottom:3px; }
+    .demo-account-line .meta { font-size:11px; }
+    .account-create-row { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-top:12px; }
+    .account-create-row select { padding:9px; border:1px solid var(--line); border-radius:6px; }
+    .generated-account-row { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-top:8px; }
+    .generated-account-row strong { overflow-wrap:anywhere; }
+    .demo-account-line button { flex-shrink:0; }
     .session-controls { border-top:1px solid var(--line); padding-top:14px; margin-top:14px; }
     .demo-actions { display:flex; gap:8px; flex-wrap:wrap; }
     .danger-zone { margin-top:12px; }
@@ -272,6 +282,24 @@ const CONTROL_PLANE_HTML = `<!doctype html>
                     <div class="result-cell"><div class="meta">Password</div><strong id="demoCredentialPassword">—</strong><div class="cell-actions"><button id="toggleDemoPassword" class="text-button" aria-pressed="false">Show</button><button id="copyDemoPassword" class="text-button">Copy password</button></div></div>
                   </div>
                 </details>
+                <details id="demoAccountDetails" class="workspace-details" hidden>
+                  <summary>Workspace users &amp; access</summary>
+                  <div id="demoAccessModeText" class="info-strip">Loading access settings…</div>
+                  <div id="demoAccountsList" class="demo-account-list"><div class="empty">Loading accounts…</div></div>
+                  <div class="account-create-row">
+                    <label for="demoNewAccountRole">Create session-only user</label>
+                    <select id="demoNewAccountRole" aria-label="New user role"><option value="read_only">Viewer</option><option value="sales">Sales</option><option value="admin">Admin</option></select>
+                    <button id="demoCreateAccount" class="btn primary" data-demo-action>Generate user</button>
+                    <button id="demoRefreshAccounts" class="btn secondary">Refresh</button>
+                  </div>
+                  <div id="demoCreatedAccount" class="info-strip" hidden style="margin-top:14px">
+                    <strong>New login generated (copy these credentials now)</strong>
+                    <div class="generated-account-row">Email: <strong id="demoCreatedEmail"></strong><button id="copyCreatedEmail" class="text-button">Copy</button></div>
+                    <div class="generated-account-row">Password: <strong id="demoCreatedPassword"></strong><button id="revealCreatedPassword" class="text-button">Show</button><button id="copyCreatedPassword" class="text-button">Copy</button></div>
+                    <div class="meta" style="margin-top:8px">Password is shown once and not stored by Testy for additional users.</div>
+                  </div>
+                  <div id="demoAccountsError" class="error-box" role="alert" hidden style="margin-top:12px"></div>
+                </details>
                 <details id="demoSessionOptions" class="workspace-details" hidden><summary>Session options</summary><div class="meta">Save and pause to keep the GL-EYE workspace and stop live traffic.</div><div class="demo-actions session-controls"><button id="hibernateDemo" class="btn secondary" data-demo-action hidden>Save &amp; pause</button></div><div class="danger-zone"><button id="stopDemo" class="btn danger" data-demo-action hidden>Delete workspace…</button></div></details>
               </div>
             </section>
@@ -300,7 +328,12 @@ const CONTROL_PLANE_HTML = `<!doctype html>
       </div>
     </section>
   </main>
-  <dialog id="newDemoDialog" class="confirm-dialog" aria-labelledby="newDemoTitle"><h2 id="newDemoTitle">Create a test session</h2><p>A fresh GL-EYE workspace with synthetic visitors and simulated providers.</p><div class="field" id="demoCredentialModeField"><label for="demoCredentialMode">Demo login</label><select id="demoCredentialMode"><option value="shared">Reusable demo account</option><option value="generated">Generate a session account</option></select><div class="meta">Both options create a new workspace.</div></div><label class="checkbox-field"><input id="demoKeepWorkspace" type="checkbox">Keep workspace after timeout (save and pause instead of delete)</label><div id="newDemoError" class="error-box" role="alert" hidden style="margin-top:14px"></div><div class="toolbar"><button id="cancelNewDemo" class="btn secondary">Cancel</button><button id="startDemo" class="btn primary" data-demo-action>Create session</button></div></dialog>
+  <dialog id="newDemoDialog" class="confirm-dialog" aria-labelledby="newDemoTitle"><h2 id="newDemoTitle">Create a test session</h2><p>A fresh GL-EYE workspace with synthetic visitors and simulated providers.</p>
+    <label class="checkbox-field"><input id="demoShareAccounts" type="checkbox" checked> Allow the three default demo accounts (Admin, Sales and Viewer) to access this session</label>
+    <label class="checkbox-field" style="margin-top:12px"><input id="demoGenerateAdmin" type="checkbox"> Create a protected session-only admin account (optional)</label>
+    <div id="demoAccessNote" class="info-strip" style="margin-top:12px">Shared mode: the three demo accounts can log in; a dedicated admin is optional.</div>
+    <label class="checkbox-field"><input id="demoKeepWorkspace" type="checkbox"> Keep workspace after timeout (save and pause instead of delete)</label>
+    <div id="newDemoError" class="error-box" role="alert" hidden style="margin-top:14px"></div><div class="toolbar"><button id="cancelNewDemo" class="btn secondary">Cancel</button><button id="startDemo" class="btn primary" data-demo-action>Create session</button></div></dialog>
   <dialog id="deleteDemoDialog" class="confirm-dialog" aria-labelledby="deleteDemoTitle"><h2 id="deleteDemoTitle">Permanently delete workspace?</h2><p>The session, GL-EYE workspace and all of its data will be removed. Hibernate instead if you want to preserve it.</p><div class="info-strip"><strong id="deleteDemoWorkspace">—</strong><div id="deleteDemoId" class="session-id"></div></div><label class="field" style="margin-top:16px"><span>Type <strong>DELETE</strong> to continue</span><input id="deleteDemoConfirmation" class="confirm-input" autocomplete="off" spellcheck="false"></label><div class="toolbar"><button id="cancelDeleteDemo" class="btn secondary">Keep workspace</button><button id="confirmDeleteDemo" class="btn danger" disabled>Delete permanently</button></div></dialog><div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
   <script>
     const visitorSelectionChanged = ${visitorSelectionChanged.toString()};
@@ -321,6 +354,10 @@ const CONTROL_PLANE_HTML = `<!doctype html>
     let toastTimer;
     let demoPasswordVisible = false;
     let demoActionBusy = false;
+    let demoAccounts = [];
+    let demoAccountsSessionId = "";
+    let generatedDemoUserCredentials;
+    let generatedDemoUserPasswordVisible = false;
     let demoRefreshGeneration = 0;
 
 
@@ -359,7 +396,7 @@ const CONTROL_PLANE_HTML = `<!doctype html>
     }
     function setDemoBusy(busy) {
       demoActionBusy = busy;
-      document.querySelectorAll("button[data-demo-action], button[data-demo-id]").forEach(function (button) {
+      document.querySelectorAll("button[data-demo-action], button[data-demo-id], button[data-account-remove]").forEach(function (button) {
         button.disabled = busy;
       });
       document.getElementById("cancelNewDemo").disabled = busy;
@@ -534,6 +571,116 @@ const CONTROL_PLANE_HTML = `<!doctype html>
       document.getElementById("applyDemoVisitor").disabled = demoActionBusy || !active || !demoProfiles;
     }
 
+
+    function updateNewDemoAccessMode() {
+      const shared = document.getElementById("demoShareAccounts").checked;
+      const extraAdmin = document.getElementById("demoGenerateAdmin");
+      extraAdmin.disabled = !shared;
+      if (!shared) extraAdmin.checked = true;
+      document.getElementById("demoAccessNote").textContent = shared
+        ? "Shared mode: Admin, Sales and Viewer can access this workspace. Creating a separate protected admin is optional."
+        : "Exclusive mode: default demo accounts are excluded. A protected session-only admin is created automatically and cannot be deleted.";
+    }
+
+    function clearDemoAccounts() {
+      demoAccounts = [];
+      demoAccountsSessionId = "";
+      generatedDemoUserCredentials = undefined;
+      generatedDemoUserPasswordVisible = false;
+      document.getElementById("demoCreatedAccount").hidden = true;
+      document.getElementById("demoAccountsList").innerHTML = '<div class="empty">Loading workspace users…</div>';
+      document.getElementById("demoAccountsError").hidden = true;
+    }
+
+    function renderGeneratedDemoUserCredentials() {
+      const credential = generatedDemoUserCredentials;
+      document.getElementById("demoCreatedAccount").hidden = !credential;
+      if (!credential) return;
+      document.getElementById("demoCreatedEmail").textContent = credential.email;
+      document.getElementById("demoCreatedPassword").textContent = generatedDemoUserPasswordVisible ? credential.password : "••••••••••••";
+      document.getElementById("revealCreatedPassword").textContent = generatedDemoUserPasswordVisible ? "Hide" : "Show";
+    }
+
+    function renderDemoAccounts() {
+      if (!currentDemo) return;
+      const shared = currentDemo.shareSeededDemoAccounts !== false;
+      document.getElementById("demoAccessModeText").textContent = shared
+        ? "Shared workspace · The three default demo accounts can log in. Only separately generated accounts are removable."
+        : "Exclusive workspace · Default demo accounts cannot log in. The startup admin is protected from deletion.";
+      const type = { seeded:"Default demo", protected_admin:"Protected startup admin", managed:"Session user", external:"Existing workspace user" };
+      const roles = { admin:"Admin", sales:"Sales", read_only:"Viewer" };
+      document.getElementById("demoAccountsList").innerHTML = demoAccounts.length
+        ? demoAccounts.map(function (account) {
+            return '<div class="demo-account-line"><div><strong>' + escapeHtml(account.email) + '</strong><div class="meta">' +
+              escapeHtml(roles[account.role] || account.role) + ' · ' + escapeHtml(type[account.kind] || account.kind) +
+              '</div></div>' + (account.removable
+                ? '<button class="btn danger" data-account-remove="' + escapeHtml(account.id) + '"' + (demoActionBusy ? " disabled" : "") + '>Remove</button>'
+                : '<span class="meta">Protected</span>') + '</div>';
+          }).join("")
+        : '<div class="empty">No interactive accounts found for this workspace.</div>';
+    }
+
+    async function refreshDemoAccounts() {
+      if (!currentDemo?.targetRunId || !currentDemoId) return;
+      const sessionId = currentDemoId;
+      demoAccountsSessionId = sessionId;
+      try {
+        const payload = await requestJson("/v1/demo-sessions/" + encodeURIComponent(sessionId) + "/accounts");
+        if (sessionId !== currentDemoId) return;
+        demoAccounts = Array.isArray(payload.accounts) ? payload.accounts : [];
+        renderDemoAccounts();
+        document.getElementById("demoAccountsError").hidden = true;
+      } catch (error) {
+        if (sessionId !== currentDemoId) return;
+        const node = document.getElementById("demoAccountsError");
+        node.hidden = false;
+        node.textContent = "Unable to load workspace users: " + error.message;
+      }
+    }
+
+    async function createDemoUserFromPanel() {
+      if (!currentDemoId) return;
+      const sessionId = currentDemoId;
+      const role = document.getElementById("demoNewAccountRole").value;
+      await withDemoAction(async function () {
+        try {
+          const result = await requestJson("/v1/demo-sessions/" + encodeURIComponent(sessionId) + "/accounts", {
+            method:"POST", headers:{ "content-type":"application/json" }, body:JSON.stringify({ role:role }),
+          });
+          if (sessionId !== currentDemoId) return;
+          generatedDemoUserCredentials = result.credentials;
+          generatedDemoUserPasswordVisible = false;
+          renderGeneratedDemoUserCredentials();
+          await refreshDemoAccounts();
+          notify("New " + role + " account generated");
+        } catch (error) {
+          const node = document.getElementById("demoAccountsError");
+          node.textContent = "Unable to create user: " + error.message;
+          node.hidden = false;
+        }
+      });
+    }
+
+    async function removeDemoUserFromPanel(accountId) {
+      if (!currentDemoId) return;
+      const account = demoAccounts.find(function (item) { return item.id === accountId; });
+      if (!account?.removable) return;
+      if (!confirm("Remove login access for " + account.email + " from this workspace?")) return;
+      const sessionId = currentDemoId;
+      await withDemoAction(async function () {
+        try {
+          await requestJson("/v1/demo-sessions/" + encodeURIComponent(sessionId) + "/accounts/" + encodeURIComponent(accountId), { method:"DELETE" });
+          if (sessionId !== currentDemoId) return;
+          await refreshDemoAccounts();
+          notify("Session user access removed");
+        } catch (error) {
+          const node = document.getElementById("demoAccountsError");
+          node.textContent = "Unable to remove user: " + error.message;
+          node.hidden = false;
+        }
+      });
+    }
+
     async function startInteractiveDemo() {
       clearTimeout(demoPollTimer);
       document.getElementById("startDemo").disabled = true;
@@ -545,7 +692,9 @@ const CONTROL_PLANE_HTML = `<!doctype html>
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({
-            credentialMode: document.getElementById("demoCredentialMode").value,
+            shareSeededDemoAccounts: document.getElementById("demoShareAccounts").checked,
+            credentialMode: (!document.getElementById("demoShareAccounts").checked ||
+              document.getElementById("demoGenerateAdmin").checked) ? "generated" : "shared",
             keepWorkspace: document.getElementById("demoKeepWorkspace").checked,
           }),
         });
@@ -553,6 +702,7 @@ const CONTROL_PLANE_HTML = `<!doctype html>
         currentDemo = created;
         currentDemoId = created.id;
         demoPasswordVisible = false;
+        clearDemoAccounts();
         clearDemoResults();
         demoSelectorsSessionId = "";
         localStorage.setItem("testy.currentDemoId", currentDemoId);
@@ -626,6 +776,7 @@ const CONTROL_PLANE_HTML = `<!doctype html>
       currentDemoId = id;
       currentDemo = undefined;
       demoPasswordVisible = false;
+      clearDemoAccounts();
       clearDemoResults();
       renderDemoSession();
       demoSelectorsSessionId = "";
@@ -688,6 +839,9 @@ const CONTROL_PLANE_HTML = `<!doctype html>
       document.getElementById("demoNoSession").hidden = Boolean(currentDemoId);
       document.getElementById("demoCredentialDetails").hidden = !currentDemo;
       document.getElementById("demoSessionOptions").hidden = !currentDemo;
+      const mayManage = Boolean(currentDemo?.targetRunId) && !["DELETING","STOPPED"].includes(currentDemo?.status);
+      document.getElementById("demoAccountDetails").hidden = !mayManage;
+      if (mayManage && demoAccountsSessionId !== currentDemo.id) void refreshDemoAccounts();
       const inactive = document.getElementById("demoInactiveMessage");
       inactive.hidden = !currentDemoId || Boolean(active);
       if (!currentDemo) {
@@ -698,7 +852,7 @@ const CONTROL_PLANE_HTML = `<!doctype html>
         document.getElementById("demoWorkspaceService").textContent = "Created per session";
       } else {
         setBadge(status, displaySessionStatus(currentDemo.status), currentDemo.status === "FAILED" ? "bad" : active ? "ok" : "warn");
-        document.getElementById("demoSessionMeta").textContent = "Started " + formatDate(currentDemo.startedAt) + " · Shared workspace";
+        document.getElementById("demoSessionMeta").textContent = "Started " + formatDate(currentDemo.startedAt) + (currentDemo.shareSeededDemoAccounts === false ? " · Exclusive workspace" : " · Shared workspace");
         inactive.textContent = currentDemo.status === "HIBERNATED" ? "Workspace saved. Resume this session to generate new visitor activity." : currentDemo.status === "FAILED" ? "This session could not be prepared. Review the session error or create a new session." : "Workspace " + displaySessionStatus(currentDemo.status).toLowerCase() + ". Visitor controls become available when ready.";
         credentialPanel.hidden = false;
         document.getElementById("demoWorkspaceName").textContent = currentDemo.workspaceName || "—";
@@ -1183,11 +1337,27 @@ const CONTROL_PLANE_HTML = `<!doctype html>
 
     function openNewDemoDialog() {
       if (demoActionBusy) return;
+      document.getElementById("demoShareAccounts").checked = true;
+      document.getElementById("demoGenerateAdmin").checked = false;
+      updateNewDemoAccessMode();
       document.getElementById("newDemoError").hidden = true;
       document.getElementById("newDemoDialog").showModal();
     }
     document.getElementById("newDemoSession").addEventListener("click", openNewDemoDialog);
     document.getElementById("newDemoSessionEmpty").addEventListener("click", openNewDemoDialog);
+    document.getElementById("demoShareAccounts").addEventListener("change", updateNewDemoAccessMode);
+    document.getElementById("demoCreateAccount").addEventListener("click", function () { void createDemoUserFromPanel(); });
+    document.getElementById("demoRefreshAccounts").addEventListener("click", function () { void refreshDemoAccounts(); });
+    document.getElementById("demoAccountsList").addEventListener("click", function (event) {
+      const button = event.target.closest("button[data-account-remove]");
+      if (button && !demoActionBusy) void removeDemoUserFromPanel(button.dataset.accountRemove);
+    });
+    document.getElementById("copyCreatedEmail").addEventListener("click", function () { void copyText(generatedDemoUserCredentials?.email, "Email"); });
+    document.getElementById("copyCreatedPassword").addEventListener("click", function () { void copyText(generatedDemoUserCredentials?.password, "Password"); });
+    document.getElementById("revealCreatedPassword").addEventListener("click", function () {
+      generatedDemoUserPasswordVisible = !generatedDemoUserPasswordVisible;
+      renderGeneratedDemoUserCredentials();
+    });
     document.getElementById("cancelNewDemo").addEventListener("click", function () { if (!demoActionBusy) document.getElementById("newDemoDialog").close(); });
     document.getElementById("newDemoDialog").addEventListener("cancel", function (event) { if (demoActionBusy) event.preventDefault(); });
     document.getElementById("automatedModeButton").addEventListener("click", function () { setMode("automated"); });
@@ -1234,6 +1404,7 @@ const CONTROL_PLANE_HTML = `<!doctype html>
       if (event.key === "testy.currentDemoId") {
         demoRefreshGeneration++;
         demoPasswordVisible = false;
+        clearDemoAccounts();
         currentDemoId = event.newValue || "";
         clearDemoResults();
         currentDemo = undefined;
