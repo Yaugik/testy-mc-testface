@@ -566,8 +566,8 @@ const CONTROL_PLANE_HTML = `<!doctype html>
       select.innerHTML = '<option value="">Anonymous / none</option>' + people.map(function (person) {
         return '<option value="' + escapeHtml(person.id) + '">' + escapeHtml(person.displayName) + '</option>';
       }).join("");
-      const currentSelected = select.value;
-      const desired = currentSelected || currentDemo?.personIdentityId || demoProfiles.defaults.personId;
+      const desired = select.dataset.networkId === networkId ? select.value : (currentDemo?.personIdentityId || demoProfiles.defaults.personId);
+      select.dataset.networkId = networkId;
       select.value = people.some(function (person) { return person.id === desired; })
         ? desired
         : (people[0]?.id || "");
@@ -595,6 +595,7 @@ const CONTROL_PLANE_HTML = `<!doctype html>
     async function startInteractiveDemo() {
       clearTimeout(demoPollTimer);
       document.getElementById("startDemo").disabled = true;
+      document.getElementById("startDemo").textContent = "Creating session…";
       showDemoError("");
       try {
         await loadDemoProfiles();
@@ -625,6 +626,7 @@ const CONTROL_PLANE_HTML = `<!doctype html>
         showDemoError("Unable to start demo: " + error.message);
       } finally {
         document.getElementById("startDemo").disabled = false;
+        document.getElementById("startDemo").textContent = "Create new session";
       }
     }
 
@@ -810,6 +812,7 @@ const CONTROL_PLANE_HTML = `<!doctype html>
         renderDemoSession();
         renderDemoSelectors(true);
         await refreshDemoActivity();
+        notify("Visitor identity applied");
       } catch (error) {
         showDemoError("Unable to apply visitor: " + error.message);
       }
@@ -838,6 +841,7 @@ const CONTROL_PLANE_HTML = `<!doctype html>
         chooseDemoSessionTab("hibernated");
         renderDemoSession();
         await refreshDemoList();
+        notify("Workspace hibernated");
       } catch (error) {
         showDemoError("Unable to hibernate demo: " + error.message);
       }
@@ -855,6 +859,7 @@ const CONTROL_PLANE_HTML = `<!doctype html>
         renderDemoSession();
         renderDemoSelectors(true);
         await refreshDemoList();
+        notify("Workspace resumed");
       } catch (error) {
         showDemoError("Unable to resume demo: " + error.message);
       }
