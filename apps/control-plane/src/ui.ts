@@ -215,40 +215,40 @@ const CONTROL_PLANE_HTML = `<!doctype html>
 <body>
   <main class="shell">
     <header class="topbar">
-      <div>
-        <h1>Testy Control Plane</h1>
-        <div class="sub">Scenario-driven integration testing and evidence</div>
-      </div>
+      <div class="brand"><div class="brand-logo" aria-hidden="true">T.</div><div><span class="eyebrow">Testing operations</span>
+        <h1>Testy control panel</h1>
+        <div class="sub">Run tests, simulate visitors, and inspect GL-EYE evidence.</div>
+      </div></div>
       <div class="health">
         <span id="controlHealth" class="badge warn">Control Plane · checking</span>
         <span id="targetHealth" class="badge warn">Target · checking</span>
       </div>
     </header>
 
-    <div class="mode-switch">
-      <button id="automatedModeButton" class="mode-button active">Automated Tests</button>
-      <button id="interactiveModeButton" class="mode-button">Interactive Demo</button>
-    </div>
+    <nav class="mode-switch" role="tablist" aria-label="Testing modes">
+      <button id="automatedModeButton" class="mode-button active" role="tab" aria-controls="automatedMode" aria-selected="true">Automated tests</button>
+      <button id="interactiveModeButton" class="mode-button" role="tab" aria-controls="interactiveMode" aria-selected="false">Interactive demo</button>
+    </nav>
+    <div class="context-banner"><div><h2 id="modeHeading">Automated testing</h2><p id="modeDescription">Choose a scenario and inspect its execution and evidence.</p></div><div class="live-caption"><span class="live-dot" aria-hidden="true"></span>Live status</div></div>
 
     <section id="automatedMode" class="mode-view active">
     <div class="grid">
       <section class="card">
         <div class="card-head">
-          <h2>Scenarios</h2>
-          <button class="btn secondary" id="refreshScenarios">Refresh</button>
+          <div><h2>Scenarios <span id="scenarioCount" class="meta"></span></h2><div class="heading-description">Choose a test to launch</div></div><div class="toolbar"><label for="scenarioSearch" class="sr-only">Search scenarios</label><input id="scenarioSearch" class="search-input" type="search" placeholder="Search scenarios"><button class="btn secondary" id="refreshScenarios">Refresh</button></div>
         </div>
-        <div class="card-body" id="scenarioList"><div class="empty">Loading scenarios…</div></div>
+        <div class="card-body"><div id="scenarioActionMessage" class="error-box" role="alert" hidden></div><div id="scenarioList"><div class="empty">Loading scenarios…</div></div></div>
       </section>
 
       <section class="card">
         <div class="card-head">
-          <h2>Run console</h2>
+          <div><h2>Run inspector</h2><div class="heading-description">Live execution, assertions and evidence</div></div>
           <div>
-            <a id="htmlReportLink" class="link" href="#" target="_blank" hidden>Open HTML report</a>
+            <button id="copyRunId" class="btn secondary" hidden>Copy ID</button> <button id="refreshRun" class="btn secondary" hidden>Refresh</button> <a id="htmlReportLink" class="link" href="#" target="_blank" rel="noopener" hidden>Open report ↗</a>
           </div>
         </div>
         <div class="card-body">
-          <div id="noRun" class="empty">Choose a scenario and press Run.</div>
+          <div id="noRun" class="empty"><strong>Ready for your first run</strong>Choose a scenario on the left and press Run to follow its progress here.</div>
           <div id="runConsole" hidden>
             <div class="status-line">
               <div>
@@ -277,7 +277,7 @@ const CONTROL_PLANE_HTML = `<!doctype html>
             <div id="timelinePanel" class="panel active"><div id="timeline" class="timeline"></div></div>
             <div id="assertionsPanel" class="panel"><div id="assertions"></div></div>
             <div id="providersPanel" class="panel"><div id="providers"></div></div>
-            <div id="runError" class="error-box" hidden></div>
+            <div id="runError" class="error-box" role="alert" hidden></div>
           </div>
         </div>
       </section>
@@ -287,12 +287,11 @@ const CONTROL_PLANE_HTML = `<!doctype html>
     <section id="interactiveMode" class="mode-view">
       <div class="demo-session-tabs" role="tablist" aria-label="Demo session lists">
         <button id="demoActiveTab" class="demo-session-tab active" data-demo-tab="active" role="tab" aria-selected="true">Active <span id="demoActiveCount">0</span></button>
-        <button id="demoHibernatedTab" class="demo-session-tab" data-demo-tab="hibernated" role="tab" aria-selected="false">Hibernated <span id="demoHibernatedCount">0</span></button>
+        <button id="demoHibernatedTab" class="demo-session-tab" data-demo-tab="hibernated" role="tab" aria-selected="false">Saved / failed <span id="demoHibernatedCount">0</span></button>
       </div>
       <section class="card" style="margin-bottom:20px">
         <div class="card-head">
-          <h2 id="demoSessionListTitle">Active sessions</h2>
-          <button id="refreshDemoSessions" class="btn secondary">Refresh sessions</button>
+          <div><h2 id="demoSessionListTitle">Active sessions</h2><div class="heading-description">Manage and join existing test workspaces</div></div><div class="toolbar"><label for="demoSessionSearch" class="sr-only">Search sessions</label><input id="demoSessionSearch" class="search-input" type="search" placeholder="Search workspace or email"><button id="refreshDemoSessions" class="btn secondary">Refresh</button></div>
         </div>
         <div class="card-body">
           <div class="meta" style="margin-bottom:12px">Sessions are shared by this control panel. Any open tab or computer can join and control a session. Your selected session is synchronized across this browser's tabs.</div>
@@ -303,11 +302,11 @@ const CONTROL_PLANE_HTML = `<!doctype html>
         <div>
           <section class="card">
             <div class="card-head">
-              <h2>Interactive Demo</h2>
+              <h2>Selected demo session</h2>
               <span id="demoStatus" class="badge warn">Not started</span>
             </div>
             <div class="card-body">
-              <div class="meta" id="demoSessionMeta">Start a long-lived Testy session for manual browser QA.</div>
+              <div class="info-strip" id="demoSessionMeta">Create a test workspace or choose a shared session above.</div>
               <div class="field" id="demoCredentialModeField" style="margin-top:18px">
                 <label for="demoCredentialMode">Demo login</label>
                 <select id="demoCredentialMode">
@@ -323,10 +322,10 @@ const CONTROL_PLANE_HTML = `<!doctype html>
               <div id="demoCredentialPanel" class="result-grid" hidden style="margin-top:18px">
                 <div class="result-cell"><div class="meta">Workspace</div><strong id="demoWorkspaceName">—</strong></div>
                 <div class="result-cell"><div class="meta">Session ID</div><strong id="demoCredentialSessionId">—</strong></div>
-                <div class="result-cell"><div class="meta">Email</div><strong id="demoCredentialEmail">—</strong></div>
-                <div class="result-cell"><div class="meta">Password</div><strong id="demoCredentialPassword">—</strong></div>
+                <div class="result-cell"><div class="meta">Email</div><strong id="demoCredentialEmail">—</strong><div class="cell-actions"><button id="copyDemoEmail" class="text-button">Copy email</button></div></div>
+                <div class="result-cell"><div class="meta">Password</div><strong id="demoCredentialPassword">—</strong><div class="cell-actions"><button id="toggleDemoPassword" class="text-button" aria-pressed="false">Show</button><button id="copyDemoPassword" class="text-button">Copy password</button></div></div>
               </div>
-              <div id="demoVisitorControls" hidden style="margin-top:18px">
+              <div id="demoVisitorControls" hidden style="margin-top:18px"><div class="info-strip" style="margin-bottom:14px">Choose a synthetic network, person and browser. Apply your selection before opening the website.</div>
                 <div class="field">
                   <label for="demoNetwork">Network identity</label>
                   <select id="demoNetwork"></select>
@@ -342,20 +341,20 @@ const CONTROL_PLANE_HTML = `<!doctype html>
                 <div id="demoIdentitySummary" class="meta"></div>
               </div>
               <div class="demo-actions">
-                <button id="startDemo" class="btn primary">Start New Demo</button>
+                <button id="startDemo" class="btn primary">Create new session</button>
                 <button id="applyDemoVisitor" class="btn primary" hidden>Apply Visitor</button>
                 <button id="openDemoWebsite" class="btn secondary" hidden>Open Demo Website</button>
                 <button id="resetDemoVisitor" class="btn secondary" hidden>Reset Visitor</button>
                 <button id="hibernateDemo" class="btn secondary" hidden>Hibernate · Keep Workspace</button>
                 <button id="resumeDemo" class="btn primary" hidden>Resume Session</button>
-                <button id="stopDemo" class="btn danger" hidden>Delete Session &amp; Workspace</button>
+                
               </div>
-              <div id="demoError" class="error-box" hidden></div>
+              <div class="danger-zone"><button id="stopDemo" class="btn danger" hidden>Delete session and workspace permanently</button></div><div id="demoError" class="error-box" role="alert" hidden></div>
             </div>
           </section>
 
           <section class="card" style="margin-top:20px">
-            <div class="card-head"><h2>Services</h2></div>
+            <div class="card-head"><div><h2>Connected services</h2><div class="heading-description">Target and simulated external providers</div></div></div>
             <div class="card-body service-list">
               <div class="service-row"><span>GL-EYE</span><strong id="demoGlEyeService">Checking</strong></div>
               <div class="service-row"><span>GL-EYE workspace</span><strong id="demoWorkspaceService">Created per session</strong></div>
@@ -370,7 +369,7 @@ const CONTROL_PLANE_HTML = `<!doctype html>
         <div>
           <section class="card">
             <div class="card-head">
-              <h2>GL-EYE Result</h2>
+              <div><h2>GL-EYE outcome</h2><div class="heading-description">Evidence produced by this workspace</div></div>
               <button id="refreshDemoResult" class="btn secondary" hidden>Refresh GL-EYE Result</button>
             </div>
             <div class="card-body">
@@ -387,7 +386,7 @@ const CONTROL_PLANE_HTML = `<!doctype html>
           </section>
 
           <section class="card" style="margin-top:20px">
-            <div class="card-head"><h2>Live Activity</h2></div>
+            <div class="card-head"><div><h2>Activity stream</h2><div class="heading-description">Visitor, provider and gateway events</div></div><button id="refreshDemoActivity" class="btn secondary" hidden>Refresh</button></div>
             <div class="card-body">
               <div id="demoActivity" class="demo-activity"><div class="empty">No demo activity yet.</div></div>
             </div>
@@ -396,7 +395,7 @@ const CONTROL_PLANE_HTML = `<!doctype html>
       </div>
     </section>
   </main>
-
+  <dialog id="deleteDemoDialog" class="confirm-dialog" aria-labelledby="deleteDemoTitle"><h2 id="deleteDemoTitle">Permanently delete workspace?</h2><p>The session, GL-EYE workspace and all of its data will be removed. Hibernate instead if you want to preserve it.</p><div class="info-strip"><strong id="deleteDemoWorkspace">—</strong><div id="deleteDemoId" class="session-id"></div></div><label class="field" style="margin-top:16px"><span>Type <strong>DELETE</strong> to continue</span><input id="deleteDemoConfirmation" class="confirm-input" autocomplete="off" spellcheck="false"></label><div class="toolbar"><button id="cancelDeleteDemo" class="btn secondary">Keep workspace</button><button id="confirmDeleteDemo" class="btn danger" disabled>Delete permanently</button></div></dialog><div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
   <script>
     const terminalStatuses = new Set(["PASSED", "FAILED", "CANCELLED"]);
     const statusOrder = ["CREATED","VALIDATING","ALLOCATING","COMPILING","CONFIGURING","RUNNING","OBSERVING","ASSERTING","CLEANUP","PASSED"];
