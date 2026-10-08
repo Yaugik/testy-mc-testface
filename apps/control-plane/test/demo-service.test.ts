@@ -29,6 +29,7 @@ describe("interactive demo service", () => {
         credentialMode: "shared" | "generated",
         credentialEmail: string,
         credentialPassword: string,
+        keepWorkspace: boolean,
       ) {
         const now = new Date().toISOString();
         const session: DemoSessionRecord = {
@@ -40,6 +41,7 @@ describe("interactive demo service", () => {
           credentialMode,
           credentialEmail,
           credentialPassword,
+          keepWorkspace,
           resetVersion: 0,
           startedAt: now,
           expiresAt,
@@ -61,10 +63,14 @@ describe("interactive demo service", () => {
       },
       async listInterrupted() {
         return [...sessionStore.values()].filter((session) =>
-          ["CREATE", "PROVISIONING", "READY", "ACTIVE", "STOPPING"].includes(
+          ["CREATE", "PROVISIONING", "READY", "ACTIVE",
+            "HIBERNATING", "RESUMING", "DELETING", "STOPPING"].includes(
             session.status,
           ),
         );
+      },
+      async listControllable() {
+        return [...sessionStore.values()].filter((session) => session.status !== "STOPPED");
       },
       async update(id: string, patch: Record<string, unknown>) {
         const current = sessionStore.get(id);
@@ -131,6 +137,8 @@ describe("interactive demo service", () => {
     let route = 0;
     let enrichmentTriggers = 0;
     let targetCleanupCalls = 0;
+    let hibernateCalls = 0;
+    let resumeCalls = 0;
     const preparedInputs: ScenarioValue[] = [];
     const actions: ScenarioActionRegistry = {
       "vendor.compile": async (input) => ({
@@ -213,6 +221,18 @@ describe("interactive demo service", () => {
       "vendor.collect-ledger": async () => ({ totalCalls: 0 }),
       "gateway.collect-ledger": async () => ({ entries: [] }),
       "browser.collect-site-events": async () => ({ events: [] }),
+      "target.hibernate-run": async () => {
+        hibernateCalls += 1;
+        return { hibernated: true };
+      },
+      "target.resume-run": async () => {
+        resumeCalls += 1;
+        return { resumed: true };
+      },
+      "target.cleanup-target": async () => {
+        targetCleanupCalls += 1;
+        return { cleaned: true };
+      },
       "target.cleanup-run": async () => {
         targetCleanupCalls += 1;
         return { cleaned: true };
@@ -295,11 +315,45 @@ describe("interactive demo service", () => {
       ),
     ).toHaveLength(1);
 
+    const hibernated = await restarted.hibernate(created.id);
+    expect(hibernated?.status).toBe("HIBERNATED");
+    expect(hibernated?.tenantId).toBe(created.tenantId);
+    expect(hibernated?.targetRunId).toBe(created.targetRunId);
+    expect(hibernated?.keepWorkspace).toBe(true);
+    expect(hibernated?.credentialPassword).toBe("Demo-Access9!");
+    expect(targetCleanupCalls).toBe(0);
+    expect(hibernateCalls).toBe(1);
+    expect(
+      [...resourceLeases.values()].filter(
+        (lease) => lease.resourceType === "target-run" && lease.status === "ACTIVE",
+      ),
+    ).toHaveLength(0);
+    expect(await restarted.localWebsiteOriginForHost(created.websiteHostname)).toBeUndefined();
+
+    // TTL does not destroy a manually hibernated workspace.
+    await sessions.update(created.id, {
+      expiresAt: new Date(Date.now() - 60_000).toISOString(),
+    });
+    expect((await restarted.get(created.id))?.status).toBe("HIBERNATED");
+    const resumed = await restarted.resume(created.id);
+    expect(resumed?.status).toBe("READY");
+    expect(resumed?.tenantId).toBe(created.tenantId);
+    expect(resumed?.targetRunId).toBe(created.targetRunId);
+    expect(Date.parse(resumed?.expiresAt ?? "")).toBeGreaterThan(Date.now());
+    expect(resumeCalls).toBe(1);
+    expect(
+      [...resourceLeases.values()].filter(
+        (lease) => lease.resourceType === "target-run" && lease.status === "ACTIVE",
+      ),
+    ).toHaveLength(1);
+
+    await restarted.hibernate(created.id);
     const stopped = await restarted.stop(created.id);
     expect(stopped?.status).toBe("STOPPED");
     expect(stopped?.credentialPassword).toBeUndefined();
     expect(finishedRuns.at(-1)).toBe("PASSED");
     expect(targetCleanupCalls).toBe(1);
+    expect((await sessions.get(created.id))?.credentialPassword).toBeUndefined();
     expect(timeline.length).toBeGreaterThan(0);
   });
 
@@ -315,6 +369,7 @@ describe("interactive demo service", () => {
         credentialMode: "shared" | "generated",
         credentialEmail: string,
         credentialPassword: string,
+        keepWorkspace: boolean,
       ) {
         const now = new Date().toISOString();
         const session: DemoSessionRecord = {
@@ -326,6 +381,7 @@ describe("interactive demo service", () => {
           credentialMode,
           credentialEmail,
           credentialPassword,
+          keepWorkspace,
           resetVersion: 0,
           startedAt: now,
           expiresAt,
