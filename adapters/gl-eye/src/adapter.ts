@@ -46,6 +46,55 @@ export const defaultGlEyeTestSupportEndpoints: GlEyeEndpointTemplates = {
   demoAccount: "/test-support/v1/runs/{targetRunId}/accounts/{accountId}",
 };
 
+/** A safe, typed target HTTP error. Never includes raw response bodies. */
+export class GlEyeTestSupportError extends Error {
+  public readonly targetStatus: number;
+
+  public constructor(targetStatus: number, message?: string) {
+    super(message ?? `GL-EYE test-support request failed with status ${targetStatus}.`);
+    this.name = "GlEyeTestSupportError";
+    this.targetStatus = targetStatus;
+  }
+}
+
+const safeTargetMessages = new Set([
+  "Shared Testy demo accounts are not seeded. Run ./bin/seed-demo first.",
+  "Exclusive demo sessions require a dedicated session administrator.",
+  "Interactive Demo requires a session id and demo credential.",
+  "Demo access fields are only valid for Interactive Demo runs.",
+  "Demo account access options require an Interactive Demo run.",
+  "Interactive Demo login provisioning is restricted to local and testing environments.",
+  "Demo account email is already in use.",
+]);
+
+const allowedValidationFields = new Set([
+  "demoSessionId", "demoCredential", "demoCredential.mode",
+  "demoCredential.email", "demoCredential.password",
+  "shareSeededDemoAccounts", "runId", "scenarioId", "environment",
+]);
+
+async function safeTargetValidationMessage(
+  response: Response,
+  maxBytes: number,
+): Promise<string | undefined> {
+  try {
+    const raw = await readLimitedResponseBody(response, Math.min(maxBytes, 4096));
+    const parsed: unknown = JSON.parse(raw.toString("utf8"));
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return undefined;
+    const body = parsed as Record<string, unknown>;
+    if (typeof body.message === "string" && safeTargetMessages.has(body.message)) {
+      return body.message;
+    }
+    if (body.errors && typeof body.errors === "object" && !Array.isArray(body.errors)) {
+      const fields = Object.keys(body.errors).filter((field) => allowedValidationFields.has(field));
+      if (fields.length > 0) return `GL-EYE rejected demo fields: ${fields.join(", ")}.`;
+    }
+  } catch {
+    // Never surface raw GL-EYE error pages, stack traces or credentials.
+  }
+  return undefined;
+}
+
 export interface GlEyeTargetAdapterOptions {
   readonly baseUrl: string;
   readonly environment: string;
@@ -424,7 +473,11 @@ export class GlEyeTargetAdapter implements TargetAdapter {
         signal: controller.signal,
       });
       if (!acceptedStatuses.includes(response.status)) {
-        throw new Error(`GL-EYE test-support request failed with status ${response.status}.`);
+        if (response.status === 422 || response.status === 409) {
+          const reason = await safeTargetValidationMessage(response, this.maxResponseBytes);
+          throw new GlEyeTestSupportError(response.status, reason);
+        }
+        throw new GlEyeTestSupportError(response.status);
       }
       if (response.status === 204 || response.status === 404 || response.status === 410) return {};
       const bytes = await readLimitedResponseBody(response, this.maxResponseBytes);
