@@ -310,9 +310,9 @@ describe("interactive demo service", () => {
     await sessions.update(created.id, {
       enrichmentTriggeredAt: "2020-01-01T00:00:00.000Z",
     });
-    const recovered = asRecord(await service.outcome(created.id));
-    expect(recovered.enrichedCompanyCount).toBe(1);
-    expect(recovered.contactCount).toBe(1);
+    const recoveredEnrichment = asRecord(await service.outcome(created.id));
+    expect(recoveredEnrichment.enrichedCompanyCount).toBe(1);
+    expect(recoveredEnrichment.contactCount).toBe(1);
     expect(enrichmentTriggers).toBe(3);
     expect((await sessions.get(created.id))?.errorMessage).toBeNull();
 
