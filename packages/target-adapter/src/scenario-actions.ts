@@ -335,6 +335,30 @@ export function createGatewayTargetScenarioActionBundle(
           : {}),
       };
     },
+    "target.hibernate-run": async (input, context) => {
+      if (!options.adapter.hibernateTarget) {
+        throw new Error("Target does not support demo hibernation.");
+      }
+      const targetRunId = readString(readObject(input), "targetRunId");
+      await options.adapter.hibernateTarget(targetRunId);
+      // Restarting the same demo must re-create its adapter run state and leases.
+      states.delete(context.runId);
+      return { hibernated: true };
+    },
+    "target.resume-run": async (input) => {
+      if (!options.adapter.resumeTarget) {
+        throw new Error("Target does not support demo resumption.");
+      }
+      const targetRunId = readString(readObject(input), "targetRunId");
+      await options.adapter.resumeTarget(targetRunId);
+      return { resumed: true };
+    },
+    "target.cleanup-target": async (input, context) => {
+      const targetRunId = readString(readObject(input), "targetRunId");
+      await options.adapter.cleanupTarget(targetRunId);
+      states.delete(context.runId);
+      return { cleaned: true };
+    },
     "target.cleanup-run": async (_input, context) => {
       const state = stateFor(context);
       await options.adapter.cleanupRun(adapterContext(context));

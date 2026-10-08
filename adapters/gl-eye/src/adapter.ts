@@ -22,6 +22,8 @@ export interface GlEyeEndpointTemplates {
   readonly triggerEnrichment: string;
   readonly outcome: string;
   readonly cleanup: string;
+  readonly hibernate: string;
+  readonly resume: string;
 }
 
 export const defaultGlEyeTestSupportEndpoints: GlEyeEndpointTemplates = {
@@ -33,6 +35,8 @@ export const defaultGlEyeTestSupportEndpoints: GlEyeEndpointTemplates = {
   triggerEnrichment: "/test-support/v1/runs/{targetRunId}/enrichment",
   outcome: "/test-support/v1/runs/{targetRunId}/outcome",
   cleanup: "/test-support/v1/runs/{targetRunId}",
+  hibernate: "/test-support/v1/runs/{targetRunId}/hibernate",
+  resume: "/test-support/v1/runs/{targetRunId}/resume",
 };
 
 export interface GlEyeTargetAdapterOptions {
@@ -275,6 +279,34 @@ export class GlEyeTargetAdapter implements TargetAdapter {
       ...(processingWarnings ? { processingWarnings } : {}),
       detailsFingerprint: fingerprintJson(value),
     };
+  }
+
+  public async hibernateTarget(targetRunId: string): Promise<void> {
+    await this.requestJson(
+      "POST",
+      expandEndpoint(this.endpoints.hibernate, targetRunId),
+      undefined,
+      undefined,
+      [200, 204],
+    );
+    // Resume must re-check GL-EYE instead of returning cached preparation.
+    for (const [runId, prepared] of this.prepared) {
+      if (prepared.targetRunId === targetRunId) {
+        this.prepared.delete(runId);
+        this.observations.delete(runId);
+        this.enrichmentTriggered.delete(runId);
+      }
+    }
+  }
+
+  public async resumeTarget(targetRunId: string): Promise<void> {
+    await this.requestJson(
+      "POST",
+      expandEndpoint(this.endpoints.resume, targetRunId),
+      undefined,
+      undefined,
+      [200, 204],
+    );
   }
 
   public async cleanupRun(context: AdapterRunContext): Promise<void> {

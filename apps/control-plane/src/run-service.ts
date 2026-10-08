@@ -193,6 +193,9 @@ export class ScenarioRunService implements RunService {
   public async recoverInterruptedRuns(): Promise<void> {
     const activeRuns = await this.repository.listActiveRuns();
     for (const run of activeRuns) {
+      // Interactive Demo has its own persisted live/hibernate recovery and
+      // must not be failed or hard-deleted by automated scenario recovery.
+      if (run.scenarioId === "interactive-demo") continue;
       const now = new Date().toISOString();
       const cancelled = run.cancelRequestedAt !== undefined;
       let outcome: "FAILED" | "CANCELLED" = cancelled ? "CANCELLED" : "FAILED";

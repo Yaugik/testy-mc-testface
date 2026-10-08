@@ -119,4 +119,6 @@ export interface TargetAdapter {
   ): Promise<TargetOutcome>;
   cleanupRun(context: AdapterRunContext): Promise<void>;
   cleanupTarget(targetRunId: string): Promise<void>;
+  hibernateTarget?(targetRunId: string): Promise<void>;
+  resumeTarget?(targetRunId: string): Promise<void>;
 }

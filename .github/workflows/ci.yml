@@ -1,0 +1,33 @@
+name: Testy build and demo lifecycle
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Enable pinned pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.13.1 --activate
+      - name: Install dependencies
+        run: pnpm install --no-frozen-lockfile
+      - name: Compile all packages for Docker
+        run: pnpm build
+      - name: Demo service tests
+        run: pnpm --filter @testy/control-plane exec vitest run test/demo-service.test.ts test/demo-routes.test.ts
+      - name: Typecheck affected packages and tests
+        run: |
+          pnpm --filter @testy/traffic-gateway exec tsc -p tsconfig.test.json --noEmit
+          pnpm --filter @testy/target-adapter exec tsc -p tsconfig.test.json --noEmit
+          pnpm --filter @testy/gl-eye-adapter exec tsc -p tsconfig.test.json --noEmit
+          pnpm --filter @testy/control-plane exec tsc -p tsconfig.json --noEmit

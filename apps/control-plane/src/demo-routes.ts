@@ -36,6 +36,20 @@ export function registerInteractiveDemoRoutes(
     profiles: await demos.profiles(),
   }));
 
+  app.get("/v1/demo-sessions", async () => ({
+    sessions: (await demos.listControllable()).map((session) => ({
+      id: session.id,
+      status: session.status,
+      workspaceName: demos.workspaceName(session),
+      credentialEmail: session.credentialEmail,
+      keepWorkspace: session.keepWorkspace,
+      startedAt: session.startedAt,
+      updatedAt: session.updatedAt,
+      hibernatedAt: session.hibernatedAt,
+      expiresAt: session.expiresAt,
+    })),
+  }));
+
   app.post<{ Body: CreateDemoSessionInput }>(
     "/v1/demo-sessions",
     async (request, reply) => {
@@ -112,13 +126,45 @@ export function registerInteractiveDemoRoutes(
     },
   );
 
+  app.post<{ Params: DemoParams }>(
+    "/v1/demo-sessions/:id/hibernate",
+    async (request, reply) => {
+      try {
+        const session = await demos.hibernate(request.params.id);
+        return session
+          ? presentSession(demos, session)
+          : reply.status(404).send({ error: "demo-session-not-found" });
+      } catch (error) {
+        return sendDemoError(reply, error);
+      }
+    },
+  );
+
+  app.post<{ Params: DemoParams }>(
+    "/v1/demo-sessions/:id/resume",
+    async (request, reply) => {
+      try {
+        const session = await demos.resume(request.params.id);
+        return session
+          ? presentSession(demos, session)
+          : reply.status(404).send({ error: "demo-session-not-found" });
+      } catch (error) {
+        return sendDemoError(reply, error);
+      }
+    },
+  );
+
   app.delete<{ Params: DemoParams }>(
     "/v1/demo-sessions/:id",
     async (request, reply) => {
-      const session = await demos.stop(request.params.id);
-      return session
-        ? presentSession(demos, session)
-        : reply.status(404).send({ error: "demo-session-not-found" });
+      try {
+        const session = await demos.stop(request.params.id);
+        return session
+          ? presentSession(demos, session)
+          : reply.status(404).send({ error: "demo-session-not-found" });
+      } catch (error) {
+        return sendDemoError(reply, error);
+      }
     },
   );
 }
@@ -207,7 +253,14 @@ function readCreateDemoInput(value: unknown): CreateDemoSessionInput {
   ) {
     throw new Error("Demo credential mode must be shared or generated.");
   }
-  return credentialMode ? { credentialMode } : {};
+  const keepWorkspace = record.keepWorkspace;
+  if (keepWorkspace !== undefined && typeof keepWorkspace !== "boolean") {
+    throw new Error("keepWorkspace must be a boolean.");
+  }
+  return {
+    ...(credentialMode ? { credentialMode } : {}),
+    ...(typeof keepWorkspace === "boolean" ? { keepWorkspace } : {}),
+  };
 }
 
 function readVisitorInput(value: unknown): ApplyDemoVisitorInput {
@@ -240,6 +293,7 @@ function sendDemoError(reply: FastifyReply, error: unknown) {
     message.includes("cannot select") ||
     message.includes("must be an object") ||
     message.includes("credential mode") ||
+    message.includes("keepWorkspace must") ||
     message.includes("incomplete")
   ) {
     return reply.status(400).send({
@@ -249,6 +303,9 @@ function sendDemoError(reply: FastifyReply, error: unknown) {
   }
   if (
     message.includes("not active") ||
+    message.includes("cannot hibernate") ||
+    message.includes("cannot resume") ||
+    message.includes("no workspace") ||
     message.includes("runtime is unavailable")
   ) {
     return reply.status(409).send({

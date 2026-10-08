@@ -21,7 +21,7 @@ Terminal 2, in Testy:
 Open the Control Plane at `http://127.0.0.1:23000`, choose **Interactive Demo**,
 then:
 
-1. Choose **Reusable credential** or **Generate for this session**, then Start Demo.
+1. Choose **Reusable credential** or **Generate for this session**, optionally choose **Keep workspace after timeout**, then Start New Demo.
 2. Copy the displayed GL-EYE email/password and note the unique session/workspace id.
 3. Select a network identity, compatible person identity, and browser identity.
 4. Apply Visitor.
@@ -30,7 +30,8 @@ then:
 7. Watch site activity, Traffic Gateway forwarding, provider calls, and the real
    GL-EYE test-support outcome.
 8. Switch visitors and repeat.
-9. Stop Demo. The session workspace is hard-deleted at this point.
+9. Choose **Hibernate · Keep Workspace** to preserve all GL-EYE workspace data and stop traffic, or **Delete Session & Workspace** to permanently delete it.
+10. Open the **Hibernated** tab to resume a saved session. Use **Active** to join sessions created by another person or browser.
 
 ## Architecture
 
@@ -48,18 +49,26 @@ automated scenarios for:
 
 The session lifecycle is:
 
-`CREATE -> PROVISIONING -> READY -> ACTIVE -> STOPPING -> STOPPED`
+`CREATE -> PROVISIONING -> READY -> ACTIVE -> HIBERNATING -> HIBERNATED -> RESUMING -> READY`
+
+A separate explicit **Delete Session & Workspace** action ends in `STOPPED`. A hibernated session may be resumed repeatedly, with a fresh activity TTL, using the same UUID, GL-EYE tenant, tracking key and historical data.
 
 Provisioning failures become `FAILED`. Active sessions have a bounded TTL.
 Each session has a UUID and a dedicated GL-EYE workspace named from that UUID.
 The Control Plane can use the stable seeded demo login or generate a new
-session-specific login. The active password is retained only while the demo is
-live so restart recovery can re-provision the same target run.
+session-specific login. The session password remains available while the workspace
+is hibernated so the saved account can be used in GL-EYE and the demo can be resumed.
+It is cleared only after successful **permanent deletion**.
 
-Normal Control Plane shutdown suspends local runtimes for recovery. Explicit
-Stop Demo or TTL expiry performs target cleanup; for Interactive Demo that
-cleanup hard-deletes the session workspace and tenant-scoped data. Testy keeps
-the stopped session/evidence record but clears the stored demo password.
+Normal Control Plane shutdown suspends local runtimes for recovery. Hibernate
+shuts down the synthetic site, provider runtimes and gateway route, releases the
+destructive target resource lease, disables GL-EYE site tracking, and retains
+the GL-EYE workspace, memberships, data and test-support run. Automatically
+expired sessions hibernate when **Keep workspace after timeout** was chosen;
+otherwise they are permanently deleted. Hibernated sessions are excluded from
+expiration until manually resumed/deleted. A permanent Delete hard-deletes both
+the workspace and all tenant-scoped data. Testy retains the stopped session/evidence
+record but clears the stored password.
 
 ## Demo login and workspace lifecycle
 
@@ -68,10 +77,22 @@ existing demo user to each new session workspace. **Generated** mode creates a
 unique `demo-<session>@example.com` account and random password for the session.
 
 Both modes create a fresh workspace for every session. Credentials are shown in
-the Control Plane together with the session ID and workspace name. Stopping the
-session removes the workspace completely. A generated user is removed when it
-has no remaining workspace memberships; the reusable account remains because
-it is also a member of the seeded demo workspace.
+the Control Plane together with the session ID and workspace name. The seeded
+GL-EYE Demo Company users are always given membership in every Interactive Demo
+workspace, regardless of which login mode was chosen, and a migration backfills
+those memberships for already-existing workspaces.
+
+The **Active** and **Hibernated** subtabs list server-backed sessions to all
+operators of the same Control Plane, including those opening it from a different
+computer. Joining a session loads its UUID and live/hibernated controls. The
+selected session ID is stored in browser localStorage and synchronized via the
+storage event, so multiple tabs use the same selected session; credentials are
+never stored in localStorage. All operators who can access this Control Plane
+can mutate shared sessions, including permanently deleting them. Deploy it only
+behind an appropriate access control (VPN/SSO/reverse-proxy authentication).
+
+On permanent deletion, generated users are removed when no other memberships
+remain; seeded/reusable demo users retain membership in their permanent demo tenant.
 
 ## Visitor model
 
@@ -134,12 +155,15 @@ returning/same-session identity keeps the existing browser state.
 
 - `GET /v1/demo-profiles`
 - `POST /v1/demo-sessions`
+- `GET /v1/demo-sessions` (shared Active/Hibernated session summaries, no passwords)
 - `GET /v1/demo-sessions/:id`
 - `POST /v1/demo-sessions/:id/visitor`
 - `POST /v1/demo-sessions/:id/reset-visitor`
 - `GET /v1/demo-sessions/:id/activity`
 - `GET /v1/demo-sessions/:id/outcome`
-- `DELETE /v1/demo-sessions/:id`
+- `POST /v1/demo-sessions/:id/hibernate`
+- `POST /v1/demo-sessions/:id/resume`
+- `DELETE /v1/demo-sessions/:id` (hard-delete, irreversible)
 
 ## GL-EYE change
 

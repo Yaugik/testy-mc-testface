@@ -6,6 +6,10 @@ export type DemoSessionStatus =
   | "PROVISIONING"
   | "READY"
   | "ACTIVE"
+  | "HIBERNATING"
+  | "HIBERNATED"
+  | "RESUMING"
+  | "DELETING"
   | "STOPPING"
   | "STOPPED"
   | "FAILED";
@@ -19,6 +23,8 @@ export interface DemoSessionRecord {
   readonly credentialMode: "shared" | "generated";
   readonly credentialEmail: string;
   readonly credentialPassword?: string;
+  readonly keepWorkspace: boolean;
+  readonly hibernatedAt?: string;
   readonly networkIdentityId?: string;
   readonly personIdentityId?: string;
   readonly browserIdentityId?: string;
@@ -47,7 +53,9 @@ export interface DemoSessionRepository {
     credentialMode: "shared" | "generated",
     credentialEmail: string,
     credentialPassword: string,
+    keepWorkspace: boolean,
   ): Promise<DemoSessionRecord>;
+  listControllable(): Promise<readonly DemoSessionRecord[]>;
   get(id: string): Promise<DemoSessionRecord | undefined>;
   getByHostname(hostname: string): Promise<DemoSessionRecord | undefined>;
   listInterrupted(): Promise<readonly DemoSessionRecord[]>;
@@ -68,6 +76,9 @@ export interface DemoSessionRepository {
       readonly errorMessage?: string | null;
       readonly stoppedAt?: string | null;
       readonly credentialPassword?: string | null;
+      readonly keepWorkspace?: boolean;
+      readonly hibernatedAt?: string | null;
+      readonly expiresAt?: string;
     },
   ): Promise<DemoSessionRecord>;
   finishRun(runId: RunId, status: "PASSED" | "FAILED"): Promise<void>;
@@ -82,6 +93,8 @@ interface DemoSessionRow {
   readonly credential_mode: "shared" | "generated";
   readonly credential_email: string;
   readonly credential_password: string | null;
+  readonly keep_workspace: boolean;
+  readonly hibernated_at: Date | null;
   readonly network_identity_id: string | null;
   readonly person_identity_id: string | null;
   readonly browser_identity_id: string | null;
@@ -112,6 +125,7 @@ export class PostgresDemoSessionRepository implements DemoSessionRepository {
     credentialMode: "shared" | "generated",
     credentialEmail: string,
     credentialPassword: string,
+    keepWorkspace: boolean,
   ): Promise<DemoSessionRecord> {
     const client = await this.pool.connect();
     try {
@@ -131,8 +145,8 @@ export class PostgresDemoSessionRepository implements DemoSessionRepository {
       const result = await client.query<DemoSessionRow>(
         `INSERT INTO interactive_demo_sessions (
           id, run_id, status, customer_package, website_hostname, expires_at,
-          credential_mode, credential_email, credential_password
-        ) VALUES ($1,$2,'CREATE',$3,$4,$5,$6,$7,$8)
+          credential_mode, credential_email, credential_password, keep_workspace
+        ) VALUES ($1,$2,'CREATE',$3,$4,$5,$6,$7,$8,$9)
         RETURNING *`,
         [
           id,
@@ -143,6 +157,7 @@ export class PostgresDemoSessionRepository implements DemoSessionRepository {
           credentialMode,
           credentialEmail,
           credentialPassword,
+          keepWorkspace,
         ],
       );
       await client.query("COMMIT");
@@ -155,6 +170,18 @@ export class PostgresDemoSessionRepository implements DemoSessionRepository {
     } finally {
       client.release();
     }
+  }
+
+  public async listControllable(): Promise<readonly DemoSessionRecord[]> {
+    const result = await this.pool.query<DemoSessionRow>(
+      `SELECT * FROM interactive_demo_sessions
+       WHERE status IN (
+         'CREATE','PROVISIONING','READY','ACTIVE',
+         'HIBERNATING','HIBERNATED','RESUMING','DELETING'
+       ) OR (status = 'FAILED' AND target_run_id IS NOT NULL)
+       ORDER BY updated_at DESC LIMIT 100`,
+    );
+    return result.rows.map(mapSession);
   }
 
   public async get(id: string): Promise<DemoSessionRecord | undefined> {
@@ -180,7 +207,8 @@ export class PostgresDemoSessionRepository implements DemoSessionRepository {
   public async listInterrupted(): Promise<readonly DemoSessionRecord[]> {
     const result = await this.pool.query<DemoSessionRow>(
       `SELECT * FROM interactive_demo_sessions
-       WHERE status IN ('CREATE','PROVISIONING','READY','ACTIVE','STOPPING')
+       WHERE status IN ('CREATE','PROVISIONING','READY','ACTIVE',
+         'HIBERNATING','RESUMING','DELETING','STOPPING')
        ORDER BY created_at ASC`,
     );
     return result.rows.map(mapSession);
@@ -203,6 +231,9 @@ export class PostgresDemoSessionRepository implements DemoSessionRepository {
       readonly errorMessage?: string | null;
       readonly stoppedAt?: string | null;
       readonly credentialPassword?: string | null;
+      readonly keepWorkspace?: boolean;
+      readonly hibernatedAt?: string | null;
+      readonly expiresAt?: string;
     },
   ): Promise<DemoSessionRecord> {
     const current = await this.get(id);
@@ -258,6 +289,12 @@ export class PostgresDemoSessionRepository implements DemoSessionRepository {
         patch.credentialPassword === undefined
           ? current.credentialPassword ?? null
           : patch.credentialPassword,
+      keepWorkspace: patch.keepWorkspace ?? current.keepWorkspace,
+      hibernatedAt:
+        patch.hibernatedAt === undefined
+          ? current.hibernatedAt ?? null
+          : patch.hibernatedAt,
+      expiresAt: patch.expiresAt ?? current.expiresAt,
     };
     const result = await this.pool.query<DemoSessionRow>(
       `UPDATE interactive_demo_sessions SET
@@ -275,6 +312,9 @@ export class PostgresDemoSessionRepository implements DemoSessionRepository {
         error_message=$13,
         stopped_at=$14,
         credential_password=$15,
+        keep_workspace=$16,
+        hibernated_at=$17,
+        expires_at=$18,
         updated_at=NOW()
        WHERE id=$1
        RETURNING *`,
@@ -294,6 +334,9 @@ export class PostgresDemoSessionRepository implements DemoSessionRepository {
         values.errorMessage,
         values.stoppedAt,
         values.credentialPassword,
+        values.keepWorkspace,
+        values.hibernatedAt,
+        values.expiresAt,
       ],
     );
     const row = result.rows[0];
@@ -326,6 +369,8 @@ function mapSession(row: DemoSessionRow): DemoSessionRecord {
     websiteHostname: row.website_hostname,
     credentialMode: row.credential_mode,
     credentialEmail: row.credential_email,
+    keepWorkspace: row.keep_workspace,
+    ...(row.hibernated_at ? { hibernatedAt: row.hibernated_at.toISOString() } : {}),
     ...(row.credential_password
       ? { credentialPassword: row.credential_password }
       : {}),

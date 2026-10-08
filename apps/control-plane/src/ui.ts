@@ -42,6 +42,15 @@ const CONTROL_PLANE_HTML = `<!doctype html>
     .field label { font-size:12px; font-weight:800; color:#4b5563; }
     .field select { width:100%; border:1px solid #d1d5db; border-radius:9px; padding:9px 10px; background:white; }
     .demo-actions { display:flex; flex-wrap:wrap; gap:8px; margin-top:16px; }
+    .demo-session-tabs { display:flex; gap:6px; padding:4px; background:#eef1f4; border-radius:10px; margin:0 0 12px; width:max-content; max-width:100%; }
+    .demo-session-tab { border:0; border-radius:8px; background:transparent; color:#64748b; padding:10px 14px; font-weight:800; cursor:pointer; }
+    .demo-session-tab.active { background:white; color:#111827; box-shadow:0 1px 2px rgba(0,0,0,.07); }
+    .demo-session-list { display:grid; gap:8px; }
+    .demo-session-item { display:flex; justify-content:space-between; align-items:center; gap:12px; padding:13px; border:1px solid #e5e7eb; border-radius:10px; background:white; }
+    .demo-session-item.selected { border-color:#64748b; background:#f8fafc; }
+    .demo-session-item strong { overflow-wrap:anywhere; font-size:13px; }
+    .demo-session-item .meta { overflow-wrap:anywhere; }
+    @media (max-width:600px) { .demo-session-item { flex-direction:column; align-items:flex-start; } }
     .service-list { display:grid; gap:8px; }
     .service-row { display:flex; justify-content:space-between; gap:12px; padding:10px 0; border-bottom:1px solid #f0f1f3; font-size:13px; }
     .demo-activity { max-height:360px; overflow:auto; }
@@ -166,6 +175,20 @@ const CONTROL_PLANE_HTML = `<!doctype html>
     </section>
 
     <section id="interactiveMode" class="mode-view">
+      <div class="demo-session-tabs" role="tablist" aria-label="Demo session lists">
+        <button id="demoActiveTab" class="demo-session-tab active" data-demo-tab="active" role="tab" aria-selected="true">Active <span id="demoActiveCount">0</span></button>
+        <button id="demoHibernatedTab" class="demo-session-tab" data-demo-tab="hibernated" role="tab" aria-selected="false">Hibernated <span id="demoHibernatedCount">0</span></button>
+      </div>
+      <section class="card" style="margin-bottom:20px">
+        <div class="card-head">
+          <h2 id="demoSessionListTitle">Active sessions</h2>
+          <button id="refreshDemoSessions" class="btn secondary">Refresh sessions</button>
+        </div>
+        <div class="card-body">
+          <div class="meta" style="margin-bottom:12px">Sessions are shared by this control panel. Any open tab or computer can join and control a session. Your selected session is synchronized across this browser's tabs.</div>
+          <div id="demoSessionList" class="demo-session-list"><div class="empty">Loading sessions…</div></div>
+        </div>
+      </section>
       <div class="demo-grid">
         <div>
           <section class="card">
@@ -183,6 +206,10 @@ const CONTROL_PLANE_HTML = `<!doctype html>
                 </select>
                 <div class="meta" style="margin-top:6px">Reusable uses the same demo account every time. Generated creates a new login tied to this session.</div>
               </div>
+              <label class="meta" style="display:flex;align-items:center;gap:8px;margin:12px 0 16px">
+                <input id="demoKeepWorkspace" type="checkbox">
+                Keep the workspace after automatic timeout (hibernate instead of delete)
+              </label>
               <div id="demoCredentialPanel" class="result-grid" hidden style="margin-top:18px">
                 <div class="result-cell"><div class="meta">Workspace</div><strong id="demoWorkspaceName">—</strong></div>
                 <div class="result-cell"><div class="meta">Session ID</div><strong id="demoCredentialSessionId">—</strong></div>
@@ -205,11 +232,13 @@ const CONTROL_PLANE_HTML = `<!doctype html>
                 <div id="demoIdentitySummary" class="meta"></div>
               </div>
               <div class="demo-actions">
-                <button id="startDemo" class="btn primary">Start Demo</button>
+                <button id="startDemo" class="btn primary">Start New Demo</button>
                 <button id="applyDemoVisitor" class="btn primary" hidden>Apply Visitor</button>
                 <button id="openDemoWebsite" class="btn secondary" hidden>Open Demo Website</button>
                 <button id="resetDemoVisitor" class="btn secondary" hidden>Reset Visitor</button>
-                <button id="stopDemo" class="btn danger" hidden>Stop Demo</button>
+                <button id="hibernateDemo" class="btn secondary" hidden>Hibernate · Keep Workspace</button>
+                <button id="resumeDemo" class="btn primary" hidden>Resume Session</button>
+                <button id="stopDemo" class="btn danger" hidden>Delete Session &amp; Workspace</button>
               </div>
               <div id="demoError" class="error-box" hidden></div>
             </div>
@@ -235,7 +264,7 @@ const CONTROL_PLANE_HTML = `<!doctype html>
               <button id="refreshDemoResult" class="btn secondary" hidden>Refresh GL-EYE Result</button>
             </div>
             <div class="card-body">
-              <div id="demoResultEmpty" class="empty">Start a demo and browse the customer site to see the actual GL-EYE outcome. The matching GL-EYE workspace is created for that session and shown with the demo credentials.</div>
+              <div id="demoResultEmpty" class="empty">Start a demo to generate live data, or open a hibernated session to access its saved GL-EYE workspace. Hibernated sessions do not produce live traffic.</div>
               <div id="demoResult" class="result-grid" hidden>
                 <div class="result-cell"><div class="meta">Company</div><strong id="demoCompanies">—</strong></div>
                 <div class="result-cell"><div class="meta">Companies</div><strong id="demoCompanyCount">0</strong></div>
@@ -270,6 +299,9 @@ const CONTROL_PLANE_HTML = `<!doctype html>
     let currentDemo;
     let demoPollTimer;
     let demoSelectorsSessionId = "";
+    let demoSessions = [];
+    let demoSessionTab = localStorage.getItem("testy.demoSessionTab") === "hibernated" ? "hibernated" : "active";
+
 
     function escapeHtml(value) {
       return String(value ?? "")
@@ -302,7 +334,12 @@ const CONTROL_PLANE_HTML = `<!doctype html>
       document.getElementById("automatedModeButton").classList.toggle("active", automated);
       document.getElementById("interactiveModeButton").classList.toggle("active", !automated);
       localStorage.setItem("testy.mode", mode);
-      if (!automated) void loadDemoProfiles();
+      if (!automated) {
+        void loadDemoProfiles();
+        void refreshDemoSession();
+      } else {
+        clearTimeout(demoPollTimer);
+      }
     }
 
     async function loadDemoProfiles() {
@@ -387,6 +424,7 @@ const CONTROL_PLANE_HTML = `<!doctype html>
           headers: { "content-type": "application/json" },
           body: JSON.stringify({
             credentialMode: document.getElementById("demoCredentialMode").value,
+            keepWorkspace: document.getElementById("demoKeepWorkspace").checked,
           }),
         });
         currentDemoId = currentDemo.id;
@@ -394,6 +432,7 @@ const CONTROL_PLANE_HTML = `<!doctype html>
         renderDemoSession();
         renderDemoSelectors(true);
         await refreshDemoActivity();
+        await refreshDemoList();
         scheduleDemoPoll();
       } catch (error) {
         showDemoError("Unable to start demo: " + error.message);
@@ -402,34 +441,108 @@ const CONTROL_PLANE_HTML = `<!doctype html>
       }
     }
 
-    async function refreshDemoSession() {
-      if (!currentDemoId) return;
+    function chooseDemoSessionTab(tab) {
+      demoSessionTab = tab === "hibernated" ? "hibernated" : "active";
+      localStorage.setItem("testy.demoSessionTab", demoSessionTab);
+      document.querySelectorAll(".demo-session-tab").forEach(function (button) {
+        const selected = button.dataset.demoTab === demoSessionTab;
+        button.classList.toggle("active", selected);
+        button.setAttribute("aria-selected", String(selected));
+      });
+      document.getElementById("demoSessionListTitle").textContent =
+        demoSessionTab === "active" ? "Active sessions" : "Hibernated workspaces";
+      renderDemoList();
+    }
+
+    function renderDemoList() {
+      const active = demoSessions.filter(function (item) {
+        return !["HIBERNATED","HIBERNATING","FAILED"].includes(item.status);
+      });
+      const hibernated = demoSessions.filter(function (item) {
+        return ["HIBERNATED","HIBERNATING","FAILED"].includes(item.status);
+      });
+      document.getElementById("demoActiveCount").textContent = String(active.length);
+      document.getElementById("demoHibernatedCount").textContent = String(hibernated.length);
+      const shown = demoSessionTab === "active" ? active : hibernated;
+      document.getElementById("demoSessionList").innerHTML = shown.length
+        ? shown.map(function (session) {
+            const selected = session.id === currentDemoId;
+            const status = escapeHtml(session.status);
+            return '<div class="demo-session-item' + (selected ? ' selected' : '') + '">' +
+              '<div><strong>' + escapeHtml(session.workspaceName) + '</strong>' +
+              '<div class="meta">' + escapeHtml(session.credentialEmail) + ' · ' + status +
+              ' · ' + escapeHtml(new Date(session.updatedAt).toLocaleString()) + '</div>' +
+              '<div class="meta">Session ' + escapeHtml(session.id) + '</div></div>' +
+              '<button class="btn ' + (selected ? 'primary' : 'secondary') +
+              '" data-demo-id="' + escapeHtml(session.id) + '">' + (selected ? 'Selected' : 'Join / Open') + '</button>' +
+              '</div>';
+          }).join("")
+        : '<div class="empty">No ' + (demoSessionTab === "active" ? 'active' : 'hibernated') +
+          ' sessions. Start a new demo or join an existing one when it appears.</div>';
+    }
+
+    async function refreshDemoList() {
       try {
-        currentDemo = await requestJson("/v1/demo-sessions/" + encodeURIComponent(currentDemoId));
-        if (currentDemo.status === "FAILED" || currentDemo.status === "STOPPED") {
+        const result = await requestJson("/v1/demo-sessions");
+        demoSessions = result.sessions || [];
+        renderDemoList();
+      } catch (error) {
+        document.getElementById("demoSessionList").textContent =
+          "Unable to load shared sessions: " + error.message;
+      }
+    }
+
+    async function selectDemoSession(id) {
+      if (!id) return;
+      currentDemoId = id;
+      currentDemo = undefined;
+      demoSelectorsSessionId = "";
+      localStorage.setItem("testy.currentDemoId", id);
+      showDemoError("");
+      await refreshDemoSession();
+    }
+
+    async function refreshDemoSession() {
+      await refreshDemoList();
+      if (!currentDemoId) {
+        currentDemo = undefined;
+        renderDemoSession();
+        scheduleDemoPoll();
+        return;
+      }
+      const requestedId = currentDemoId;
+      try {
+        const fetched = await requestJson("/v1/demo-sessions/" + encodeURIComponent(requestedId));
+        if (requestedId !== currentDemoId) return;
+        if (fetched.status === "STOPPED") {
           currentDemoId = "";
           currentDemo = undefined;
           localStorage.removeItem("testy.currentDemoId");
           demoSelectorsSessionId = "";
           showDemoError("");
           renderDemoSession();
+          await refreshDemoList();
           return;
         }
+        currentDemo = fetched;
         renderDemoSession();
-        if (currentDemo.status === "READY" || currentDemo.status === "ACTIVE") {
+        if (fetched.status === "READY" || fetched.status === "ACTIVE") {
           await refreshDemoActivity();
           await refreshDemoOutcome(false);
-          scheduleDemoPoll();
         }
       } catch (error) {
-        if (error.status === 404) {
+        if (error.status === 404 && requestedId === currentDemoId) {
           currentDemoId = "";
           currentDemo = undefined;
           localStorage.removeItem("testy.currentDemoId");
           renderDemoSession();
-          return;
+        } else {
+          showDemoError("Unable to refresh demo: " + error.message);
         }
-        showDemoError("Unable to refresh demo: " + error.message);
+      } finally {
+        if (document.getElementById("interactiveMode").classList.contains("active")) {
+          scheduleDemoPoll();
+        }
       }
     }
 
@@ -443,13 +556,15 @@ const CONTROL_PLANE_HTML = `<!doctype html>
         document.getElementById("demoSessionMeta").textContent = "Start a long-lived Testy session for manual browser QA.";
         credentialPanel.hidden = true;
         credentialMode.disabled = false;
+        document.getElementById("demoKeepWorkspace").disabled = false;
         document.getElementById("demoWorkspaceService").textContent = "Created per session";
       } else {
         setBadge(status, currentDemo.status, currentDemo.status === "FAILED" ? "bad" : currentDemo.status === "STOPPED" ? "warn" : "ok");
         document.getElementById("demoSessionMeta").textContent =
           "Session " + currentDemo.id + " · Started " + new Date(currentDemo.startedAt).toLocaleString();
         credentialMode.value = currentDemo.credentialMode || "shared";
-        credentialMode.disabled = currentDemo.status !== "STOPPED" && currentDemo.status !== "FAILED";
+        credentialMode.disabled = false;
+        document.getElementById("demoKeepWorkspace").disabled = false;
         credentialPanel.hidden = false;
         document.getElementById("demoWorkspaceName").textContent = currentDemo.workspaceName || "—";
         document.getElementById("demoCredentialSessionId").textContent = currentDemo.id || "—";
@@ -465,9 +580,20 @@ const CONTROL_PLANE_HTML = `<!doctype html>
       document.getElementById("applyDemoVisitor").hidden = !active;
       document.getElementById("openDemoWebsite").hidden = !active;
       document.getElementById("resetDemoVisitor").hidden = !active;
-      document.getElementById("stopDemo").hidden = !active;
+      document.getElementById("hibernateDemo").hidden =
+        !currentDemo || !["READY","ACTIVE","HIBERNATING"].includes(currentDemo.status);
+      document.getElementById("resumeDemo").hidden = !currentDemo || currentDemo.status !== "HIBERNATED";
+      document.getElementById("stopDemo").hidden = !currentDemo ||
+        currentDemo.status === "STOPPED";
+
       document.getElementById("refreshDemoResult").hidden = !active;
-      document.getElementById("startDemo").hidden = !!currentDemo && currentDemo.status !== "STOPPED" && currentDemo.status !== "FAILED";
+      document.getElementById("startDemo").hidden = false;
+      if (currentDemo?.status === "HIBERNATED") {
+        document.getElementById("demoResultEmpty").textContent =
+          "Workspace is saved and accessible in GL-EYE; live tracking is disabled. Resume this session to generate new activity.";
+        document.getElementById("demoActivity").innerHTML =
+          '<div class="empty">Hibernated — no live traffic. Historical workspace data remains in GL-EYE.</div>';
+      }
       document.getElementById("demoGlEyeService").textContent = glEyeReady ? "Connected" : "Not ready";
       if (demoProfiles && active) renderDemoSelectors(false);
       if (currentDemo?.errorMessage) showDemoError(currentDemo.errorMessage);
@@ -506,14 +632,58 @@ const CONTROL_PLANE_HTML = `<!doctype html>
       }
     }
 
+    async function hibernateInteractiveDemo() {
+      if (!currentDemoId) return;
+      showDemoError("");
+      try {
+        currentDemo = await requestJson(
+          "/v1/demo-sessions/" + encodeURIComponent(currentDemoId) + "/hibernate",
+          { method: "POST" },
+        );
+        chooseDemoSessionTab("hibernated");
+        renderDemoSession();
+        await refreshDemoList();
+      } catch (error) {
+        showDemoError("Unable to hibernate demo: " + error.message);
+      }
+    }
+
+    async function resumeInteractiveDemo() {
+      if (!currentDemoId) return;
+      showDemoError("");
+      try {
+        currentDemo = await requestJson(
+          "/v1/demo-sessions/" + encodeURIComponent(currentDemoId) + "/resume",
+          { method: "POST" },
+        );
+        chooseDemoSessionTab("active");
+        renderDemoSession();
+        renderDemoSelectors(true);
+        await refreshDemoList();
+      } catch (error) {
+        showDemoError("Unable to resume demo: " + error.message);
+      }
+    }
+
     async function stopInteractiveDemo() {
       if (!currentDemoId) return;
-      clearTimeout(demoPollTimer);
+      if (!confirm("Permanently delete this session AND its GL-EYE workspace, including all workspace data? This cannot be undone.")) return;
+      showDemoError("");
       try {
-        currentDemo = await requestJson("/v1/demo-sessions/" + encodeURIComponent(currentDemoId), { method: "DELETE" });
+        const deletedId = currentDemoId;
+        const result = await requestJson("/v1/demo-sessions/" + encodeURIComponent(deletedId), { method: "DELETE" });
+        if (result.status !== "STOPPED") {
+          throw new Error(result.errorMessage || "Workspace deletion was not confirmed.");
+        }
+        if (currentDemoId === deletedId) {
+          currentDemoId = "";
+          currentDemo = undefined;
+          localStorage.removeItem("testy.currentDemoId");
+        }
         renderDemoSession();
+        await refreshDemoList();
       } catch (error) {
-        showDemoError("Unable to stop demo: " + error.message);
+        showDemoError("Unable to permanently delete session: " + error.message);
       }
     }
 
@@ -800,6 +970,26 @@ const CONTROL_PLANE_HTML = `<!doctype html>
     document.getElementById("openDemoWebsite").addEventListener("click", openInteractiveWebsite);
     document.getElementById("resetDemoVisitor").addEventListener("click", function () { void resetInteractiveVisitor(); });
     document.getElementById("stopDemo").addEventListener("click", function () { void stopInteractiveDemo(); });
+    document.getElementById("hibernateDemo").addEventListener("click", function () { void hibernateInteractiveDemo(); });
+    document.getElementById("resumeDemo").addEventListener("click", function () { void resumeInteractiveDemo(); });
+    document.getElementById("refreshDemoSessions").addEventListener("click", function () { void refreshDemoList(); });
+    document.getElementById("demoSessionList").addEventListener("click", function (event) {
+      const button = event.target.closest("button[data-demo-id]");
+      if (button) void selectDemoSession(button.dataset.demoId);
+    });
+    document.querySelectorAll(".demo-session-tab").forEach(function (button) {
+      button.addEventListener("click", function () { chooseDemoSessionTab(button.dataset.demoTab); });
+    });
+    window.addEventListener("storage", function (event) {
+      if (event.key === "testy.currentDemoId") {
+        currentDemoId = event.newValue || "";
+        currentDemo = undefined;
+        demoSelectorsSessionId = "";
+        void refreshDemoSession();
+      } else if (event.key === "testy.demoSessionTab") {
+        chooseDemoSessionTab(event.newValue || "active");
+      }
+    });
     document.getElementById("refreshDemoResult").addEventListener("click", function () { void refreshDemoOutcome(true); });
     document.getElementById("demoNetwork").addEventListener("change", function () {
       renderDemoPeople();
@@ -831,7 +1021,12 @@ const CONTROL_PLANE_HTML = `<!doctype html>
     void refreshHealth();
     void loadScenarios();
     if (currentRunId) void refreshRun();
-    if (currentDemoId) void refreshDemoSession();
+    chooseDemoSessionTab(demoSessionTab);
+    if (document.getElementById("interactiveMode").classList.contains("active")) {
+      void refreshDemoSession();
+    } else {
+      void refreshDemoList();
+    }
     setInterval(function () { void refreshHealth(); }, 3000);
   </script>
 </body>
