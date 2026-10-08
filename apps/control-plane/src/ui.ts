@@ -1,5 +1,7 @@
 import type { FastifyInstance } from "fastify";
 
+import { isDemoDiagnostic, visitorSelectionChanged } from "./ui-state.js";
+
 export function registerControlPlaneUi(app: FastifyInstance): void {
   app.get("/", async (_request, reply) =>
     reply.type("text/html; charset=utf-8").send(CONTROL_PLANE_HTML),
@@ -13,211 +15,155 @@ const CONTROL_PLANE_HTML = `<!doctype html>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Testy Control Plane</title>
   <style>
-    :root {
-      color-scheme: light;
-      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      background: #f6f7f9;
-      color: #15171a;
-    }
-    * { box-sizing: border-box; }
-    body { margin: 0; background: #f6f7f9; }
-    button, select { font: inherit; }
-    .shell { max-width: 1320px; margin: 0 auto; padding: 28px; }
-    .topbar { display: flex; align-items: center; justify-content: space-between; gap: 20px; margin-bottom: 24px; }
-    h1 { margin: 0; font-size: 28px; letter-spacing: -0.03em; }
-    .sub { color: #6b7280; margin-top: 5px; font-size: 14px; }
-    .health { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
-    .badge { border-radius: 999px; padding: 7px 10px; font-size: 12px; font-weight: 700; border: 1px solid #d1d5db; background: white; }
-    .badge.ok { color: #166534; background: #f0fdf4; border-color: #bbf7d0; }
-    .badge.bad { color: #991b1b; background: #fef2f2; border-color: #fecaca; }
-    .badge.warn { color: #92400e; background: #fffbeb; border-color: #fde68a; }
-    .mode-switch { display:flex; gap:6px; margin:0 0 20px; padding:4px; width:max-content; background:#e9ecef; border-radius:11px; }
-    .mode-button { border:0; background:transparent; color:#6b7280; padding:9px 14px; border-radius:8px; font-weight:800; cursor:pointer; }
-    .mode-button.active { background:white; color:#111827; box-shadow:0 1px 2px rgba(0,0,0,.08); }
+    :root { color-scheme:light; font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; --ink:#202c40; --muted:#627086; --line:#e1e6ee; --accent:#3159d5; --surface:#fff; --soft:#f4f6fa; color:var(--ink); background:#f6f7fa; }
+    * { box-sizing:border-box; }
+    [hidden] { display:none!important; }
+    body { margin:0; }
+    button,input,select { font:inherit; }
+    button,a { -webkit-tap-highlight-color:transparent; }
+    button { cursor:pointer; }
+    button:disabled { cursor:not-allowed; opacity:.5; }
+    button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visible { outline:3px solid #3159d56b; outline-offset:3px; }
+    .shell { max-width:1640px; margin:0 auto; padding:0 28px 40px; }
+    .topbar { display:flex; align-items:center; justify-content:space-between; gap:20px; padding:20px 0; }
+    .brand { display:flex; gap:11px; align-items:center; }
+    .brand-logo { width:34px; height:34px; border-radius:9px; display:grid; place-items:center; background:var(--ink); color:#fff; font-size:17px; font-weight:800; }
+    h1 { font-size:21px; letter-spacing:-.035em; margin:0; }
+    h2 { margin:0; font-size:16px; letter-spacing:-.015em; }
+    .sub,.heading-description { color:var(--muted); font-size:12px; margin-top:3px; line-height:1.5; }
+    .health { display:flex; gap:8px; flex-wrap:wrap; }
+    .badge { display:inline-flex; gap:6px; align-items:center; border-radius:5px; padding:5px 8px; font-size:11px; font-weight:650; background:var(--soft); color:var(--muted); white-space:nowrap; }
+    .badge:before { content:""; width:5px; height:5px; border-radius:50%; background:currentColor; }
+    .badge.ok { background:#edf7f1; color:#26724c; }
+    .badge.bad { background:#fff0ee; color:#b42318; }
+    .badge.warn { background:#fff6e7; color:#8a5616; }
+    .mode-switch { display:flex; gap:24px; border-bottom:1px solid var(--line); }
+    .mode-button { background:none; border:0; border-bottom:2px solid transparent; padding:11px 0; color:var(--muted); font-size:13px; font-weight:650; }
+    .mode-button.active { color:var(--accent); border-bottom-color:var(--accent); }
     .mode-view { display:none; }
     .mode-view.active { display:block; }
-    .grid { display: grid; grid-template-columns: minmax(300px, 0.8fr) minmax(480px, 1.7fr); gap: 20px; align-items: start; }
-    .demo-grid { display:grid; grid-template-columns:minmax(320px,.9fr) minmax(480px,1.5fr); gap:20px; align-items:start; }
-    .field { display:grid; gap:6px; margin-bottom:14px; }
-    .field label { font-size:12px; font-weight:800; color:#4b5563; }
-    .field select { width:100%; border:1px solid #d1d5db; border-radius:9px; padding:9px 10px; background:white; }
-    .demo-actions { display:flex; flex-wrap:wrap; gap:8px; margin-top:16px; }
-    .demo-session-tabs { display:flex; gap:6px; padding:4px; background:#eef1f4; border-radius:10px; margin:0 0 12px; width:max-content; max-width:100%; }
-    .demo-session-tab { border:0; border-radius:8px; background:transparent; color:#64748b; padding:10px 14px; font-weight:800; cursor:pointer; }
-    .demo-session-tab.active { background:white; color:#111827; box-shadow:0 1px 2px rgba(0,0,0,.07); }
-    .demo-session-list { display:grid; gap:8px; }
-    .demo-session-item { display:flex; justify-content:space-between; align-items:center; gap:12px; padding:13px; border:1px solid #e5e7eb; border-radius:10px; background:white; }
-    .demo-session-item.selected { border-color:#64748b; background:#f8fafc; }
-    .demo-session-item strong { overflow-wrap:anywhere; font-size:13px; }
-    .demo-session-item .meta { overflow-wrap:anywhere; }
-    @media (max-width:600px) { .demo-session-item { flex-direction:column; align-items:flex-start; } }
-    .service-list { display:grid; gap:8px; }
-    .service-row { display:flex; justify-content:space-between; gap:12px; padding:10px 0; border-bottom:1px solid #f0f1f3; font-size:13px; }
-    .demo-activity { max-height:360px; overflow:auto; }
-    .demo-event { display:grid; grid-template-columns:92px 1fr; gap:10px; padding:8px 0; border-bottom:1px solid #f1f2f4; font-size:13px; }
-    .result-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
-    .result-cell { border:1px solid #eceef1; border-radius:10px; padding:11px; }
-    .card { background: white; border: 1px solid #e5e7eb; border-radius: 14px; box-shadow: 0 1px 2px rgba(0,0,0,.03); overflow: hidden; }
-    .card-head { padding: 18px 20px; border-bottom: 1px solid #eef0f2; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
-    .card-head h2 { margin: 0; font-size: 16px; }
-    .card-body { padding: 18px 20px; }
-    .scenario { padding: 14px 0; border-bottom: 1px solid #f0f1f3; }
-    .scenario:last-child { border-bottom: 0; }
-    .scenario-title { font-weight: 700; margin-bottom: 4px; }
-    .meta { font-size: 12px; color: #6b7280; line-height: 1.5; }
-    .btn { border: 0; border-radius: 9px; padding: 9px 13px; cursor: pointer; font-weight: 700; }
-    .btn.primary { background: #111827; color: white; }
-    .btn.secondary { background: #f3f4f6; color: #111827; }
-    .btn.danger { background: #fee2e2; color: #991b1b; }
-    .btn:disabled { opacity: .5; cursor: not-allowed; }
-    .scenario-actions { margin-top: 10px; display: flex; gap: 8px; }
-    .empty { color: #6b7280; padding: 28px 0; text-align: center; }
-    .run-summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 18px; }
-    .metric { border: 1px solid #eceef1; border-radius: 11px; padding: 12px; }
-    .metric .label { color: #6b7280; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; }
-    .metric .value { font-size: 18px; font-weight: 800; margin-top: 5px; }
-    .status-line { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px; border-radius: 11px; background: #f8fafc; margin-bottom: 16px; }
-    .status { font-weight: 800; }
-    .progress { height: 6px; background: #e5e7eb; border-radius: 99px; overflow: hidden; margin-bottom: 18px; }
-    .progress > div { height: 100%; background: #111827; transition: width .25s ease; }
-    .tabs { display: flex; gap: 6px; margin-bottom: 14px; border-bottom: 1px solid #eceef1; }
-    .tab { border: 0; background: transparent; padding: 10px 8px; cursor: pointer; color: #6b7280; font-weight: 700; border-bottom: 2px solid transparent; }
-    .tab.active { color: #111827; border-bottom-color: #111827; }
-    .panel { display: none; }
-    .panel.active { display: block; }
-    .timeline { max-height: 390px; overflow: auto; }
-    .event { display: grid; grid-template-columns: 92px 110px 1fr; gap: 10px; padding: 9px 0; border-bottom: 1px solid #f1f2f4; font-size: 13px; }
-    .event .time, .event .cat { color: #6b7280; }
-    .assertion { display: grid; grid-template-columns: 26px 1fr auto; gap: 10px; align-items: center; padding: 10px 0; border-bottom: 1px solid #f1f2f4; font-size: 13px; }
-    .pass { color: #15803d; font-weight: 900; }
-    .fail { color: #b91c1c; font-weight: 900; }
-    .provider { display: inline-flex; border-radius: 999px; background: #f3f4f6; padding: 5px 8px; margin: 4px 4px 0 0; font-size: 12px; }
-    .error-box { white-space: pre-wrap; background: #fff7ed; color: #9a3412; border: 1px solid #fed7aa; border-radius: 10px; padding: 12px; margin-top: 12px; font-size: 12px; }
-    .link { color: #1d4ed8; text-decoration: none; font-size: 13px; font-weight: 700; }
-    @media (max-width: 900px) {
-      .grid, .demo-grid { grid-template-columns: 1fr; }
-      .run-summary { grid-template-columns: repeat(2, 1fr); }
-      .topbar { align-items: flex-start; flex-direction: column; }
-      .health { justify-content: flex-start; }
-    }
-
-    /* Testy control panel design tokens and responsive workspace styling */
-    :root { --ink:#17233c; --muted:#64748b; --line:#dfe7f2; --accent:#2659ce; }
-    body { color:var(--ink); background:linear-gradient(180deg,#eef3ff 0,#f5f7fc 300px,#f6f8fb 100%); min-height:100vh; }
-    .shell { max-width:1480px; padding:34px 40px 72px; }
-    .brand { display:flex; align-items:center; gap:14px; }
-    .brand-logo { width:48px; height:48px; flex:none; display:grid; place-items:center; border-radius:14px; background:#2354c4; color:white; font-size:21px; font-weight:850; letter-spacing:-.07em; box-shadow:0 8px 24px #2354c433; }
-    h1 { font-size:26px; font-weight:800; letter-spacing:-.045em; }
-    .sub { color:var(--muted); }
-    .eyebrow { display:block; color:#355fb2; font-size:11px; font-weight:800; letter-spacing:.11em; text-transform:uppercase; margin-bottom:3px; }
-    .health { padding:8px; border:1px solid var(--line); border-radius:12px; background:#ffffffcb; }
-    .badge { display:inline-flex; align-items:center; gap:6px; border-color:var(--line); font-weight:750; }
-    .badge:before { content:""; display:inline-block; width:6px; height:6px; border-radius:50%; background:currentColor; opacity:.75; }
-    .mode-switch { width:100%; gap:8px; background:transparent; padding:0; margin-bottom:20px; border-bottom:1px solid var(--line); border-radius:0; }
-    .mode-button { border-radius:10px 10px 0 0; border:1px solid transparent; border-bottom:3px solid transparent; padding:13px 18px 12px; color:var(--muted); }
-    .mode-button.active { background:white; color:var(--accent); border-color:var(--line); border-bottom-color:var(--accent); box-shadow:none; }
-    .context-banner { display:flex; align-items:center; justify-content:space-between; gap:16px; margin:0 0 21px; padding:18px 20px; background:white; border:1px solid var(--line); border-left:4px solid var(--accent); border-radius:12px; }
-    .context-banner h2 { margin:0; font-size:16px; letter-spacing:-.015em; }
-    .context-banner p { margin:5px 0 0; color:var(--muted); font-size:13px; line-height:1.55; }
-    .live-caption { white-space:nowrap; color:#526680; display:flex; align-items:center; gap:8px; font-size:12px; font-weight:700; }
-    .live-dot { width:8px; height:8px; border-radius:50%; background:#16a34a; box-shadow:0 0 0 3px #dcfce7; }
-    .grid { grid-template-columns:minmax(340px,.9fr) minmax(0,1.6fr); gap:22px; }
-    .demo-grid { grid-template-columns:minmax(360px,.95fr) minmax(0,1.3fr); gap:22px; }
-    .card { border:1px solid var(--line); border-radius:15px; box-shadow:0 5px 24px #21395f09; }
-    .card-head { padding:17px 21px; gap:14px; }
-    .card-head h2 { font-size:16px; font-weight:780; }
-    .card-body { padding:20px 21px; }
-    .heading-description { font-size:12px; color:var(--muted); margin-top:4px; line-height:1.45; }
-    .toolbar { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
-    .search-input, .field select, .confirm-input { width:100%; font:inherit; border:1px solid #cbd5e1; background:white; border-radius:9px; padding:10px 11px; color:var(--ink); font-size:13px; transition:border-color .15s,box-shadow .15s; }
-    .search-input { max-width:225px; }
-    .search-input:focus, .field select:focus, .confirm-input:focus { outline:none; border-color:#4b7aeb; box-shadow:0 0 0 3px #406cd522; }
-    .btn { border-radius:9px; padding:10px 14px; font-size:13px; transition:transform .15s,background .15s; line-height:1.3; }
-    .btn:hover:not(:disabled) { transform:translateY(-1px); }
-    .btn.primary { background:#2558cc; color:white; }
-    .btn.primary:hover:not(:disabled) { background:#1848b5; }
-    .btn.secondary { background:#f1f5fb; color:#30435d; border:1px solid #e1e9f5; }
-    .btn.danger { border:1px solid #fecaca; background:#fff3f3; color:#b42318; }
-    .btn:disabled { opacity:.53; transform:none; cursor:not-allowed; }
-    button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible { outline:3px solid #3770e86b; outline-offset:2px; }
-    .scenario { padding:16px 0; }
-    .scenario-title { font-size:14px; color:var(--ink); }
-    .scenario-actions { margin-top:11px; }
-    .meta { color:var(--muted); }
-    .info-strip { background:#f0f6ff; border:1px solid #d4e4ff; color:#375273; padding:11px 13px; border-radius:10px; font-size:12px; line-height:1.5; }
-    .inline-note { font-size:12px; color:var(--muted); margin-top:9px; line-height:1.55; }
-    .empty { padding:29px 12px; color:#718096; font-size:13px; line-height:1.65; }
-    .empty strong { color:#334155; display:block; font-size:14px; }
-    .metric { background:#f9fbff; border-color:var(--line); }
-    .metric .value { color:#1f3b6d; }
-    .status-line { border:1px solid var(--line); }
-    .tabs { overflow-x:auto; }
-    .tab { white-space:nowrap; padding:11px 12px; }
+    .context-banner { display:flex; justify-content:space-between; align-items:center; gap:16px; padding:20px 0; }
+    .context-banner h2 { font-size:20px; letter-spacing:-.025em; }
+    .context-banner p { margin:4px 0 0; color:var(--muted); font-size:13px; }
+    .live-caption { font-size:12px; color:var(--muted); display:flex; gap:7px; align-items:center; white-space:nowrap; }
+    .live-dot { background:#29945d; width:6px; height:6px; border-radius:50%; }
+    .grid { display:grid; grid-template-columns:minmax(300px,.8fr) minmax(0,1.3fr); gap:20px; align-items:start; }
+    .interactive-workspace { display:grid; grid-template-columns:244px minmax(0,1fr); gap:22px; align-items:start; }
+    .demo-grid { display:grid; grid-template-columns:minmax(280px,.85fr) minmax(0,1.15fr); gap:18px; align-items:start; }
+    .card { background:var(--surface); border:1px solid var(--line); border-radius:10px; min-width:0; overflow:hidden; }
+    .card-head { padding:16px 18px; display:flex; justify-content:space-between; align-items:center; gap:12px; border-bottom:1px solid var(--line); }
+    .card-body { padding:18px; }
+    .toolbar { display:flex; align-items:center; flex-wrap:wrap; gap:8px; min-width:0; }
+    .search-input,.field select,.confirm-input { width:100%; min-width:0; background:#fff; color:var(--ink); border:1px solid #cdd5e1; border-radius:7px; padding:9px 10px; font-size:13px; }
+    .search-input { max-width:220px; }
+    .btn { display:inline-flex; justify-content:center; align-items:center; gap:6px; border:1px solid var(--line); border-radius:7px; padding:9px 12px; background:#fff; color:var(--ink); font-size:13px; font-weight:650; line-height:1.35; }
+    .btn:hover:not(:disabled) { background:var(--soft); }
+    .btn.primary { background:var(--accent); border-color:var(--accent); color:white; }
+    .btn.primary:hover:not(:disabled) { background:#2446b4; }
+    .btn.secondary { background:#fff; }
+    .btn.danger { color:#b42318; border-color:#efc9c5; background:#fff7f6; }
+    .text-button { border:0; padding:2px 0; font-size:12px; font-weight:600; color:var(--accent); background:none; }
+    .meta { font-size:12px; line-height:1.5; color:var(--muted); }
+    .session-sidebar { position:sticky; top:18px; }
+    .session-sidebar .card-head { padding:15px; }
+    .session-sidebar .card-body { padding:12px; }
+    .session-sidebar .toolbar { flex-wrap:nowrap; margin-bottom:12px; }
+    .session-sidebar .search-input { max-width:none; }
+    .session-sidebar .toolbar .btn { padding:9px; }
+    .new-session-button { width:100%; margin-bottom:14px; }
+    .demo-session-tabs { display:flex; gap:16px; margin:0 0 14px; border-bottom:1px solid var(--line); }
+    .demo-session-tab { padding:8px 0; border:0; border-bottom:2px solid transparent; background:none; color:var(--muted); font-size:12px; font-weight:600; }
+    .demo-session-tab.active { color:var(--accent); border-bottom-color:var(--accent); }
+    .demo-session-list { display:grid; gap:6px; max-height:calc(100vh - 360px); min-height:110px; overflow:auto; }
+    .demo-session-item { width:100%; text-align:left; border:1px solid transparent; border-radius:7px; background:#fff; color:var(--ink); padding:12px; }
+    .demo-session-item:hover { background:var(--soft); }
+    .demo-session-item.selected { border-color:#cedbff; background:#eef3ff; }
+    .demo-session-item strong { display:block; font-size:13px; overflow-wrap:anywhere; line-height:1.45; }
+    .demo-session-item .meta { display:block; overflow-wrap:anywhere; margin:4px 0; }
+    .session-meta-row { display:flex; gap:6px; align-items:center; flex-wrap:wrap; margin-top:7px; }
+    .session-meta-row .badge { font-size:10px; padding:3px 5px; }
+    .session-shared-note { margin:14px 3px 2px; font-size:11px; line-height:1.55; color:var(--muted); }
+    .workspace-heading { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin:0 0 16px; }
+    .workspace-heading h2 { font-size:16px; overflow-wrap:anywhere; }
+    .workspace-heading .meta { margin-top:4px; }
+    .stage-label { color:var(--muted); font-size:10px; font-weight:650; text-transform:uppercase; letter-spacing:.08em; margin-bottom:5px; }
+    .field { display:grid; gap:6px; margin:0 0 15px; }
+    .field label { font-size:12px; font-weight:600; color:#4d5c71; }
+    .identity-summary { padding:0 0 15px; line-height:1.6; }
+    .visitor-primary-actions { display:grid; grid-template-columns:1fr; gap:8px; }
+    .visitor-feedback { font-size:12px; color:var(--muted); line-height:1.5; margin:10px 0 0; }
+    .visitor-feedback.pending { color:#8a5616; }
+    .visitor-secondary-actions { display:flex; margin:14px 0 0; }
+    .workspace-details { border-top:1px solid var(--line); margin-top:18px; padding-top:14px; }
+    summary { cursor:pointer; font-size:12px; font-weight:650; color:#465570; }
+    .workspace-details[open] summary { margin-bottom:14px; }
+    .result-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:18px 14px; }
+    .result-cell { min-width:0; }
+    .result-cell strong { display:block; font-size:18px; margin-top:4px; overflow-wrap:anywhere; }
+    .result-cell.company { grid-column:1/-1; padding-bottom:14px; border-bottom:1px solid var(--line); }
+    .result-cell.company strong { font-size:22px; letter-spacing:-.025em; }
+    .credential-grid strong { font-size:12px; font-weight:600; }
+    .cell-actions { display:flex; gap:10px; align-items:center; margin-top:7px; }
+    .session-id { font-size:11px; overflow-wrap:anywhere; color:var(--muted); }
+    .session-controls { border-top:1px solid var(--line); padding-top:14px; margin-top:14px; }
+    .demo-actions { display:flex; gap:8px; flex-wrap:wrap; }
+    .danger-zone { margin-top:12px; }
+    .service-list { display:grid; gap:7px; margin-top:12px; }
+    .service-row { display:flex; gap:12px; justify-content:space-between; font-size:12px; color:var(--muted); }
+    .service-row strong { text-align:right; overflow-wrap:anywhere; }
+    .services-footer { padding:14px 0 0; margin-top:4px; }
+    .demo-activity,.timeline { max-height:360px; overflow:auto; }
+    .demo-event { display:grid; grid-template-columns:65px 1fr; gap:10px; border-bottom:1px solid #eef1f5; padding:10px 0; font-size:12px; line-height:1.5; overflow-wrap:anywhere; }
+    .time,.event .cat { color:var(--muted); }
+    .activity-diagnostics { margin-top:14px; }
+    .activity-diagnostics summary { color:var(--muted); font-weight:400; }
+    .empty { padding:28px 8px; color:var(--muted); font-size:13px; line-height:1.65; text-align:center; }
+    .empty strong { display:block; color:var(--ink); margin-bottom:5px; font-size:15px; }
+    .empty .btn { margin-top:16px; }
+    .info-strip { padding:12px; border:1px solid #dde6fa; background:#f3f6ff; border-radius:7px; font-size:12px; color:#465b80; line-height:1.6; margin-bottom:15px; }
+    .scenario { position:relative; padding:15px 68px 15px 0; border-bottom:1px solid var(--line); }
+    .scenario:last-child { border:0; }
+    .scenario-title { font-size:13px; font-weight:650; line-height:1.5; margin-bottom:4px; }
+    .scenario-actions { position:absolute; right:0; top:18px; }
+    .scenario-actions .btn { padding:7px 11px; }
+    .run-summary { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; margin:18px 0; }
+    .metric .label { font-size:11px; color:var(--muted); }
+    .metric .value { font-size:20px; font-weight:700; margin-top:4px; }
+    .status-line { display:flex; gap:12px; justify-content:space-between; align-items:center; flex-wrap:wrap; margin-bottom:15px; }
+    .progress { height:5px; background:#e6eaf2; border-radius:99px; overflow:hidden; }
+    .progress>div { height:100%; background:var(--accent); transition:width .25s; }
+    .tabs { display:flex; gap:18px; border-bottom:1px solid var(--line); margin:16px 0 10px; overflow:auto; }
+    .tab { white-space:nowrap; border:0; border-bottom:2px solid transparent; background:none; padding:10px 0; color:var(--muted); font-size:13px; }
     .tab.active { color:var(--accent); border-bottom-color:var(--accent); }
-    .demo-session-tabs { background:#e8eef8; }
-    .demo-session-tab.active { color:var(--accent); }
-    .demo-session-list { display:grid; grid-template-columns:repeat(auto-fit,minmax(310px,1fr)); gap:10px; max-height:318px; overflow:auto; }
-    .demo-session-item { min-width:0; align-items:flex-start; border-color:var(--line); padding:15px; }
-    .demo-session-item.selected { background:#f0f5ff; border-color:#83a8f2; box-shadow:inset 3px 0 #2e62d4; }
-    .demo-session-item > div { min-width:0; }
-    .demo-session-item strong { display:block; font-size:14px; margin-bottom:5px; }
-    .session-meta-row { display:flex; flex-wrap:wrap; align-items:center; gap:7px; margin:7px 0; font-size:12px; color:var(--muted); }
-    .session-meta-row .badge { padding:4px 8px; font-size:10px; }
-    .session-id { font-size:11px; color:#94a3b8; overflow-wrap:anywhere; }
-    .new-session-card { margin-bottom:20px; }
-    .demo-steps { display:grid; gap:8px; margin:18px 0; }
-    .demo-step { display:flex; align-items:center; flex-wrap:wrap; gap:10px; border:1px solid var(--line); border-radius:10px; padding:10px 12px; background:#fbfcff; font-size:12px; color:var(--muted); }
-    .demo-step strong { color:#334155; font-weight:750; }
-    .demo-step.active { border-color:#abc6ff; background:#f1f6ff; }
-    .demo-step.done .step-index { background:#dcfce7; color:#166534; }
-    .step-index { width:25px; height:25px; display:grid; place-items:center; border-radius:8px; background:#e9edf5; color:#63758b; font-weight:850; flex:none; }
-    .result-cell { min-width:0; background:#fbfcff; border-color:var(--line); }
-    .result-cell strong { display:block; overflow-wrap:anywhere; line-height:1.4; margin-top:4px; font-size:13px; }
-    .cell-actions { margin-top:9px; display:flex; gap:8px; }
-    .text-button { padding:3px 0; font:inherit; font-weight:750; font-size:12px; border:none; background:none; color:var(--accent); cursor:pointer; }
-    .demo-actions { padding-top:13px; border-top:1px solid var(--line); }
-    .demo-actions .btn.primary { order:-1; }
-    .danger-zone { border-top:1px dashed #fecaca; margin-top:14px; padding-top:13px; }
-    .danger-zone .btn { width:100%; }
-    .service-row:last-child { border-bottom:0; }
-    .error-box { line-height:1.5; overflow-wrap:anywhere; }
-    .toast { position:fixed; bottom:24px; right:24px; z-index:30; background:#182e51; color:#fff; border-radius:10px; padding:12px 17px; box-shadow:0 10px 30px #172b4d40; font-size:13px; max-width:calc(100vw - 32px); }
-    .confirm-dialog { width:min(440px,calc(100% - 32px)); border:1px solid var(--line); border-radius:16px; padding:24px; box-shadow:0 24px 70px #172b4d66; color:var(--ink); }
-    .confirm-dialog::backdrop { background:#0a183088; }
-    .confirm-dialog h2 { margin:0 0 10px; font-size:20px; }
-    .confirm-dialog p { font-size:13px; color:var(--muted); line-height:1.6; }
+    .panel { display:none; }
+    .panel.active { display:block; }
+    .event { display:grid; grid-template-columns:70px 95px 1fr; gap:10px; font-size:12px; padding:10px 0; border-bottom:1px solid var(--line); overflow-wrap:anywhere; }
+    .assertion { display:grid; grid-template-columns:20px 1fr auto; gap:10px; padding:12px 0; border-bottom:1px solid var(--line); font-size:13px; }
+    .pass { color:#26724c; font-weight:700; }
+    .fail { color:#b42318; font-weight:700; }
+    .provider { display:inline-flex; font-size:12px; border-radius:5px; padding:5px 8px; margin:4px 4px 0 0; background:var(--soft); }
+    .link { font-size:12px; color:var(--accent); text-decoration:none; font-weight:600; }
+    .error-box { white-space:pre-wrap; overflow-wrap:anywhere; font-size:12px; line-height:1.6; padding:13px; color:#8a4913; background:#fff5e8; border:1px solid #f3d8b2; border-radius:8px; margin:0 0 16px; }
+    .toast { position:fixed; bottom:22px; right:22px; z-index:30; max-width:calc(100vw - 32px); padding:12px 16px; color:#fff; background:var(--ink); border-radius:8px; box-shadow:0 6px 24px #202c4033; font-size:13px; }
+    .confirm-dialog { width:min(440px,calc(100% - 32px)); padding:24px; border:1px solid var(--line); border-radius:12px; color:var(--ink); box-shadow:0 24px 70px #172b4d44; }
+    .confirm-dialog::backdrop { background:#172b4d66; }
+    .confirm-dialog h2 { font-size:20px; margin-bottom:8px; }
+    .confirm-dialog p { color:var(--muted); font-size:13px; line-height:1.6; margin:0 0 20px; }
     .confirm-dialog .toolbar { justify-content:flex-end; margin-top:20px; }
+    .checkbox-field { display:flex; align-items:flex-start; gap:8px; font-size:12px; line-height:1.6; color:var(--muted); }
     .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
-    @media (max-width:1000px) { .grid,.demo-grid { grid-template-columns:1fr; } .shell { padding:24px; } }
-    @media (max-width:620px) {
-      .shell { padding:15px 12px 38px; }
-      .topbar { align-items:flex-start; flex-direction:column; gap:14px; }
-      .health { justify-content:flex-start; width:100%; }
-      h1 { font-size:23px; }
-      .mode-button { padding:12px 10px; flex:1; }
-      .mode-switch { display:flex; }
-      .context-banner { flex-direction:column; gap:12px; padding:15px; }
-      .card-head { flex-wrap:wrap; padding:16px; }
-      .card-body { padding:16px; }
-      .toolbar { width:100%; }
-      .toolbar .search-input { flex:1; max-width:none; min-width:140px; }
-      .run-summary,.result-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
-      .demo-session-list { grid-template-columns:1fr; }
-      .demo-event,.event { grid-template-columns:85px 1fr; }
-      .event .cat { grid-column:2; }
-      .status-line { flex-wrap:wrap; }
-      .toast { right:12px; bottom:12px; }
-    }
-    @media (max-width:390px) { .run-summary,.result-grid { grid-template-columns:1fr; } }
-    @media (prefers-reduced-motion:reduce) { *,*::before,*::after { transition:none!important; } }
+    @media(max-width:1150px) { .interactive-workspace { grid-template-columns:210px minmax(0,1fr); gap:16px; } .demo-grid { grid-template-columns:minmax(260px,1fr) minmax(0,1fr); gap:14px; } .shell { padding:0 20px 32px; } .card-head,.card-body { padding:15px; } }
+    @media(max-width:960px) { .demo-grid { grid-template-columns:1fr; } .grid { grid-template-columns:minmax(260px,.8fr) minmax(0,1fr); } .run-summary { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+    @media(max-width:700px) { .shell { padding:0 14px 28px; } .topbar { align-items:flex-start; flex-direction:column; gap:12px; padding:16px 0; } .context-banner { align-items:flex-start; } .context-banner p { font-size:12px; } .live-caption { display:none; } .interactive-workspace,.grid { grid-template-columns:1fr; } .session-sidebar { position:static; } .demo-session-list { max-height:220px; } .session-shared-note { font-size:12px; } .search-input,select,.confirm-input { font-size:16px!important; } .event { grid-template-columns:65px 1fr; } .event .cat { grid-column:2; } .toolbar { flex-wrap:wrap; } .result-cell.company strong { font-size:20px; } }
+    @media(prefers-reduced-motion:reduce) { * { transition:none!important; } }
   </style>
 </head>
 <body>
   <main class="shell">
     <header class="topbar">
-      <div class="brand"><div class="brand-logo" aria-hidden="true">T.</div><div><span class="eyebrow">Testing operations</span>
-        <h1>Testy control panel</h1>
-        <div class="sub">Run tests, simulate visitors, and inspect GL-EYE evidence.</div>
+      <div class="brand"><div class="brand-logo" aria-hidden="true">T.</div><div>
+        <h1>Testy</h1>
+        <div class="sub">Your GL-EYE testing workspace</div>
       </div></div>
       <div class="health">
         <span id="controlHealth" class="badge warn">Control Plane · checking</span>
@@ -227,11 +173,11 @@ const CONTROL_PLANE_HTML = `<!doctype html>
 
     <nav class="mode-switch" role="tablist" aria-label="Testing modes">
       <button id="automatedModeButton" class="mode-button active" role="tab" aria-controls="automatedMode" aria-selected="true">Automated tests</button>
-      <button id="interactiveModeButton" class="mode-button" role="tab" aria-controls="interactiveMode" aria-selected="false">Interactive demo</button>
+      <button id="interactiveModeButton" class="mode-button" role="tab" aria-controls="interactiveMode" aria-selected="false">Visitor simulator</button>
     </nav>
     <div class="context-banner"><div><h2 id="modeHeading">Automated testing</h2><p id="modeDescription">Choose a scenario and inspect its execution and evidence.</p></div><div class="live-caption"><span class="live-dot" aria-hidden="true"></span>Live status</div></div>
 
-    <section id="automatedMode" class="mode-view active">
+    <section id="automatedMode" class="mode-view active" role="tabpanel" aria-labelledby="automatedModeButton">
     <div class="grid">
       <section class="card">
         <div class="card-head">
@@ -284,119 +230,81 @@ const CONTROL_PLANE_HTML = `<!doctype html>
     </div>
     </section>
 
-    <section id="interactiveMode" class="mode-view">
-      <div class="demo-session-tabs" role="tablist" aria-label="Demo session lists">
-        <button id="demoActiveTab" class="demo-session-tab active" data-demo-tab="active" role="tab" aria-selected="true">Active <span id="demoActiveCount">0</span></button>
-        <button id="demoHibernatedTab" class="demo-session-tab" data-demo-tab="hibernated" role="tab" aria-selected="false">Saved / failed <span id="demoHibernatedCount">0</span></button>
-      </div>
-      <section class="card" style="margin-bottom:20px">
-        <div class="card-head">
-          <div><h2 id="demoSessionListTitle">Active sessions</h2><div class="heading-description">Manage and join existing test workspaces</div></div><div class="toolbar"><label for="demoSessionSearch" class="sr-only">Search sessions</label><input id="demoSessionSearch" class="search-input" type="search" placeholder="Search workspace or email"><button id="refreshDemoSessions" class="btn secondary">Refresh</button></div>
-        </div>
-        <div class="card-body">
-          <div class="meta" style="margin-bottom:12px">Sessions are shared by this control panel. Any open tab or computer can join and control a session. Your selected session is synchronized across this browser's tabs.</div>
-          <div id="demoSessionList" class="demo-session-list"><div class="empty">Loading sessions…</div></div>
-        </div>
-      </section>
-      <div class="demo-grid">
-        <div>
-          <section class="card">
-            <div class="card-head">
-              <h2>Selected demo session</h2>
-              <span id="demoStatus" class="badge warn">Not started</span>
+    <section id="interactiveMode" class="mode-view" role="tabpanel" aria-labelledby="interactiveModeButton">
+      <div class="interactive-workspace">
+        <aside class="session-sidebar card" aria-label="Demo sessions">
+          <div class="card-head"><h2>Sessions</h2></div>
+          <div class="card-body">
+            <button id="newDemoSession" class="btn primary new-session-button" data-demo-action>+ New session</button>
+            <div class="toolbar"><label for="demoSessionSearch" class="sr-only">Search sessions</label><input id="demoSessionSearch" class="search-input" type="search" placeholder="Find a workspace…"><button id="refreshDemoSessions" class="btn secondary" aria-label="Refresh sessions">↻</button></div>
+            <div class="demo-session-tabs" role="tablist" aria-label="Demo session lists">
+              <button id="demoActiveTab" class="demo-session-tab active" data-demo-tab="active" role="tab" aria-selected="true">Active <span id="demoActiveCount">0</span></button>
+              <button id="demoHibernatedTab" class="demo-session-tab" data-demo-tab="hibernated" role="tab" aria-selected="false">Saved / failed <span id="demoHibernatedCount">0</span></button>
             </div>
-            <div class="card-body">
-              <div class="info-strip" id="demoSessionMeta">Create a test workspace or choose a shared session above.</div>
-              <div class="field" id="demoCredentialModeField" style="margin-top:18px">
-                <label for="demoCredentialMode">Demo login</label>
-                <select id="demoCredentialMode">
-                  <option value="shared">Reusable credential across sessions</option>
-                  <option value="generated">Generate a new credential for this session</option>
-                </select>
-                <div class="meta" style="margin-top:6px">Reusable uses the same demo account every time. Generated creates a new login tied to this session.</div>
-              </div>
-              <label class="meta" style="display:flex;align-items:center;gap:8px;margin:12px 0 16px">
-                <input id="demoKeepWorkspace" type="checkbox">
-                Keep the workspace after automatic timeout (hibernate instead of delete)
-              </label>
-              <div id="demoCredentialPanel" class="result-grid" hidden style="margin-top:18px">
-                <div class="result-cell"><div class="meta">Workspace</div><strong id="demoWorkspaceName">—</strong></div>
-                <div class="result-cell"><div class="meta">Session ID</div><strong id="demoCredentialSessionId">—</strong></div>
-                <div class="result-cell"><div class="meta">Email</div><strong id="demoCredentialEmail">—</strong><div class="cell-actions"><button id="copyDemoEmail" class="text-button">Copy email</button></div></div>
-                <div class="result-cell"><div class="meta">Password</div><strong id="demoCredentialPassword">—</strong><div class="cell-actions"><button id="toggleDemoPassword" class="text-button" aria-pressed="false">Show</button><button id="copyDemoPassword" class="text-button">Copy password</button></div></div>
-              </div>
-              <div id="demoVisitorControls" hidden style="margin-top:18px"><div class="info-strip" style="margin-bottom:14px">Choose a synthetic network, person and browser. Apply your selection before opening the website.</div>
-                <div class="field">
-                  <label for="demoNetwork">Network identity</label>
-                  <select id="demoNetwork"></select>
+            <h2 id="demoSessionListTitle" class="sr-only">Active sessions</h2>
+            <div id="demoSessionList" class="demo-session-list"><div class="empty">Loading sessions…</div></div>
+            <div class="session-shared-note">Shared sessions. Changes affect everyone using the selected workspace.</div>
+          </div>
+        </aside>
+        <div class="demo-workspace">
+          <header class="workspace-heading"><div><h2 id="selectedWorkspaceHeading">Choose a workspace</h2><div id="demoSessionMeta" class="meta">Open a session on the left or create a new one.</div></div><span id="demoStatus" class="badge warn">Not selected</span></header>
+          <div class="demo-grid">
+            <section class="card">
+              <div class="card-head"><div><div class="stage-label">1 · Set up a visitor</div><h2>Visitor identity</h2></div><span id="demoVisitorState" class="badge" hidden>Applied</span></div>
+              <div class="card-body">
+                <div id="demoNoSession" class="empty"><strong>Ready to try GL-EYE?</strong>Create a workspace or open a shared session to simulate a visitor.<br><button id="newDemoSessionEmpty" class="btn primary" data-demo-action>Create a session</button></div>
+                <div id="demoInactiveMessage" class="info-strip" hidden></div>
+                <div id="demoVisitorControls" hidden>
+                  <div class="field"><label for="demoNetwork">Network</label><select id="demoNetwork"></select></div>
+                  <div class="field"><label for="demoPerson">Person</label><select id="demoPerson"></select></div>
+                  <div class="field"><label for="demoBrowser">Browser</label><select id="demoBrowser"></select></div>
+                  <div class="visitor-primary-actions"><button id="applyDemoVisitor" class="btn primary" data-demo-action>Apply visitor</button><button id="openDemoWebsite" class="btn secondary" data-demo-action>2 · Open demo website ↗</button></div>
+                  <p id="demoVisitorFeedback" class="visitor-feedback" aria-live="polite"></p>
+                  <div id="demoIdentitySummary" class="meta identity-summary" style="margin-top:14px;padding-bottom:0"></div>
+                  <div class="visitor-secondary-actions"><button id="resetDemoVisitor" class="text-button" data-demo-action>Reset browser identity</button></div>
                 </div>
-                <div class="field">
-                  <label for="demoPerson">Person</label>
-                  <select id="demoPerson"></select>
+                <button id="resumeDemo" class="btn primary" data-demo-action hidden>Resume session</button>
+                <details id="demoCredentialDetails" class="workspace-details" hidden><summary>GL-EYE login &amp; workspace</summary>
+                  <div id="demoCredentialPanel" class="result-grid credential-grid" hidden>
+                    <div class="result-cell"><div class="meta">Workspace</div><strong id="demoWorkspaceName">—</strong></div>
+                    <div class="result-cell"><div class="meta">Session ID</div><strong id="demoCredentialSessionId">—</strong></div>
+                    <div class="result-cell"><div class="meta">Email</div><strong id="demoCredentialEmail">—</strong><div class="cell-actions"><button id="copyDemoEmail" class="text-button">Copy email</button></div></div>
+                    <div class="result-cell"><div class="meta">Password</div><strong id="demoCredentialPassword">—</strong><div class="cell-actions"><button id="toggleDemoPassword" class="text-button" aria-pressed="false">Show</button><button id="copyDemoPassword" class="text-button">Copy password</button></div></div>
+                  </div>
+                </details>
+                <details id="demoSessionOptions" class="workspace-details" hidden><summary>Session options</summary><div class="meta">Save and pause to keep the GL-EYE workspace and stop live traffic.</div><div class="demo-actions session-controls"><button id="hibernateDemo" class="btn secondary" data-demo-action hidden>Save &amp; pause</button></div><div class="danger-zone"><button id="stopDemo" class="btn danger" data-demo-action hidden>Delete workspace…</button></div></details>
+              </div>
+            </section>
+            <div>
+              <section class="card">
+                <div class="card-head"><div><div class="stage-label">3 · Inspect the result</div><h2>GL-EYE result</h2></div><button id="refreshDemoResult" class="text-button" hidden>Refresh</button></div>
+                <div class="card-body">
+                  <div id="demoErrorPanel" class="error-box" role="alert" hidden><strong id="demoErrorTitle">Session needs attention</strong><details style="margin-top:8px"><summary>Technical details</summary><div id="demoError" style="margin-top:8px" hidden></div></details></div>
+                  <div id="demoResultEmpty" class="empty"><strong>Waiting for a visitor</strong>Apply a visitor, open the demo website, and browse to see GL-EYE results here.</div>
+                  <div id="demoResult" class="result-grid" hidden>
+                    <div class="result-cell company"><div class="meta">Detected company</div><strong id="demoCompanies">—</strong></div>
+                    <div class="result-cell"><div class="meta">Accepted events</div><strong id="demoProcessedEventCount">0</strong></div>
+                    <div class="result-cell"><div class="meta">Companies</div><strong id="demoCompanyCount">0</strong></div>
+                    <div class="result-cell"><div class="meta">Confidence</div><strong id="demoConfidence">—</strong></div>
+                    <div class="result-cell"><div class="meta">Scores</div><strong id="demoScoreCount">0</strong></div>
+                    <div class="result-cell company"><div class="meta">Providers</div><strong id="demoProviders" style="font-size:13px">—</strong></div>
+                  </div>
+                  <div id="demoOutcomeUpdated" class="meta" style="margin-top:12px" hidden></div>
                 </div>
-                <div class="field">
-                  <label for="demoBrowser">Browser identity</label>
-                  <select id="demoBrowser"></select>
-                </div>
-                <div id="demoIdentitySummary" class="meta"></div>
-              </div>
-              <div class="demo-actions">
-                <button id="startDemo" class="btn primary">Create new session</button>
-                <button id="applyDemoVisitor" class="btn primary" hidden>Apply Visitor</button>
-                <button id="openDemoWebsite" class="btn secondary" hidden>Open Demo Website</button>
-                <button id="resetDemoVisitor" class="btn secondary" hidden>Reset Visitor</button>
-                <button id="hibernateDemo" class="btn secondary" hidden>Hibernate · Keep Workspace</button>
-                <button id="resumeDemo" class="btn primary" hidden>Resume Session</button>
-                
-              </div>
-              <div class="danger-zone"><button id="stopDemo" class="btn danger" hidden>Delete session and workspace permanently</button></div><div id="demoError" class="error-box" role="alert" hidden></div>
+              </section>
+              <section class="card" style="margin-top:16px"><div class="card-head"><div><h2>Recent activity</h2><div class="heading-description">Visitor, provider and gateway events</div></div><button id="refreshDemoActivity" class="text-button" hidden>Refresh</button></div><div class="card-body"><div id="demoActivity" class="demo-activity"><div class="empty">Activity appears as you browse.</div></div><details class="activity-diagnostics"><summary>Polling diagnostics <span id="demoDiagnosticsCount"></span></summary><div id="demoDiagnostics" class="demo-activity"></div></details></div></section>
             </div>
-          </section>
-
-          <section class="card" style="margin-top:20px">
-            <div class="card-head"><div><h2>Connected services</h2><div class="heading-description">Target and simulated external providers</div></div></div>
-            <div class="card-body service-list">
-              <div class="service-row"><span>GL-EYE</span><strong id="demoGlEyeService">Checking</strong></div>
-              <div class="service-row"><span>GL-EYE workspace</span><strong id="demoWorkspaceService">Created per session</strong></div>
-              <div class="service-row"><span>Traffic Gateway</span><strong id="demoTrafficService">Session managed</strong></div>
-              <div class="service-row"><span>IPInfo</span><strong>Mocked</strong></div>
-              <div class="service-row"><span>Apollo</span><strong>Mocked</strong></div>
-              <div class="service-row"><span>Hunter</span><strong>Mocked</strong></div>
-            </div>
-          </section>
-        </div>
-
-        <div>
-          <section class="card">
-            <div class="card-head">
-              <div><h2>GL-EYE outcome</h2><div class="heading-description">Evidence produced by this workspace</div></div>
-              <button id="refreshDemoResult" class="btn secondary" hidden>Refresh GL-EYE Result</button>
-            </div>
-            <div class="card-body">
-              <div id="demoResultEmpty" class="empty">Start a demo to generate live data, or open a hibernated session to access its saved GL-EYE workspace. Hibernated sessions do not produce live traffic.</div>
-              <div id="demoResult" class="result-grid" hidden>
-                <div class="result-cell"><div class="meta">Company</div><strong id="demoCompanies">—</strong></div>
-                <div class="result-cell"><div class="meta">Companies</div><strong id="demoCompanyCount">0</strong></div>
-                <div class="result-cell"><div class="meta">Accepted events</div><strong id="demoProcessedEventCount">0</strong></div>
-                <div class="result-cell"><div class="meta">Scores</div><strong id="demoScoreCount">0</strong></div>
-                <div class="result-cell"><div class="meta">Confidence</div><strong id="demoConfidence">—</strong></div>
-                <div class="result-cell"><div class="meta">Providers</div><strong id="demoProviders">—</strong></div>
-              </div>
-            </div>
-          </section>
-
-          <section class="card" style="margin-top:20px">
-            <div class="card-head"><div><h2>Activity stream</h2><div class="heading-description">Visitor, provider and gateway events</div></div><button id="refreshDemoActivity" class="btn secondary" hidden>Refresh</button></div>
-            <div class="card-body">
-              <div id="demoActivity" class="demo-activity"><div class="empty">No demo activity yet.</div></div>
-            </div>
-          </section>
+          </div>
+          <details class="services-footer"><summary>Connected services</summary><div class="service-list"><div class="service-row"><span>GL-EYE</span><strong id="demoGlEyeService">Checking</strong></div><div class="service-row"><span>GL-EYE workspace</span><strong id="demoWorkspaceService">Created per session</strong></div><div class="service-row"><span>Traffic Gateway</span><strong id="demoTrafficService">Session managed</strong></div><div class="service-row"><span>IPinfo · Apollo · Hunter</span><strong>Mocked</strong></div></div></details>
         </div>
       </div>
     </section>
   </main>
+  <dialog id="newDemoDialog" class="confirm-dialog" aria-labelledby="newDemoTitle"><h2 id="newDemoTitle">Create a test session</h2><p>A fresh GL-EYE workspace with synthetic visitors and simulated providers.</p><div class="field" id="demoCredentialModeField"><label for="demoCredentialMode">Demo login</label><select id="demoCredentialMode"><option value="shared">Reusable demo account</option><option value="generated">Generate a session account</option></select><div class="meta">Both options create a new workspace.</div></div><label class="checkbox-field"><input id="demoKeepWorkspace" type="checkbox">Keep workspace after timeout (save and pause instead of delete)</label><div id="newDemoError" class="error-box" role="alert" hidden style="margin-top:14px"></div><div class="toolbar"><button id="cancelNewDemo" class="btn secondary">Cancel</button><button id="startDemo" class="btn primary" data-demo-action>Create session</button></div></dialog>
   <dialog id="deleteDemoDialog" class="confirm-dialog" aria-labelledby="deleteDemoTitle"><h2 id="deleteDemoTitle">Permanently delete workspace?</h2><p>The session, GL-EYE workspace and all of its data will be removed. Hibernate instead if you want to preserve it.</p><div class="info-strip"><strong id="deleteDemoWorkspace">—</strong><div id="deleteDemoId" class="session-id"></div></div><label class="field" style="margin-top:16px"><span>Type <strong>DELETE</strong> to continue</span><input id="deleteDemoConfirmation" class="confirm-input" autocomplete="off" spellcheck="false"></label><div class="toolbar"><button id="cancelDeleteDemo" class="btn secondary">Keep workspace</button><button id="confirmDeleteDemo" class="btn danger" disabled>Delete permanently</button></div></dialog><div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
   <script>
+    const visitorSelectionChanged = ${visitorSelectionChanged.toString()};
+    const isDemoDiagnostic = ${isDemoDiagnostic.toString()};
     const terminalStatuses = new Set(["PASSED", "FAILED", "CANCELLED"]);
     const statusOrder = ["CREATED","VALIDATING","ALLOCATING","COMPILING","CONFIGURING","RUNNING","OBSERVING","ASSERTING","CLEANUP","PASSED"];
     let scenarios = [];
@@ -451,15 +359,20 @@ const CONTROL_PLANE_HTML = `<!doctype html>
     }
     function setDemoBusy(busy) {
       demoActionBusy = busy;
-      document.querySelectorAll("#interactiveMode button[data-demo-action]").forEach(function (button) {
+      document.querySelectorAll("button[data-demo-action], button[data-demo-id]").forEach(function (button) {
         button.disabled = busy;
       });
+      document.getElementById("cancelNewDemo").disabled = busy;
+      updateDemoVisitorState();
     }
     function clearDemoResults() {
       document.getElementById("demoResult").hidden = true;
       document.getElementById("demoResultEmpty").hidden = false;
       document.getElementById("demoResultEmpty").textContent = "Open a ready session and browse the website to generate GL-EYE results.";
       document.getElementById("demoActivity").innerHTML = '<div class="empty">No activity for this session yet.</div>';
+      document.getElementById("demoDiagnostics").innerHTML = "";
+      document.getElementById("demoDiagnosticsCount").textContent = "";
+      document.getElementById("demoOutcomeUpdated").hidden = true;
     }
     function renderFilteredScenarios() {
       const term = document.getElementById("scenarioSearch").value.trim().toLowerCase();
@@ -514,8 +427,8 @@ const CONTROL_PLANE_HTML = `<!doctype html>
       document.getElementById("interactiveModeButton").classList.toggle("active", !automated);
       document.getElementById("automatedModeButton").setAttribute("aria-selected", String(automated));
       document.getElementById("interactiveModeButton").setAttribute("aria-selected", String(!automated));
-      document.getElementById("modeHeading").textContent = automated ? "Automated testing" : "Interactive visitor simulator";
-      document.getElementById("modeDescription").textContent = automated ? "Choose a scenario, launch a run, and review the evidence." : "Create or open a workspace, apply a visitor identity, browse the test site, and inspect GL-EYE activity.";
+      document.getElementById("modeHeading").textContent = automated ? "Automated tests" : "Visitor simulator";
+      document.getElementById("modeDescription").textContent = automated ? "Choose a scenario, run it, and inspect the evidence." : "Set up a visitor, browse the demo website, and watch GL-EYE respond.";
       localStorage.setItem("testy.mode", mode);
       if (!automated) {
         void loadDemoProfiles();
@@ -552,6 +465,7 @@ const CONTROL_PLANE_HTML = `<!doctype html>
       network.value = currentDemo?.networkIdentityId || demoProfiles.defaults.networkId;
       browser.value = currentDemo?.browserIdentityId || demoProfiles.defaults.browserId;
       demoSelectorsSessionId = currentDemo?.id || "";
+      document.getElementById("demoPerson").dataset.networkId = "";
       renderDemoPeople();
     }
 
@@ -563,12 +477,13 @@ const CONTROL_PLANE_HTML = `<!doctype html>
         return selectedNetwork?.companyId && person.companyId === selectedNetwork.companyId;
       });
       const select = document.getElementById("demoPerson");
+      const previousPerson = select.value;
       select.innerHTML = '<option value="">Anonymous / none</option>' + people.map(function (person) {
         return '<option value="' + escapeHtml(person.id) + '">' + escapeHtml(person.displayName) + '</option>';
       }).join("");
-      const desired = select.dataset.networkId === networkId ? select.value : (currentDemo?.personIdentityId || demoProfiles.defaults.personId);
+      const desired = select.dataset.networkId === networkId ? previousPerson : (currentDemo ? (currentDemo.personIdentityId || "") : demoProfiles.defaults.personId);
       select.dataset.networkId = networkId;
-      select.value = people.some(function (person) { return person.id === desired; })
+      select.value = desired === "" ? "" : people.some(function (person) { return person.id === desired; })
         ? desired
         : (people[0]?.id || "");
       updateDemoIdentitySummary();
@@ -590,23 +505,43 @@ const CONTROL_PLANE_HTML = `<!doctype html>
       }
       if (person) pieces.push("Person: " + person.name);
       document.getElementById("demoIdentitySummary").textContent = pieces.join(" · ");
+      updateDemoVisitorState();
+    }
+
+    function demoVisitorHasChanges() {
+      if (!currentDemo || !demoProfiles) return false;
+      return visitorSelectionChanged({
+        networkId: currentDemo.networkIdentityId || demoProfiles.defaults.networkId,
+        personId: currentDemo.personIdentityId || "",
+        browserId: currentDemo.browserIdentityId || demoProfiles.defaults.browserId,
+      }, {
+        networkId: document.getElementById("demoNetwork").value,
+        personId: document.getElementById("demoPerson").value,
+        browserId: document.getElementById("demoBrowser").value,
+      });
+    }
+
+    function updateDemoVisitorState() {
+      const active = currentDemo && ["READY", "ACTIVE"].includes(currentDemo.status);
+      const changed = demoVisitorHasChanges();
+      const badge = document.getElementById("demoVisitorState");
+      badge.hidden = !active;
+      setBadge(badge, changed ? "Not applied" : "Applied", changed ? "warn" : "ok");
+      const feedback = document.getElementById("demoVisitorFeedback");
+      feedback.textContent = changed ? "Apply these changes before opening the website. Results still reflect the applied visitor." : "Visitor settings are applied. Open the website to generate activity.";
+      feedback.classList.toggle("pending", changed);
+      document.getElementById("openDemoWebsite").disabled = demoActionBusy || !active || !demoProfiles || changed || !currentDemo?.websiteUrl;
+      document.getElementById("applyDemoVisitor").disabled = demoActionBusy || !active || !demoProfiles;
     }
 
     async function startInteractiveDemo() {
       clearTimeout(demoPollTimer);
       document.getElementById("startDemo").disabled = true;
       document.getElementById("startDemo").textContent = "Creating session…";
-      showDemoError("");
+      showDemoError("", true);
       try {
         await loadDemoProfiles();
-        demoRefreshGeneration++;
-        currentDemoId = "";
-        currentDemo = undefined;
-        demoPasswordVisible = false;
-        clearDemoResults();
-        localStorage.removeItem("testy.currentDemoId");
-        demoSelectorsSessionId = "";
-        currentDemo = await requestJson("/v1/demo-sessions", {
+        const created = await requestJson("/v1/demo-sessions", {
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({
@@ -614,8 +549,15 @@ const CONTROL_PLANE_HTML = `<!doctype html>
             keepWorkspace: document.getElementById("demoKeepWorkspace").checked,
           }),
         });
-        currentDemoId = currentDemo.id;
+        demoRefreshGeneration++;
+        currentDemo = created;
+        currentDemoId = created.id;
+        demoPasswordVisible = false;
+        clearDemoResults();
+        demoSelectorsSessionId = "";
         localStorage.setItem("testy.currentDemoId", currentDemoId);
+        document.getElementById("newDemoDialog").close();
+        chooseDemoSessionTab("active");
         renderDemoSession();
         renderDemoSelectors(true);
         await refreshDemoActivity();
@@ -623,10 +565,11 @@ const CONTROL_PLANE_HTML = `<!doctype html>
         notify("Demo workspace created");
         scheduleDemoPoll();
       } catch (error) {
-        showDemoError("Unable to start demo: " + error.message);
+        showDemoError("Unable to start demo: " + error.message, true);
       } finally {
         document.getElementById("startDemo").disabled = false;
-        document.getElementById("startDemo").textContent = "Create new session";
+        document.getElementById("startDemo").textContent = "Create session";
+        scheduleDemoPoll();
       }
     }
 
@@ -657,17 +600,13 @@ const CONTROL_PLANE_HTML = `<!doctype html>
       document.getElementById("demoSessionList").innerHTML = shown.length
         ? shown.map(function (session) {
             const selected = session.id === currentDemoId;
-            const status = escapeHtml(session.status);
-            return '<div class="demo-session-item' + (selected ? ' selected' : '') + '">' +
-              '<div><strong>' + escapeHtml(session.workspaceName) + '</strong>' +
-              '<div class="session-meta-row"><span class="badge ' + (session.status === "FAILED" ? "bad" : session.status === "HIBERNATED" ? "warn" : "ok") + '">' + escapeHtml(displaySessionStatus(session.status)) + '</span><span>' + escapeHtml(formatDate(session.updatedAt)) + '</span></div>' +
-              '<div class="meta">' + escapeHtml(session.credentialEmail || "No email") + '</div>' +
-              '<div class="session-id">Session ' + escapeHtml(session.id) + '</div></div>' +
-              '<button class="btn ' + (selected ? 'primary' : 'secondary') +
-              '" data-demo-id="' + escapeHtml(session.id) + '">' + (selected ? 'Selected' : 'Join / Open') + '</button>' +
-              '</div>';
+            return '<button class="demo-session-item' + (selected ? ' selected' : '') + '" data-demo-id="' + escapeHtml(session.id) + '" aria-pressed="' + selected + '"' + (demoActionBusy ? ' disabled' : '') + '>' +
+              '<strong>' + escapeHtml(session.workspaceName || "Test workspace") + '</strong>' +
+              '<span class="meta">' + escapeHtml(session.credentialEmail || "No email") + '</span>' +
+              '<span class="session-meta-row"><span class="badge ' + (session.status === "FAILED" ? "bad" : session.status === "HIBERNATED" ? "warn" : "ok") + '">' + escapeHtml(displaySessionStatus(session.status)) + '</span>' +
+              '<span class="session-id">' + escapeHtml(new Date(session.updatedAt).toLocaleDateString()) + '</span></span></button>';
           }).join("")
-        : '<div class="empty"><strong>No matching sessions</strong>Try another search, select a different tab, or create a new session.</div>';
+        : '<div class="empty"><strong>No matching sessions</strong>Try another search or create a new session.</div>';
     }
 
     async function refreshDemoList() {
@@ -682,7 +621,7 @@ const CONTROL_PLANE_HTML = `<!doctype html>
     }
 
     async function selectDemoSession(id) {
-      if (!id) return;
+      if (!id || demoActionBusy) return;
       demoRefreshGeneration++;
       currentDemoId = id;
       currentDemo = undefined;
@@ -742,65 +681,65 @@ const CONTROL_PLANE_HTML = `<!doctype html>
     }
 
     function renderDemoSession() {
-      const active = currentDemo && (currentDemo.status === "READY" || currentDemo.status === "ACTIVE");
+      const active = currentDemo && ["READY", "ACTIVE"].includes(currentDemo.status);
       const status = document.getElementById("demoStatus");
       const credentialPanel = document.getElementById("demoCredentialPanel");
-      const credentialMode = document.getElementById("demoCredentialMode");
+      document.getElementById("selectedWorkspaceHeading").textContent = currentDemo?.workspaceName || "Choose a workspace";
+      document.getElementById("demoNoSession").hidden = Boolean(currentDemoId);
+      document.getElementById("demoCredentialDetails").hidden = !currentDemo;
+      document.getElementById("demoSessionOptions").hidden = !currentDemo;
+      const inactive = document.getElementById("demoInactiveMessage");
+      inactive.hidden = !currentDemoId || Boolean(active);
       if (!currentDemo) {
-        setBadge(status, "Not selected", "warn");
-        document.getElementById("demoSessionMeta").textContent = "Start a long-lived Testy session for manual browser QA.";
+        setBadge(status, currentDemoId ? "Loading" : "Not selected", "warn");
+        document.getElementById("demoSessionMeta").textContent = "Open a session on the left or create a new one.";
+        inactive.textContent = "Loading the selected workspace…";
         credentialPanel.hidden = true;
-        credentialMode.disabled = false;
-        document.getElementById("demoKeepWorkspace").disabled = false;
         document.getElementById("demoWorkspaceService").textContent = "Created per session";
       } else {
-        setBadge(status, currentDemo.status, currentDemo.status === "FAILED" ? "bad" : currentDemo.status === "STOPPED" ? "warn" : "ok");
-        document.getElementById("demoSessionMeta").textContent =
-          "Session " + currentDemo.id + " · Started " + new Date(currentDemo.startedAt).toLocaleString();
-        credentialMode.value = currentDemo.credentialMode || "shared";
-        credentialMode.disabled = false;
-        document.getElementById("demoKeepWorkspace").disabled = false;
+        setBadge(status, displaySessionStatus(currentDemo.status), currentDemo.status === "FAILED" ? "bad" : active ? "ok" : "warn");
+        document.getElementById("demoSessionMeta").textContent = "Started " + formatDate(currentDemo.startedAt) + " · Shared workspace";
+        inactive.textContent = currentDemo.status === "HIBERNATED" ? "Workspace saved. Resume this session to generate new visitor activity." : currentDemo.status === "FAILED" ? "This session could not be prepared. Review the session error or create a new session." : "Workspace " + displaySessionStatus(currentDemo.status).toLowerCase() + ". Visitor controls become available when ready.";
         credentialPanel.hidden = false;
         document.getElementById("demoWorkspaceName").textContent = currentDemo.workspaceName || "—";
         document.getElementById("demoCredentialSessionId").textContent = currentDemo.id || "—";
         document.getElementById("demoCredentialEmail").textContent = currentDemo.credentialEmail || "—";
-        renderDemoPassword();
-        document.getElementById("demoWorkspaceService").textContent =
-          currentDemo.status === "STOPPED"
-            ? "Deleted"
-            : (currentDemo.workspaceName || "Session managed");
+        document.getElementById("demoWorkspaceService").textContent = currentDemo.status === "STOPPED" ? "Deleted" : (currentDemo.workspaceName || "Session managed");
       }
-      if (!currentDemo) renderDemoPassword();
+      renderDemoPassword();
       document.getElementById("refreshDemoActivity").hidden = !active;
       document.getElementById("demoVisitorControls").hidden = !active;
       document.getElementById("applyDemoVisitor").hidden = !active;
       document.getElementById("openDemoWebsite").hidden = !active;
       document.getElementById("resetDemoVisitor").hidden = !active;
-      document.getElementById("hibernateDemo").hidden =
-        !currentDemo || !["READY","ACTIVE","HIBERNATING"].includes(currentDemo.status);
+      document.getElementById("hibernateDemo").hidden = !currentDemo || !["READY","ACTIVE","HIBERNATING"].includes(currentDemo.status);
+      document.getElementById("hibernateDemo").disabled = demoActionBusy || currentDemo?.status === "HIBERNATING";
       document.getElementById("resumeDemo").hidden = !currentDemo || currentDemo.status !== "HIBERNATED";
-      document.getElementById("stopDemo").hidden = !currentDemo ||
-        currentDemo.status === "STOPPED";
-
+      document.getElementById("stopDemo").hidden = !currentDemo || currentDemo.status === "STOPPED";
       document.getElementById("refreshDemoResult").hidden = !active;
-      document.getElementById("startDemo").hidden = false;
-      document.getElementById("demoCredentialModeField").classList.toggle("muted", Boolean(currentDemo));
-      if (currentDemo?.status === "HIBERNATED") {
-        document.getElementById("demoResultEmpty").textContent =
-          "Workspace is saved and accessible in GL-EYE; live tracking is disabled. Resume this session to generate new activity.";
-        document.getElementById("demoActivity").innerHTML =
-          '<div class="empty">Hibernated — no live traffic. Historical workspace data remains in GL-EYE.</div>';
+      if (currentDemo && !active) {
+        document.getElementById("demoResult").hidden = true;
+        document.getElementById("demoResultEmpty").hidden = false;
+        document.getElementById("demoOutcomeUpdated").hidden = true;
+        document.getElementById("demoResultEmpty").textContent = currentDemo.status === "HIBERNATED" ? "Live tracking is paused. Historical data remains in the GL-EYE workspace; resume to see live results." : "Results become available when the workspace is ready.";
+        document.getElementById("demoActivity").innerHTML = '<div class="empty">' + (currentDemo.status === "HIBERNATED" ? "Session saved. Live activity is paused." : "Waiting for the workspace to be ready.") + '</div>';
+        document.getElementById("demoDiagnostics").innerHTML = "";
+        document.getElementById("demoDiagnosticsCount").textContent = "";
       }
       document.getElementById("demoGlEyeService").textContent = glEyeReady ? "Connected" : "Not ready";
       if (demoProfiles && active) renderDemoSelectors(false);
-      if (currentDemo?.errorMessage) showDemoError(currentDemo.errorMessage);
+      updateDemoVisitorState();
+      showDemoError(currentDemo?.errorMessage || "");
     }
 
     async function applyDemoVisitorSelection() {
       if (!currentDemoId) return;
+      const selectedId = currentDemoId;
+      const generation = ++demoRefreshGeneration;
+      showDemoError("");
       const personId = document.getElementById("demoPerson").value;
       try {
-        currentDemo = await requestJson("/v1/demo-sessions/" + encodeURIComponent(currentDemoId) + "/visitor", {
+        const applied = await requestJson("/v1/demo-sessions/" + encodeURIComponent(selectedId) + "/visitor", {
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({
@@ -809,9 +748,13 @@ const CONTROL_PLANE_HTML = `<!doctype html>
             browserId: document.getElementById("demoBrowser").value,
           }),
         });
+        if (selectedId !== currentDemoId || generation !== demoRefreshGeneration) return;
+        currentDemo = applied;
+        clearDemoResults();
         renderDemoSession();
         renderDemoSelectors(true);
         await refreshDemoActivity();
+        await refreshDemoOutcome(false);
         notify("Visitor identity applied");
       } catch (error) {
         showDemoError("Unable to apply visitor: " + error.message);
@@ -820,11 +763,19 @@ const CONTROL_PLANE_HTML = `<!doctype html>
 
     async function resetInteractiveVisitor() {
       if (!currentDemoId) return;
+      const selectedId = currentDemoId;
+      const generation = ++demoRefreshGeneration;
+      showDemoError("");
       try {
-        currentDemo = await requestJson("/v1/demo-sessions/" + encodeURIComponent(currentDemoId) + "/reset-visitor", { method: "POST" });
+        const reset = await requestJson("/v1/demo-sessions/" + encodeURIComponent(selectedId) + "/reset-visitor", { method: "POST" });
+        if (selectedId !== currentDemoId || generation !== demoRefreshGeneration) return;
+        currentDemo = reset;
+        clearDemoResults();
         renderDemoSession();
         renderDemoSelectors(true);
         await refreshDemoActivity();
+        await refreshDemoOutcome(false);
+        notify("Browser identity reset");
       } catch (error) {
         showDemoError("Unable to reset visitor: " + error.message);
       }
@@ -832,12 +783,17 @@ const CONTROL_PLANE_HTML = `<!doctype html>
 
     async function hibernateInteractiveDemo() {
       if (!currentDemoId) return;
+      const selectedId = currentDemoId;
+      const generation = ++demoRefreshGeneration;
       showDemoError("");
       try {
-        currentDemo = await requestJson(
-          "/v1/demo-sessions/" + encodeURIComponent(currentDemoId) + "/hibernate",
+        const saved = await requestJson(
+          "/v1/demo-sessions/" + encodeURIComponent(selectedId) + "/hibernate",
           { method: "POST" },
         );
+        if (selectedId !== currentDemoId || generation !== demoRefreshGeneration) return;
+        currentDemo = saved;
+        clearDemoResults();
         chooseDemoSessionTab("hibernated");
         renderDemoSession();
         await refreshDemoList();
@@ -849,12 +805,17 @@ const CONTROL_PLANE_HTML = `<!doctype html>
 
     async function resumeInteractiveDemo() {
       if (!currentDemoId) return;
+      const selectedId = currentDemoId;
+      const generation = ++demoRefreshGeneration;
       showDemoError("");
       try {
-        currentDemo = await requestJson(
-          "/v1/demo-sessions/" + encodeURIComponent(currentDemoId) + "/resume",
+        const resumed = await requestJson(
+          "/v1/demo-sessions/" + encodeURIComponent(selectedId) + "/resume",
           { method: "POST" },
         );
+        if (selectedId !== currentDemoId || generation !== demoRefreshGeneration) return;
+        currentDemo = resumed;
+        clearDemoResults();
         chooseDemoSessionTab("active");
         renderDemoSession();
         renderDemoSelectors(true);
@@ -906,15 +867,17 @@ const CONTROL_PLANE_HTML = `<!doctype html>
     }
 
     function openInteractiveWebsite() {
-      if (currentDemo?.websiteUrl) window.open(currentDemo.websiteUrl, "_blank", "noopener");
+      if (demoActionBusy || demoVisitorHasChanges()) return;
+      if (currentDemo?.websiteUrl && ["READY", "ACTIVE"].includes(currentDemo.status)) window.open(currentDemo.websiteUrl, "_blank", "noopener");
     }
 
     async function refreshDemoOutcome(showErrors) {
       if (!currentDemoId || !currentDemo || !["READY","ACTIVE"].includes(currentDemo.status)) return;
       const selectedId = currentDemoId;
+      const generation = demoRefreshGeneration;
       try {
         const result = await requestJson("/v1/demo-sessions/" + encodeURIComponent(currentDemoId) + "/outcome");
-        if (selectedId !== currentDemoId) return;
+        if (selectedId !== currentDemoId || generation !== demoRefreshGeneration || !["READY","ACTIVE"].includes(currentDemo?.status)) return;
         const outcome = result.outcome || {};
         document.getElementById("demoResultEmpty").hidden = true;
         document.getElementById("demoResult").hidden = false;
@@ -925,6 +888,9 @@ const CONTROL_PLANE_HTML = `<!doctype html>
         document.getElementById("demoScoreCount").textContent = String(outcome.scoreCount ?? 0);
         document.getElementById("demoConfidence").textContent = outcome.confidence || "—";
         document.getElementById("demoProviders").textContent = (outcome.providerProvenance || []).join(", ") || "—";
+        const updated = document.getElementById("demoOutcomeUpdated");
+        updated.hidden = false;
+        updated.textContent = "Applied visitor · Updated " + new Date().toLocaleTimeString();
       } catch (error) {
         if (showErrors) showDemoError("Unable to refresh GL-EYE result: " + error.message);
       }
@@ -933,18 +899,29 @@ const CONTROL_PLANE_HTML = `<!doctype html>
     async function refreshDemoActivity() {
       if (!currentDemoId || !currentDemo || !["READY","ACTIVE"].includes(currentDemo.status)) return;
       const selectedId = currentDemoId;
+      const generation = demoRefreshGeneration;
       try {
         const result = await requestJson("/v1/demo-sessions/" + encodeURIComponent(currentDemoId) + "/activity");
-        if (selectedId !== currentDemoId) return;
+        if (selectedId !== currentDemoId || generation !== demoRefreshGeneration || !["READY","ACTIVE"].includes(currentDemo?.status)) return;
         const events = [];
+        const activityNames = {
+          "visitor-profile-applied": "Visitor identity applied",
+          "demo-session-created": "Session created",
+          "demo-session-ready": "Workspace ready",
+          "demo-session-resumed": "Session resumed",
+          "demo-session-hibernated": "Workspace saved",
+          "target-enrichment-triggered": "Contact enrichment requested",
+          "target-enrichment-incomplete": "Contact enrichment incomplete",
+          "vendor-runtime-ready": "Provider simulator ready",
+        };
         (result.timeline || []).forEach(function (item) {
-          events.push({ at: item.occurredAt, text: item.name });
+          events.push({ at: item.occurredAt, text: activityNames[item.name] || item.name });
         });
         (result.providerCalls || []).forEach(function (item) {
           events.push({ at: item.occurredAt, text: item.vendorId + " → " + (item.operationId || item.caseId || "provider call") });
         });
         (result.observations || []).forEach(function (item) {
-          events.push({ at: item.observedAt, text: item.observationType + " · " + item.status });
+          events.push({ at: item.observedAt, text: item.observationType + " · " + item.status, diagnostic: isDemoDiagnostic(item.observationType, item.status) });
         });
         (result.gatewayRequests || []).forEach(function (item) {
           events.push({
@@ -968,12 +945,17 @@ const CONTROL_PLANE_HTML = `<!doctype html>
           });
         });
         events.sort(function (a, b) { return new Date(b.at) - new Date(a.at); });
-        document.getElementById("demoActivity").innerHTML = events.length
-          ? events.slice(0, 80).map(function (event) {
+        const recent = events.filter(function (event) { return !event.diagnostic; });
+        const diagnostics = events.filter(function (event) { return event.diagnostic; });
+        function renderEvents(items) {
+          return items.slice(0, 80).map(function (event) {
               return '<div class="demo-event"><div class="time">' + escapeHtml(new Date(event.at).toLocaleTimeString()) +
                 '</div><div>' + escapeHtml(event.text) + '</div></div>';
-            }).join("")
-          : '<div class="empty">No demo activity yet.</div>';
+            }).join("");
+        }
+        document.getElementById("demoActivity").innerHTML = recent.length ? renderEvents(recent) : '<div class="empty">No visitor activity yet. Open the demo website and browse.</div>';
+        document.getElementById("demoDiagnostics").innerHTML = diagnostics.length ? renderEvents(diagnostics) : '<div class="empty">No polling diagnostics yet.</div>';
+        document.getElementById("demoDiagnosticsCount").textContent = "(" + diagnostics.length + ")";
       } catch {}
     }
 
@@ -982,10 +964,17 @@ const CONTROL_PLANE_HTML = `<!doctype html>
       demoPollTimer = setTimeout(function () { void refreshDemoSession(); }, 2500);
     }
 
-    function showDemoError(message) {
+    function showDemoError(message, creationError) {
       const box = document.getElementById("demoError");
       box.hidden = !message;
       box.textContent = message || "";
+      document.getElementById("demoErrorPanel").hidden = !message;
+      document.getElementById("demoErrorTitle").textContent = message?.includes("enrichment did not materialize") ? "Contact enrichment incomplete" : "Session needs attention";
+      if (creationError) {
+        const dialogBox = document.getElementById("newDemoError");
+        dialogBox.hidden = !message;
+        dialogBox.textContent = message || "";
+      }
     }
 
     function setBadge(element, label, state) {
@@ -1191,6 +1180,15 @@ const CONTROL_PLANE_HTML = `<!doctype html>
       }
     }
 
+    function openNewDemoDialog() {
+      if (demoActionBusy) return;
+      document.getElementById("newDemoError").hidden = true;
+      document.getElementById("newDemoDialog").showModal();
+    }
+    document.getElementById("newDemoSession").addEventListener("click", openNewDemoDialog);
+    document.getElementById("newDemoSessionEmpty").addEventListener("click", openNewDemoDialog);
+    document.getElementById("cancelNewDemo").addEventListener("click", function () { if (!demoActionBusy) document.getElementById("newDemoDialog").close(); });
+    document.getElementById("newDemoDialog").addEventListener("cancel", function (event) { if (demoActionBusy) event.preventDefault(); });
     document.getElementById("automatedModeButton").addEventListener("click", function () { setMode("automated"); });
     document.getElementById("interactiveModeButton").addEventListener("click", function () { setMode("interactive"); });
     document.getElementById("scenarioSearch").addEventListener("input", renderFilteredScenarios);
@@ -1218,6 +1216,18 @@ const CONTROL_PLANE_HTML = `<!doctype html>
     });
     document.querySelectorAll(".demo-session-tab").forEach(function (button) {
       button.addEventListener("click", function () { chooseDemoSessionTab(button.dataset.demoTab); });
+    });
+    document.querySelectorAll('[role="tablist"]').forEach(function (group) {
+      group.addEventListener("keydown", function (event) {
+        if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+        const tabs = [...group.querySelectorAll('[role="tab"]')];
+        const index = tabs.indexOf(document.activeElement);
+        if (index < 0) return;
+        event.preventDefault();
+        const next = event.key === "Home" ? 0 : event.key === "End" ? tabs.length - 1 : (index + (event.key === "ArrowRight" ? 1 : -1) + tabs.length) % tabs.length;
+        tabs[next].focus();
+        tabs[next].click();
+      });
     });
     window.addEventListener("storage", function (event) {
       if (event.key === "testy.currentDemoId") {

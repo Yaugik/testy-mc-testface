@@ -18,20 +18,32 @@ Terminal 2, in Testy:
 ./bin/test-gl-eye
 ```
 
-Open the Control Plane at `http://127.0.0.1:23000`, choose **Interactive Demo**,
+Open the Control Plane at `http://127.0.0.1:23000`, choose **Visitor simulator**,
 then:
 
-1. Choose **Reusable credential** or **Generate for this session**, optionally choose **Keep workspace after timeout**, then Start New Demo.
-2. Copy the displayed GL-EYE email/password and note the unique session/workspace id.
-3. Select a network identity, compatible person identity, and browser identity.
-4. Apply Visitor.
-5. Open Demo Website.
-6. Browse the synthetic site normally in Safari, Chrome, or another host browser.
-7. Watch site activity, Traffic Gateway forwarding, provider calls, and the real
-   GL-EYE test-support outcome.
-8. Switch visitors and repeat.
-9. Choose **Hibernate · Keep Workspace** to preserve all GL-EYE workspace data and stop traffic, or **Delete Session & Workspace** to permanently delete it.
-10. Open the **Hibernated** tab to resume a saved session. Use **Active** to join sessions created by another person or browser.
+1. Open a shared session from the **Active** sidebar, or choose **New session**.
+2. In the creation dialog, choose a reusable or generated demo account and
+   optionally keep the workspace after timeout, then choose **Create session**.
+3. Select a network, compatible person, and browser identity. **Not applied**
+   indicates a draft selection; polling preserves those choices.
+4. Choose **Apply visitor**, then **Open demo website**. Opening is disabled
+   until the draft matches the applied visitor.
+5. Browse the synthetic site normally in Safari, Chrome, or another host browser.
+6. Inspect the adjacent GL-EYE result and **Recent activity**. Successful routine
+   evidence observations appear under **Polling diagnostics**; failures and
+   visitor/provider events remain visible in recent activity.
+7. Expand **GL-EYE login & workspace** to copy credentials and inspect the UUID.
+   Passwords stay masked until explicitly revealed.
+8. Switch visitors and repeat. Results reflect the applied visitor, and a
+   successful apply/reset clears the previous observation window from the UI.
+9. Expand **Session options** and choose **Save & pause** to preserve the
+   workspace and stop traffic, or **Delete workspace** to open the permanent
+   deletion confirmation. Deletion still requires typing `DELETE`.
+10. Open **Saved / failed** in the sidebar to inspect a saved or failed session.
+    A saved session retains its login and can be resumed with **Resume session**.
+
+Creation options affect the new session only. They are separate from the selected
+workspace, and a failed creation request leaves the previous selection intact.
 
 ## Architecture
 
