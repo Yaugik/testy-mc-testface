@@ -585,7 +585,8 @@ export class InteractiveDemoService {
     if (!["READY", "ACTIVE", "HIBERNATING", "RESUMING", "PROVISIONING"].includes(session.status)) {
       throw new Error(`Demo session cannot hibernate while ${session.status}.`);
     }
-    if (!session.targetRunId) {
+    const targetRunId = session.targetRunId;
+    if (!targetRunId) {
       throw new Error("Demo session has no workspace to hibernate.");
     }
     session = await this.sessions.update(id, {
@@ -599,7 +600,7 @@ export class InteractiveDemoService {
         throw new Error("Target demo hibernation is unavailable.");
       }
       const runtime = this.runtimes.get(id) ?? this.emptyRuntime();
-      await action({ targetRunId: session.targetRunId }, this.context(session, runtime));
+      await action({ targetRunId }, this.context(session, runtime));
       await this.suspendRuntime(session, true);
       session = await this.sessions.update(id, {
         status: "HIBERNATED",
