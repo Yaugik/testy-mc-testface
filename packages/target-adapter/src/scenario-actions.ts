@@ -342,14 +342,24 @@ export function createGatewayTargetScenarioActionBundle(
     },
     "target.list-demo-users": async (input) => {
       if (!options.adapter.listDemoUsers) throw new Error("Target does not support demo account management.");
-      return await options.adapter.listDemoUsers(readString(readObject(input), "targetRunId"));
+      const listing = await options.adapter.listDemoUsers(readString(readObject(input), "targetRunId"));
+      return {
+        targetRunId: listing.targetRunId,
+        shareSeededDemoAccounts: listing.shareSeededDemoAccounts,
+        hibernated: listing.hibernated,
+        accounts: listing.accounts.map((account) => ({ ...account })),
+      };
     },
     "target.create-demo-user": async (input) => {
       if (!options.adapter.createDemoUser) throw new Error("Target does not support demo account management.");
       const data = readObject(input);
       const role = readString(data, "role");
       if (!["admin", "sales", "read_only"].includes(role)) throw new Error("Invalid demo user role.");
-      return await options.adapter.createDemoUser(readString(data, "targetRunId"), role as "admin" | "sales" | "read_only");
+      const generated = await options.adapter.createDemoUser(readString(data, "targetRunId"), role as "admin" | "sales" | "read_only");
+      return {
+        account: { ...generated.account },
+        credentials: { ...generated.credentials },
+      };
     },
     "target.revoke-demo-user": async (input) => {
       if (!options.adapter.revokeDemoUser) throw new Error("Target does not support demo account management.");
