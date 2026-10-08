@@ -1,4 +1,5 @@
 import Fastify from "fastify";
+import { GlEyeTestSupportError } from "@testy/gl-eye-adapter";
 import type { RunId } from "@testy/shared-types";
 import { describe, expect, it } from "vitest";
 
@@ -7,6 +8,32 @@ import { registerInteractiveDemoRoutes } from "../src/demo-routes.js";
 import type { InteractiveDemoService } from "../src/demo-service.js";
 
 describe("shared Interactive Demo routes", () => {
+  it("returns GL-EYE validation failures as actionable 422 rather than an opaque 500", async () => {
+    const demos = {
+      isDemoWebsiteHostname: () => false,
+      create: async () => {
+        throw new GlEyeTestSupportError(
+          422, "Shared Testy demo accounts are not seeded. Run ./bin/seed-demo first.",
+        );
+      },
+    } as unknown as InteractiveDemoService;
+    const app = Fastify();
+    registerInteractiveDemoRoutes(app, demos);
+    try {
+      const response = await app.inject({
+        method: "POST", url: "/v1/demo-sessions",
+        payload: { credentialMode: "shared", shareSeededDemoAccounts: true },
+      });
+      expect(response.statusCode).toBe(422);
+      expect(response.json()).toEqual({
+        error: "demo-target-validation-failed",
+        message: "Shared Testy demo accounts are not seeded. Run ./bin/seed-demo first.",
+      });
+    } finally {
+      await app.close();
+    }
+  });
+
   it("lists sessions without passwords and lets other clients join, hibernate, resume and delete", async () => {
     const session: DemoSessionRecord = {
       id: "11111111-1111-4111-8111-111111111111",
