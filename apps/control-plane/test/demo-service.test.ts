@@ -138,6 +138,7 @@ describe("interactive demo service", () => {
     const manualResetVersions: number[] = [];
     let route = 0;
     let enrichmentTriggers = 0;
+    let enrichmentReadyAfterTrigger = 1;
     let targetCleanupCalls = 0;
     let hibernateCalls = 0;
     let resumeCalls = 0;
@@ -199,8 +200,8 @@ describe("interactive demo service", () => {
       },
       "target.collect-outcome": async () => ({
         companyCount: 1,
-        enrichedCompanyCount: enrichmentTriggers > 0 ? 1 : 0,
-        contactCount: enrichmentTriggers > 0 ? 1 : 0,
+        enrichedCompanyCount: enrichmentTriggers >= enrichmentReadyAfterTrigger ? 1 : 0,
+        contactCount: enrichmentTriggers >= enrichmentReadyAfterTrigger ? 1 : 0,
         scoreCount: 1,
         companies: [
           {
@@ -288,6 +289,34 @@ describe("interactive demo service", () => {
     expect(outcome.contactCount).toBe(1);
     expect(enrichmentTriggers).toBe(1);
 
+    // Auto enrichment must recover from a previously incomplete attempt
+    // without retrying on every UI poll or requiring a new visitor session.
+    enrichmentReadyAfterTrigger = 3;
+    await sessions.update(created.id, {
+      enrichmentTriggeredAt: "2020-01-01T00:00:00.000Z",
+      errorMessage: "GL-EYE enrichment did not materialize company data.",
+    });
+    const incomplete = asRecord(await service.outcome(created.id));
+    expect(incomplete.enrichedCompanyCount).toBe(0);
+    expect(incomplete.contactCount).toBe(0);
+    expect(enrichmentTriggers).toBe(2);
+    expect((await sessions.get(created.id))?.errorMessage).toContain(
+      "did not materialize",
+    );
+
+    await service.outcome(created.id);
+    expect(enrichmentTriggers).toBe(2); // Throttle duplicate polling.
+
+    await sessions.update(created.id, {
+      enrichmentTriggeredAt: "2020-01-01T00:00:00.000Z",
+    });
+    const recoveredEnrichment = asRecord(await service.outcome(created.id));
+    expect(recoveredEnrichment.enrichedCompanyCount).toBe(1);
+    expect(recoveredEnrichment.contactCount).toBe(1);
+    expect(enrichmentTriggers).toBe(3);
+    // Clearing a nullable session field removes it in the repository mapper.
+    expect((await sessions.get(created.id))?.errorMessage).toBeUndefined();
+
     expect(
       await service.localWebsiteOriginForHost(created.websiteHostname),
     ).toBe("http://127.0.0.1:43123");
@@ -319,8 +348,16 @@ describe("interactive demo service", () => {
       ),
     ).toHaveLength(1);
 
+    // A paused session remains inspectable, and unresolved enrichment is
+    // not falsely reported as successful when vendor runtimes stop.
+    enrichmentReadyAfterTrigger = 5;
+    await sessions.update(created.id, {
+      enrichmentTriggeredAt: new Date().toISOString(),
+      errorMessage: "GL-EYE enrichment did not materialize the selected contact.",
+    });
     const hibernated = await restarted.hibernate(created.id);
     expect(hibernated?.status).toBe("HIBERNATED");
+    expect(hibernated?.errorMessage).toContain("did not materialize");
     expect(hibernated?.tenantId).toBe(created.tenantId);
     expect(hibernated?.targetRunId).toBe(created.targetRunId);
     expect(hibernated?.keepWorkspace).toBe(true);

@@ -494,14 +494,26 @@ export class InteractiveDemoService {
       });
     }
 
+    // A previous incomplete attempt is not a permanent failure. Retry
+    // simulated provider enrichment on a bounded interval until company AND
+    // contact materialization is confirmed, including after a profile change.
+    const priorAttemptMs = session.enrichmentTriggeredAt
+      ? Date.parse(session.enrichmentTriggeredAt)
+      : Number.NaN;
+    const retryAllowed =
+      !Number.isFinite(priorAttemptMs) ||
+      Date.now() - priorAttemptMs >= 15_000;
     const shouldTriggerEnrichment =
       companyCount > 0 &&
-      !priorMaterializationFailure &&
-      (initialMaterialization.known
-        ? !initialMaterialization.complete
-        : !session.enrichmentTriggeredAt);
+      !initialMaterialization.complete &&
+      retryAllowed;
 
     if (shouldTriggerEnrichment) {
+      // Record BEFORE the vendor request, so a transient HTTP failure does
+      // not cause automatic polling to hammer the synthetic provider runtime.
+      session = await this.sessions.update(id, {
+        enrichmentTriggeredAt: new Date().toISOString(),
+      });
       await this.invoke(
         session,
         runtime,
@@ -523,7 +535,7 @@ export class InteractiveDemoService {
         outcome,
         session.personIdentityId !== undefined,
       );
-      if (materialization.complete || !materialization.known) {
+      if (materialization.known && materialization.complete) {
         session = await this.sessions.update(id, {
           enrichmentTriggeredAt: new Date().toISOString(),
           errorMessage: null,
@@ -633,10 +645,24 @@ export class InteractiveDemoService {
     if (!targetRunId) {
       throw new Error("Demo session has no workspace to hibernate.");
     }
+
+    // Complete any ready enrichment before suspending the provider runtimes.
+    // A failed enrichment must not prevent the operator from saving the
+    // workspace, but an incomplete result must remain visible after pause.
+    if (["READY", "ACTIVE"].includes(session.status) && this.runtimes.has(id)) {
+      try {
+        await this.outcome(id);
+      } catch {
+        // Save must remain possible even when simulated vendors are down.
+      }
+      session = (await this.sessions.get(id)) ?? session;
+    }
+    const pendingEnrichment =
+      session.errorMessage?.startsWith("GL-EYE enrichment did not materialize") === true;
     session = await this.sessions.update(id, {
       status: "HIBERNATING",
       keepWorkspace: true,
-      errorMessage: null,
+      ...(pendingEnrichment ? {} : { errorMessage: null }),
     });
     try {
       const action = this.actions["target.hibernate-run"];
@@ -651,7 +677,7 @@ export class InteractiveDemoService {
         keepWorkspace: true,
         hibernatedAt: new Date().toISOString(),
         activeGatewayRouteId: null,
-        errorMessage: null,
+        ...(pendingEnrichment ? {} : { errorMessage: null }),
       });
       await this.timeline(session, "demo-session-hibernated", { reason });
       return session;
@@ -1064,7 +1090,12 @@ export class InteractiveDemoService {
 
         try {
           const outcome = await this.outcome(session.id);
-          if ((readOptionalNumber(outcome, "companyCount") ?? 0) > 0) {
+          // Identification alone does not mean Apollo/Hunter materialized
+          // company details and contacts. Keep watching until both are ready,
+          // or the existing bounded 120-second watch window expires.
+          if (enrichmentMaterialization(
+            outcome, current.personIdentityId !== undefined,
+          ).complete) {
             return;
           }
         } catch {
