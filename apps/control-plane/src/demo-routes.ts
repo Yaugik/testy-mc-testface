@@ -335,6 +335,7 @@ function sendDemoError(reply: FastifyReply, error: unknown) {
     return reply.status(error.targetStatus).send({
       error: error.targetStatus === 422 ? "demo-target-validation-failed" : "demo-target-conflict",
       message: error.message,
+      operation: error.operation,
     });
   }
   const message = error instanceof Error ? error.message : String(error);

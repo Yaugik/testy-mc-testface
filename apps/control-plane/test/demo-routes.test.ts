@@ -14,6 +14,7 @@ describe("shared Interactive Demo routes", () => {
       create: async () => {
         throw new GlEyeTestSupportError(
           422, "Shared Testy demo accounts are not seeded. Run ./bin/seed-demo first.",
+          "prepare-workspace",
         );
       },
     } as unknown as InteractiveDemoService;
@@ -28,6 +29,7 @@ describe("shared Interactive Demo routes", () => {
       expect(response.json()).toEqual({
         error: "demo-target-validation-failed",
         message: "Shared Testy demo accounts are not seeded. Run ./bin/seed-demo first.",
+        operation: "prepare-workspace",
       });
     } finally {
       await app.close();

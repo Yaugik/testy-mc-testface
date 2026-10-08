@@ -49,12 +49,42 @@ export const defaultGlEyeTestSupportEndpoints: GlEyeEndpointTemplates = {
 /** A safe, typed target HTTP error. Never includes raw response bodies. */
 export class GlEyeTestSupportError extends Error {
   public readonly targetStatus: number;
+  public readonly operation: GlEyeRequestOperation;
 
-  public constructor(targetStatus: number, message?: string) {
+  public constructor(
+    targetStatus: number,
+    message?: string,
+    operation: GlEyeRequestOperation = "unknown",
+  ) {
     super(message ?? `GL-EYE test-support request failed with status ${targetStatus}.`);
     this.name = "GlEyeTestSupportError";
     this.targetStatus = targetStatus;
+    this.operation = operation;
   }
+}
+
+/** Static operation codes only. No URL parameters, credentials or raw messages. */
+export type GlEyeRequestOperation =
+  | "prepare-workspace"
+  | "configure-site"
+  | "configure-vendors"
+  | "manage-accounts"
+  | "start-observation"
+  | "resume-workspace"
+  | "pause-workspace"
+  | "delete-workspace"
+  | "unknown";
+
+function requestOperation(method: string, endpoint: string): GlEyeRequestOperation {
+  if (method === "POST" && endpoint === "/test-support/v1/runs") return "prepare-workspace";
+  if (endpoint.endsWith("/site")) return "configure-site";
+  if (endpoint.endsWith("/vendor-endpoints")) return "configure-vendors";
+  if (endpoint.includes("/accounts")) return "manage-accounts";
+  if (endpoint.includes("/observations")) return "start-observation";
+  if (endpoint.endsWith("/resume")) return "resume-workspace";
+  if (endpoint.endsWith("/hibernate")) return "pause-workspace";
+  if (method === "DELETE" && /^\/test-support\/v1\/runs\/[^/]+$/u.test(endpoint)) return "delete-workspace";
+  return "unknown";
 }
 
 const safeTargetMessages = new Set([
@@ -65,12 +95,14 @@ const safeTargetMessages = new Set([
   "Demo account access options require an Interactive Demo run.",
   "Interactive Demo login provisioning is restricted to local and testing environments.",
   "Demo account email is already in use.",
+  "Synthetic site origin must match the configured hostname.",
 ]);
 
 const allowedValidationFields = new Set([
   "demoSessionId", "demoCredential", "demoCredential.mode",
   "demoCredential.email", "demoCredential.password",
   "shareSeededDemoAccounts", "runId", "scenarioId", "environment",
+  "target", "hostname", "origin",
 ]);
 
 async function safeTargetValidationMessage(
@@ -473,11 +505,12 @@ export class GlEyeTargetAdapter implements TargetAdapter {
         signal: controller.signal,
       });
       if (!acceptedStatuses.includes(response.status)) {
+        const operation = requestOperation(method, endpoint);
         if (response.status === 422 || response.status === 409) {
           const reason = await safeTargetValidationMessage(response, this.maxResponseBytes);
-          throw new GlEyeTestSupportError(response.status, reason);
+          throw new GlEyeTestSupportError(response.status, reason, operation);
         }
-        throw new GlEyeTestSupportError(response.status);
+        throw new GlEyeTestSupportError(response.status, undefined, operation);
       }
       if (response.status === 204 || response.status === 404 || response.status === 410) return {};
       const bytes = await readLimitedResponseBody(response, this.maxResponseBytes);

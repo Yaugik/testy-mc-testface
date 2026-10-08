@@ -718,8 +718,11 @@ const CONTROL_PLANE_HTML = `<!doctype html>
         // The target may return a safe, actionable 422 response (for example
         // seeded demo accounts not configured). Prefer that detail to the
         // machine-readable error code.
+        const operation = typeof error.body?.operation === "string" && error.body.operation !== "unknown"
+          ? " (step: " + error.body.operation + ")" : "";
         showDemoError("Unable to start demo: " +
-          (typeof error.body?.message === "string" ? error.body.message : error.message), true);
+          (typeof error.body?.message === "string" ? error.body.message : error.message) +
+          operation, true);
       } finally {
         document.getElementById("startDemo").disabled = false;
         document.getElementById("startDemo").textContent = "Create session";
