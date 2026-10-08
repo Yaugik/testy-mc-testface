@@ -582,7 +582,7 @@ export class InteractiveDemoService {
     let session = await this.sessions.get(id);
     if (!session) return undefined;
     if (session.status === "HIBERNATED") return session;
-    if (!["READY", "ACTIVE", "HIBERNATING", "RESUMING", "PROVISIONING"].includes(session.status)) {
+    if (!["READY", "ACTIVE", "HIBERNATING", "RESUMING", "PROVISIONING", "FAILED"].includes(session.status)) {
       throw new Error(`Demo session cannot hibernate while ${session.status}.`);
     }
     const targetRunId = session.targetRunId;
@@ -612,8 +612,10 @@ export class InteractiveDemoService {
       await this.timeline(session, "demo-session-hibernated", { reason });
       return session;
     } catch (error) {
+      // A failed request must not leave the UI permanently displaying "Saving".
+      // Keep the workspace eligible for a retry; its persisted target ID is retained.
       await this.sessions.update(id, {
-        status: "HIBERNATING",
+        status: "FAILED",
         keepWorkspace: true,
         errorMessage: error instanceof Error ? error.message : String(error),
       });
