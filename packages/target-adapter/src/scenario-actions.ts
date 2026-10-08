@@ -173,10 +173,15 @@ export function createGatewayTargetScenarioActionBundle(
               password: readString(credential, "password"),
             }
           : undefined;
+        const shareSeededDemoAccounts = value?.shareSeededDemoAccounts;
+        if (shareSeededDemoAccounts !== undefined && typeof shareSeededDemoAccounts !== "boolean") {
+          throw new Error("shareSeededDemoAccounts must be a boolean.");
+        }
         state.prepared = await options.adapter.prepareRun({
           ...adapterContext(context),
           ...(demoSessionId ? { demoSessionId } : {}),
           ...(demoCredential ? { demoCredential } : {}),
+          ...(typeof shareSeededDemoAccounts === "boolean" ? { shareSeededDemoAccounts } : {}),
         });
       }
       if (!state.targetLeaseRegistered) {
@@ -334,6 +339,23 @@ export function createGatewayTargetScenarioActionBundle(
           ? { detailsFingerprint: outcome.detailsFingerprint }
           : {}),
       };
+    },
+    "target.list-demo-users": async (input) => {
+      if (!options.adapter.listDemoUsers) throw new Error("Target does not support demo account management.");
+      return await options.adapter.listDemoUsers(readString(readObject(input), "targetRunId"));
+    },
+    "target.create-demo-user": async (input) => {
+      if (!options.adapter.createDemoUser) throw new Error("Target does not support demo account management.");
+      const data = readObject(input);
+      const role = readString(data, "role");
+      if (!["admin", "sales", "read_only"].includes(role)) throw new Error("Invalid demo user role.");
+      return await options.adapter.createDemoUser(readString(data, "targetRunId"), role as "admin" | "sales" | "read_only");
+    },
+    "target.revoke-demo-user": async (input) => {
+      if (!options.adapter.revokeDemoUser) throw new Error("Target does not support demo account management.");
+      const data = readObject(input);
+      await options.adapter.revokeDemoUser(readString(data, "targetRunId"), readString(data, "accountId"));
+      return { revoked: true };
     },
     "target.hibernate-run": async (input, context) => {
       if (!options.adapter.hibernateTarget) {
