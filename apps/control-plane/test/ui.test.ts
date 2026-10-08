@@ -23,6 +23,13 @@ describe("control panel user experience", () => {
     expect(response.body).toContain('id="demoSessionSearch"');
     expect(response.body).toContain('id="refreshRun"');
     expect(response.body).toContain('id="refreshDemoActivity"');
+    expect(response.body).toContain('id="demoShareAccounts" type="checkbox" checked');
+    expect(response.body).toContain('id="demoGenerateAdmin" type="checkbox"');
+    expect(response.body).toContain('id="demoAccountDetails"');
+    expect(response.body).toContain('id="demoNewAccountRole"');
+    expect(response.body).toContain('id="demoCreateAccount"');
+    expect(response.body).toContain('data-account-remove');
+    expect(response.body).toContain("updateNewDemoAccessMode");
   });
 
   it("requires deliberate confirmation before deleting a demo workspace", async () => {

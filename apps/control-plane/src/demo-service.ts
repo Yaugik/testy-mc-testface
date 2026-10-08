@@ -35,6 +35,8 @@ export type DemoCredentialMode = "shared" | "generated";
 
 export interface CreateDemoSessionInput {
   readonly credentialMode?: DemoCredentialMode;
+  /** True by default: seeded admin/sales/viewer access every shared workspace. */
+  readonly shareSeededDemoAccounts?: boolean;
   /** Keep the GL-EYE workspace when automatic session expiry occurs. */
   readonly keepWorkspace?: boolean;
 }
@@ -95,10 +97,10 @@ export class InteractiveDemoService {
     const sessionId = randomUUID();
     const runId = randomUUID() as RunId;
     const hostname = this.demoHostname(sessionId);
-    const credential = this.demoCredential(
-      sessionId,
-      input.credentialMode ?? "shared",
-    );
+    const shareSeeded = input.shareSeededDemoAccounts ?? true;
+    // Exclusive sessions MUST have a protected, unique startup admin.
+    const mode = !shareSeeded ? "generated" : (input.credentialMode ?? "shared");
+    const credential = this.demoCredential(sessionId, mode);
     const expiresAt = new Date(
       Date.now() + this.config.demoSessionTtlMs,
     ).toISOString();
@@ -112,6 +114,7 @@ export class InteractiveDemoService {
       credential.email,
       credential.password,
       input.keepWorkspace ?? false,
+      shareSeeded,
     );
     const runtime: DemoRuntime = {
       controller: new AbortController(),
@@ -125,6 +128,7 @@ export class InteractiveDemoService {
       websiteHostname: hostname,
       credentialMode: credential.mode,
       credentialEmail: credential.email,
+      shareSeededDemoAccounts: shareSeeded,
     });
 
     try {
@@ -243,6 +247,46 @@ export class InteractiveDemoService {
       await this.failSession(session, error);
       throw error;
     }
+  }
+
+  /** Listing and managing accounts stays available while live traffic is paused. */
+  public async demoAccounts(id: string): Promise<ScenarioValue | undefined> {
+    const session = await this.sessions.get(id);
+    if (!session) throw new Error("Demo session not found.");
+    if (!session.targetRunId) throw new Error("Demo session has no workspace.");
+    const action = this.actions["target.list-demo-users"];
+    if (!action) throw new Error("GL-EYE account management is unavailable.");
+    return action({ targetRunId: session.targetRunId }, this.context(session, this.runtimes.get(id) ?? this.emptyRuntime()));
+  }
+
+  public async createDemoAccount(id: string, role: "admin" | "sales" | "read_only"): Promise<ScenarioValue | undefined> {
+    return this.withTransition(id, async () => {
+      const session = await this.sessions.get(id);
+      if (!session) throw new Error("Demo session not found.");
+      if (!session.targetRunId || ["DELETING", "STOPPED"].includes(session.status)) {
+        throw new Error("Demo session has no manageable workspace.");
+      }
+      const action = this.actions["target.create-demo-user"];
+      if (!action) throw new Error("GL-EYE account management is unavailable.");
+      const result = await action({ targetRunId: session.targetRunId, role }, this.context(session, this.runtimes.get(id) ?? this.emptyRuntime()));
+      await this.timeline(session, "demo-account-created", { role });
+      return result;
+    });
+  }
+
+  public async revokeDemoAccount(id: string, accountId: string): Promise<ScenarioValue | undefined> {
+    return this.withTransition(id, async () => {
+      const session = await this.sessions.get(id);
+      if (!session) throw new Error("Demo session not found.");
+      if (!session.targetRunId || ["DELETING", "STOPPED"].includes(session.status)) {
+        throw new Error("Demo session has no manageable workspace.");
+      }
+      const action = this.actions["target.revoke-demo-user"];
+      if (!action) throw new Error("GL-EYE account management is unavailable.");
+      const result = await action({ targetRunId: session.targetRunId, accountId }, this.context(session, this.runtimes.get(id) ?? this.emptyRuntime()));
+      await this.timeline(session, "demo-account-revoked", {});
+      return result;
+    });
   }
 
   public async listControllable(): Promise<readonly DemoSessionRecord[]> {
@@ -1232,6 +1276,7 @@ export class InteractiveDemoService {
 
     return {
       demoSessionId: session.id,
+      shareSeededDemoAccounts: session.shareSeededDemoAccounts ?? true,
       demoCredential: {
         mode: session.credentialMode,
         email: session.credentialEmail,

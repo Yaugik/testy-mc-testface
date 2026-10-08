@@ -24,6 +24,7 @@ export interface DemoSessionRecord {
   readonly credentialEmail: string;
   readonly credentialPassword?: string;
   readonly keepWorkspace: boolean;
+  readonly shareSeededDemoAccounts?: boolean;
   readonly hibernatedAt?: string;
   readonly networkIdentityId?: string;
   readonly personIdentityId?: string;
@@ -54,6 +55,7 @@ export interface DemoSessionRepository {
     credentialEmail: string,
     credentialPassword: string,
     keepWorkspace: boolean,
+    shareSeededDemoAccounts?: boolean,
   ): Promise<DemoSessionRecord>;
   listControllable(): Promise<readonly DemoSessionRecord[]>;
   get(id: string): Promise<DemoSessionRecord | undefined>;
@@ -94,6 +96,7 @@ interface DemoSessionRow {
   readonly credential_email: string;
   readonly credential_password: string | null;
   readonly keep_workspace: boolean;
+  readonly share_seeded_demo_accounts: boolean;
   readonly hibernated_at: Date | null;
   readonly network_identity_id: string | null;
   readonly person_identity_id: string | null;
@@ -126,6 +129,7 @@ export class PostgresDemoSessionRepository implements DemoSessionRepository {
     credentialEmail: string,
     credentialPassword: string,
     keepWorkspace: boolean,
+    shareSeededDemoAccounts = true,
   ): Promise<DemoSessionRecord> {
     const client = await this.pool.connect();
     try {
@@ -145,8 +149,9 @@ export class PostgresDemoSessionRepository implements DemoSessionRepository {
       const result = await client.query<DemoSessionRow>(
         `INSERT INTO interactive_demo_sessions (
           id, run_id, status, customer_package, website_hostname, expires_at,
-          credential_mode, credential_email, credential_password, keep_workspace
-        ) VALUES ($1,$2,'CREATE',$3,$4,$5,$6,$7,$8,$9)
+          credential_mode, credential_email, credential_password, keep_workspace,
+          share_seeded_demo_accounts
+        ) VALUES ($1,$2,'CREATE',$3,$4,$5,$6,$7,$8,$9,$10)
         RETURNING *`,
         [
           id,
@@ -158,6 +163,7 @@ export class PostgresDemoSessionRepository implements DemoSessionRepository {
           credentialEmail,
           credentialPassword,
           keepWorkspace,
+          shareSeededDemoAccounts,
         ],
       );
       await client.query("COMMIT");
@@ -370,6 +376,7 @@ function mapSession(row: DemoSessionRow): DemoSessionRecord {
     credentialMode: row.credential_mode,
     credentialEmail: row.credential_email,
     keepWorkspace: row.keep_workspace,
+    shareSeededDemoAccounts: row.share_seeded_demo_accounts,
     ...(row.hibernated_at ? { hibernatedAt: row.hibernated_at.toISOString() } : {}),
     ...(row.credential_password
       ? { credentialPassword: row.credential_password }

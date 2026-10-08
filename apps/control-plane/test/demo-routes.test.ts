@@ -31,6 +31,20 @@ describe("shared Interactive Demo routes", () => {
       websiteUrl: () => "http://demo-11111111.localhost:23000",
       listControllable: async () => [session],
       get: async () => session,
+      demoAccounts: async () => ({
+        targetRunId: "target-1", shareSeededDemoAccounts: false, hibernated: false,
+        accounts: [{ id: "protected-1", userId: "user-1", role: "admin",
+          email: "testy-admin@example.com", kind: "protected_admin", removable: false }],
+      }),
+      createDemoAccount: async (_id: string, role: string) => {
+        actions.push("create-account:" + role);
+        return { account: { id: "managed-1", role, email: "managed@example.com", removable: true },
+          credentials: { email: "managed@example.com", password: "Generated-Secret9!" } };
+      },
+      revokeDemoAccount: async (_id: string, accountId: string) => {
+        actions.push("revoke-account:" + accountId);
+        return { revoked: true };
+      },
       hibernate: async () => {
         actions.push("hibernate");
         return { ...session, status: "HIBERNATED" };
@@ -64,6 +78,32 @@ describe("shared Interactive Demo routes", () => {
       expect(get.statusCode).toBe(200);
       expect(get.json().credentialPassword).toBe("Demo-PrivatePassword9!Aa");
 
+      const listedUsers = await app.inject({
+        method: "GET", url: `/v1/demo-sessions/${session.id}/accounts`,
+      });
+      expect(listedUsers.statusCode).toBe(200);
+      expect(listedUsers.json().accounts[0].kind).toBe("protected_admin");
+      expect(listedUsers.body).not.toContain("Generated-Secret9!");
+
+      const invalidRole = await app.inject({
+        method: "POST", url: `/v1/demo-sessions/${session.id}/accounts`,
+        payload: { role: "super_admin" },
+      });
+      expect(invalidRole.statusCode).toBe(400);
+
+      const addedUser = await app.inject({
+        method: "POST", url: `/v1/demo-sessions/${session.id}/accounts`,
+        payload: { role: "sales" },
+      });
+      expect(addedUser.statusCode).toBe(201);
+      expect(addedUser.json().credentials.password).toBe("Generated-Secret9!");
+
+      const revokedUser = await app.inject({
+        method: "DELETE", url: `/v1/demo-sessions/${session.id}/accounts/managed-1`,
+      });
+      expect(revokedUser.statusCode).toBe(200);
+      expect(revokedUser.json().revoked).toBe(true);
+
       const hibernate = await app.inject({
         method: "POST",
         url: `/v1/demo-sessions/${session.id}/hibernate`,
@@ -82,7 +122,7 @@ describe("shared Interactive Demo routes", () => {
       });
       expect(deleted.json().status).toBe("STOPPED");
       expect(deleted.body).not.toContain("Demo-PrivatePassword9!Aa");
-      expect(actions).toEqual(["hibernate", "resume", "delete"]);
+      expect(actions).toEqual(["create-account:sales", "revoke-account:managed-1", "hibernate", "resume", "delete"]);
     } finally {
       await app.close();
     }
