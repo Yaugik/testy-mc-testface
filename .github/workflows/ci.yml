@@ -21,9 +21,9 @@ jobs:
           corepack prepare pnpm@10.13.1 --activate
       - name: Install dependencies
         run: pnpm install --no-frozen-lockfile
-      - name: Typecheck
-        run: pnpm typecheck
-      - name: Demo service tests
-        run: pnpm --filter @testy/control-plane test -- demo-service
       - name: Compile all packages for Docker
         run: pnpm build
+      - name: Demo service tests
+        run: pnpm --filter @testy/control-plane test -- demo-service
+      - name: Typecheck
+        run: pnpm typecheck
