@@ -1022,8 +1022,11 @@ const CONTROL_PLANE_HTML = `<!doctype html>
     void loadScenarios();
     if (currentRunId) void refreshRun();
     chooseDemoSessionTab(demoSessionTab);
-    if (currentDemoId) void refreshDemoSession();
-    else void refreshDemoList();
+    if (document.getElementById("interactiveMode").classList.contains("active")) {
+      void refreshDemoSession();
+    } else {
+      void refreshDemoList();
+    }
     setInterval(function () { void refreshHealth(); }, 3000);
   </script>
 </body>
