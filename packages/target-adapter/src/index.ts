@@ -8,6 +8,9 @@ export {
 } from "./scenario-actions.js";
 export type {
   AdapterRunContext,
+  DemoWorkspaceAccount,
+  DemoWorkspaceAccounts,
+  GeneratedDemoWorkspaceAccount,
   CompletionCondition,
   GatewaySiteBinding,
   ObservationHandle,
