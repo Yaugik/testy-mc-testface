@@ -410,6 +410,10 @@ const CONTROL_PLANE_HTML = `<!doctype html>
     let demoSelectorsSessionId = "";
     let demoSessions = [];
     let demoSessionTab = localStorage.getItem("testy.demoSessionTab") === "hibernated" ? "hibernated" : "active";
+    let toastTimer;
+    let demoPasswordVisible = false;
+    let demoActionBusy = false;
+    let demoRefreshGeneration = 0;
 
 
     function escapeHtml(value) {
@@ -419,6 +423,72 @@ const CONTROL_PLANE_HTML = `<!doctype html>
         .replaceAll(">", "&gt;")
         .replaceAll('"', "&quot;")
         .replaceAll("'", "&#039;");
+    }
+
+    function notify(message) {
+      const toast = document.getElementById("toast");
+      toast.textContent = message;
+      toast.hidden = false;
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(function () { toast.hidden = true; }, 3500);
+    }
+    async function copyText(value, label) {
+      if (!value || value === "—") return;
+      try {
+        await navigator.clipboard.writeText(value);
+        notify(label + " copied");
+      } catch {
+        notify("Clipboard unavailable. Select the text to copy.");
+      }
+    }
+    function renderDemoPassword() {
+      const value = currentDemo?.credentialPassword;
+      document.getElementById("demoCredentialPassword").textContent =
+        !value ? "Not available" : demoPasswordVisible ? value : "••••••••••••";
+      document.getElementById("toggleDemoPassword").textContent = demoPasswordVisible ? "Hide" : "Show";
+      document.getElementById("toggleDemoPassword").setAttribute("aria-pressed", String(demoPasswordVisible));
+      document.getElementById("copyDemoPassword").disabled = !value;
+    }
+    function setDemoBusy(busy) {
+      demoActionBusy = busy;
+      document.querySelectorAll("#interactiveMode button[data-demo-action]").forEach(function (button) {
+        button.disabled = busy;
+      });
+    }
+    function clearDemoResults() {
+      document.getElementById("demoResult").hidden = true;
+      document.getElementById("demoResultEmpty").hidden = false;
+      document.getElementById("demoResultEmpty").textContent = "Open a ready session and browse the website to generate GL-EYE results.";
+      document.getElementById("demoActivity").innerHTML = '<div class="empty">No activity for this session yet.</div>';
+    }
+    function renderFilteredScenarios() {
+      const term = document.getElementById("scenarioSearch").value.trim().toLowerCase();
+      document.querySelectorAll("#scenarioList .scenario").forEach(function (item) {
+        item.hidden = !item.textContent.toLowerCase().includes(term);
+      });
+      const matching = [...document.querySelectorAll("#scenarioList .scenario")].filter(function (item) { return !item.hidden; }).length;
+      document.getElementById("scenarioCount").textContent = "(" + matching + "/" + scenarios.length + ")";
+      let empty = document.getElementById("scenarioSearchEmpty");
+      if (!empty) {
+        empty = document.createElement("div");
+        empty.id = "scenarioSearchEmpty";
+        empty.className = "empty";
+        document.getElementById("scenarioList").append(empty);
+      }
+      empty.textContent = "No scenarios match your search.";
+      empty.hidden = !term || matching > 0 || scenarios.length === 0;
+    }
+    function formatDate(value) {
+      const date = new Date(value);
+      return Number.isNaN(date.getTime()) ? "Unknown" : date.toLocaleString();
+    }
+    function displaySessionStatus(status) {
+      return ({ READY:"Ready", ACTIVE:"Active", HIBERNATED:"Saved", HIBERNATING:"Saving", RESUMING:"Resuming", PROVISIONING:"Preparing", FAILED:"Failed", STOPPED:"Deleted" })[status] || status;
+    }
+    async function withDemoAction(callback) {
+      if (demoActionBusy) return;
+      setDemoBusy(true);
+      try { await callback(); } finally { setDemoBusy(false); }
     }
 
     async function requestJson(url, options) {
@@ -442,6 +512,10 @@ const CONTROL_PLANE_HTML = `<!doctype html>
       document.getElementById("interactiveMode").classList.toggle("active", !automated);
       document.getElementById("automatedModeButton").classList.toggle("active", automated);
       document.getElementById("interactiveModeButton").classList.toggle("active", !automated);
+      document.getElementById("automatedModeButton").setAttribute("aria-selected", String(automated));
+      document.getElementById("interactiveModeButton").setAttribute("aria-selected", String(!automated));
+      document.getElementById("modeHeading").textContent = automated ? "Automated testing" : "Interactive visitor simulator";
+      document.getElementById("modeDescription").textContent = automated ? "Choose a scenario, launch a run, and review the evidence." : "Create or open a workspace, apply a visitor identity, browse the test site, and inspect GL-EYE activity.";
       localStorage.setItem("testy.mode", mode);
       if (!automated) {
         void loadDemoProfiles();
@@ -524,8 +598,11 @@ const CONTROL_PLANE_HTML = `<!doctype html>
       showDemoError("");
       try {
         await loadDemoProfiles();
+        demoRefreshGeneration++;
         currentDemoId = "";
         currentDemo = undefined;
+        demoPasswordVisible = false;
+        clearDemoResults();
         localStorage.removeItem("testy.currentDemoId");
         demoSelectorsSessionId = "";
         currentDemo = await requestJson("/v1/demo-sessions", {
@@ -542,6 +619,7 @@ const CONTROL_PLANE_HTML = `<!doctype html>
         renderDemoSelectors(true);
         await refreshDemoActivity();
         await refreshDemoList();
+        notify("Demo workspace created");
         scheduleDemoPoll();
       } catch (error) {
         showDemoError("Unable to start demo: " + error.message);
@@ -572,22 +650,22 @@ const CONTROL_PLANE_HTML = `<!doctype html>
       });
       document.getElementById("demoActiveCount").textContent = String(active.length);
       document.getElementById("demoHibernatedCount").textContent = String(hibernated.length);
-      const shown = demoSessionTab === "active" ? active : hibernated;
+      const query = document.getElementById("demoSessionSearch").value.trim().toLowerCase();
+      const shown = (demoSessionTab === "active" ? active : hibernated).filter(function (item) { return [item.id,item.workspaceName,item.credentialEmail,item.status].some(function (field) { return String(field || "").toLowerCase().includes(query); }); });
       document.getElementById("demoSessionList").innerHTML = shown.length
         ? shown.map(function (session) {
             const selected = session.id === currentDemoId;
             const status = escapeHtml(session.status);
             return '<div class="demo-session-item' + (selected ? ' selected' : '') + '">' +
               '<div><strong>' + escapeHtml(session.workspaceName) + '</strong>' +
-              '<div class="meta">' + escapeHtml(session.credentialEmail) + ' · ' + status +
-              ' · ' + escapeHtml(new Date(session.updatedAt).toLocaleString()) + '</div>' +
-              '<div class="meta">Session ' + escapeHtml(session.id) + '</div></div>' +
+              '<div class="session-meta-row"><span class="badge ' + (session.status === "FAILED" ? "bad" : session.status === "HIBERNATED" ? "warn" : "ok") + '">' + escapeHtml(displaySessionStatus(session.status)) + '</span><span>' + escapeHtml(formatDate(session.updatedAt)) + '</span></div>' +
+              '<div class="meta">' + escapeHtml(session.credentialEmail || "No email") + '</div>' +
+              '<div class="session-id">Session ' + escapeHtml(session.id) + '</div></div>' +
               '<button class="btn ' + (selected ? 'primary' : 'secondary') +
               '" data-demo-id="' + escapeHtml(session.id) + '">' + (selected ? 'Selected' : 'Join / Open') + '</button>' +
               '</div>';
           }).join("")
-        : '<div class="empty">No ' + (demoSessionTab === "active" ? 'active' : 'hibernated') +
-          ' sessions. Start a new demo or join an existing one when it appears.</div>';
+        : '<div class="empty"><strong>No matching sessions</strong>Try another search, select a different tab, or create a new session.</div>';
     }
 
     async function refreshDemoList() {
@@ -603,8 +681,12 @@ const CONTROL_PLANE_HTML = `<!doctype html>
 
     async function selectDemoSession(id) {
       if (!id) return;
+      demoRefreshGeneration++;
       currentDemoId = id;
       currentDemo = undefined;
+      demoPasswordVisible = false;
+      clearDemoResults();
+      renderDemoSession();
       demoSelectorsSessionId = "";
       localStorage.setItem("testy.currentDemoId", id);
       showDemoError("");
@@ -620,9 +702,10 @@ const CONTROL_PLANE_HTML = `<!doctype html>
         return;
       }
       const requestedId = currentDemoId;
+      const requestedGeneration = demoRefreshGeneration;
       try {
         const fetched = await requestJson("/v1/demo-sessions/" + encodeURIComponent(requestedId));
-        if (requestedId !== currentDemoId) return;
+        if (requestedId !== currentDemoId || requestedGeneration !== demoRefreshGeneration) return;
         if (fetched.status === "STOPPED") {
           currentDemoId = "";
           currentDemo = undefined;
@@ -640,6 +723,7 @@ const CONTROL_PLANE_HTML = `<!doctype html>
           await refreshDemoOutcome(false);
         }
       } catch (error) {
+        if (requestedId !== currentDemoId || requestedGeneration !== demoRefreshGeneration) return;
         if (error.status === 404 && requestedId === currentDemoId) {
           currentDemoId = "";
           currentDemo = undefined;
@@ -661,7 +745,7 @@ const CONTROL_PLANE_HTML = `<!doctype html>
       const credentialPanel = document.getElementById("demoCredentialPanel");
       const credentialMode = document.getElementById("demoCredentialMode");
       if (!currentDemo) {
-        setBadge(status, "Not started", "warn");
+        setBadge(status, "Not selected", "warn");
         document.getElementById("demoSessionMeta").textContent = "Start a long-lived Testy session for manual browser QA.";
         credentialPanel.hidden = true;
         credentialMode.disabled = false;
@@ -678,13 +762,14 @@ const CONTROL_PLANE_HTML = `<!doctype html>
         document.getElementById("demoWorkspaceName").textContent = currentDemo.workspaceName || "—";
         document.getElementById("demoCredentialSessionId").textContent = currentDemo.id || "—";
         document.getElementById("demoCredentialEmail").textContent = currentDemo.credentialEmail || "—";
-        document.getElementById("demoCredentialPassword").textContent =
-          currentDemo.credentialPassword || (currentDemo.status === "STOPPED" ? "Cleared" : "—");
+        renderDemoPassword();
         document.getElementById("demoWorkspaceService").textContent =
           currentDemo.status === "STOPPED"
             ? "Deleted"
             : (currentDemo.workspaceName || "Session managed");
       }
+      if (!currentDemo) renderDemoPassword();
+      document.getElementById("refreshDemoActivity").hidden = !active;
       document.getElementById("demoVisitorControls").hidden = !active;
       document.getElementById("applyDemoVisitor").hidden = !active;
       document.getElementById("openDemoWebsite").hidden = !active;
@@ -697,6 +782,7 @@ const CONTROL_PLANE_HTML = `<!doctype html>
 
       document.getElementById("refreshDemoResult").hidden = !active;
       document.getElementById("startDemo").hidden = false;
+      document.getElementById("demoCredentialModeField").classList.toggle("muted", Boolean(currentDemo));
       if (currentDemo?.status === "HIBERNATED") {
         document.getElementById("demoResultEmpty").textContent =
           "Workspace is saved and accessible in GL-EYE; live tracking is disabled. Resume this session to generate new activity.";
@@ -776,7 +862,18 @@ const CONTROL_PLANE_HTML = `<!doctype html>
 
     async function stopInteractiveDemo() {
       if (!currentDemoId) return;
-      if (!confirm("Permanently delete this session AND its GL-EYE workspace, including all workspace data? This cannot be undone.")) return;
+      const dialog = document.getElementById("deleteDemoDialog");
+      document.getElementById("deleteDemoWorkspace").textContent = currentDemo?.workspaceName || "Selected workspace";
+      document.getElementById("deleteDemoId").textContent = currentDemoId;
+      document.getElementById("deleteDemoConfirmation").value = "";
+      document.getElementById("confirmDeleteDemo").disabled = true;
+      dialog.showModal();
+    }
+
+    async function confirmInteractiveDemoDeletion() {
+      if (!currentDemoId || document.getElementById("deleteDemoConfirmation").value !== "DELETE") return;
+      const dialog = document.getElementById("deleteDemoDialog");
+      document.getElementById("confirmDeleteDemo").disabled = true;
       showDemoError("");
       try {
         const deletedId = currentDemoId;
@@ -789,10 +886,17 @@ const CONTROL_PLANE_HTML = `<!doctype html>
           currentDemo = undefined;
           localStorage.removeItem("testy.currentDemoId");
         }
+        demoRefreshGeneration++;
+        demoPasswordVisible = false;
+        clearDemoResults();
         renderDemoSession();
         await refreshDemoList();
+        dialog.close();
+        notify("Workspace deleted");
       } catch (error) {
         showDemoError("Unable to permanently delete session: " + error.message);
+        document.getElementById("confirmDeleteDemo").disabled = false;
+        dialog.close();
       }
     }
 
@@ -802,8 +906,10 @@ const CONTROL_PLANE_HTML = `<!doctype html>
 
     async function refreshDemoOutcome(showErrors) {
       if (!currentDemoId || !currentDemo || !["READY","ACTIVE"].includes(currentDemo.status)) return;
+      const selectedId = currentDemoId;
       try {
         const result = await requestJson("/v1/demo-sessions/" + encodeURIComponent(currentDemoId) + "/outcome");
+        if (selectedId !== currentDemoId) return;
         const outcome = result.outcome || {};
         document.getElementById("demoResultEmpty").hidden = true;
         document.getElementById("demoResult").hidden = false;
@@ -821,8 +927,10 @@ const CONTROL_PLANE_HTML = `<!doctype html>
 
     async function refreshDemoActivity() {
       if (!currentDemoId || !currentDemo || !["READY","ACTIVE"].includes(currentDemo.status)) return;
+      const selectedId = currentDemoId;
       try {
         const result = await requestJson("/v1/demo-sessions/" + encodeURIComponent(currentDemoId) + "/activity");
+        if (selectedId !== currentDemoId) return;
         const events = [];
         (result.timeline || []).forEach(function (item) {
           events.push({ at: item.occurredAt, text: item.name });
@@ -938,6 +1046,7 @@ const CONTROL_PLANE_HTML = `<!doctype html>
           button.addEventListener("click", function () { void startRun(button.dataset.scenario); });
         });
         updateScenarioAvailability();
+        renderFilteredScenarios();
       } catch (error) {
         list.innerHTML = '<div class="error-box">Unable to load scenarios: ' + escapeHtml(error.message) + '</div>';
       }
@@ -950,6 +1059,8 @@ const CONTROL_PLANE_HTML = `<!doctype html>
         return;
       }
 
+      const errorBox = document.getElementById("scenarioActionMessage");
+      errorBox.hidden = true;
       document.querySelectorAll(".run-scenario").forEach(function (button) { button.disabled = true; });
       try {
         const run = await requestJson("/v1/runs", {
@@ -961,7 +1072,8 @@ const CONTROL_PLANE_HTML = `<!doctype html>
         localStorage.setItem("testy.currentRunId", currentRunId);
         await refreshRun();
       } catch (error) {
-        alert("Unable to start run: " + error.message);
+        errorBox.hidden = false;
+        errorBox.textContent = "Unable to start run: " + error.message;
       } finally {
         updateScenarioAvailability();
       }
@@ -986,6 +1098,8 @@ const CONTROL_PLANE_HTML = `<!doctype html>
         const run = await requestJson("/v1/runs/" + encodeURIComponent(currentRunId));
         document.getElementById("noRun").hidden = true;
         document.getElementById("runConsole").hidden = false;
+        document.getElementById("copyRunId").hidden = false;
+        document.getElementById("refreshRun").hidden = false;
         document.getElementById("runScenario").textContent = run.scenarioId;
         document.getElementById("runId").textContent = run.id;
         const status = document.getElementById("runStatus");
@@ -1074,13 +1188,24 @@ const CONTROL_PLANE_HTML = `<!doctype html>
 
     document.getElementById("automatedModeButton").addEventListener("click", function () { setMode("automated"); });
     document.getElementById("interactiveModeButton").addEventListener("click", function () { setMode("interactive"); });
-    document.getElementById("startDemo").addEventListener("click", function () { void startInteractiveDemo(); });
-    document.getElementById("applyDemoVisitor").addEventListener("click", function () { void applyDemoVisitorSelection(); });
+    document.getElementById("scenarioSearch").addEventListener("input", renderFilteredScenarios);
+    document.getElementById("demoSessionSearch").addEventListener("input", renderDemoList);
+    document.getElementById("refreshRun").addEventListener("click", function () { void refreshRun(); });
+    document.getElementById("copyRunId").addEventListener("click", function () { void copyText(currentRunId, "Run ID"); });
+    document.getElementById("copyDemoEmail").addEventListener("click", function () { void copyText(currentDemo?.credentialEmail, "Email"); });
+    document.getElementById("copyDemoPassword").addEventListener("click", function () { void copyText(currentDemo?.credentialPassword, "Password"); });
+    document.getElementById("toggleDemoPassword").addEventListener("click", function () { demoPasswordVisible = !demoPasswordVisible; renderDemoPassword(); });
+    document.getElementById("refreshDemoActivity").addEventListener("click", function () { void refreshDemoActivity(); });
+    document.getElementById("cancelDeleteDemo").addEventListener("click", function () { document.getElementById("deleteDemoDialog").close(); });
+    document.getElementById("deleteDemoConfirmation").addEventListener("input", function (event) { document.getElementById("confirmDeleteDemo").disabled = event.target.value !== "DELETE"; });
+    document.getElementById("confirmDeleteDemo").addEventListener("click", function () { void confirmInteractiveDemoDeletion(); });
+    document.getElementById("startDemo").addEventListener("click", function () { void withDemoAction(startInteractiveDemo); });
+    document.getElementById("applyDemoVisitor").addEventListener("click", function () { void withDemoAction(applyDemoVisitorSelection); });
     document.getElementById("openDemoWebsite").addEventListener("click", openInteractiveWebsite);
-    document.getElementById("resetDemoVisitor").addEventListener("click", function () { void resetInteractiveVisitor(); });
+    document.getElementById("resetDemoVisitor").addEventListener("click", function () { void withDemoAction(resetInteractiveVisitor); });
     document.getElementById("stopDemo").addEventListener("click", function () { void stopInteractiveDemo(); });
-    document.getElementById("hibernateDemo").addEventListener("click", function () { void hibernateInteractiveDemo(); });
-    document.getElementById("resumeDemo").addEventListener("click", function () { void resumeInteractiveDemo(); });
+    document.getElementById("hibernateDemo").addEventListener("click", function () { void withDemoAction(hibernateInteractiveDemo); });
+    document.getElementById("resumeDemo").addEventListener("click", function () { void withDemoAction(resumeInteractiveDemo); });
     document.getElementById("refreshDemoSessions").addEventListener("click", function () { void refreshDemoList(); });
     document.getElementById("demoSessionList").addEventListener("click", function (event) {
       const button = event.target.closest("button[data-demo-id]");
@@ -1091,7 +1216,10 @@ const CONTROL_PLANE_HTML = `<!doctype html>
     });
     window.addEventListener("storage", function (event) {
       if (event.key === "testy.currentDemoId") {
+        demoRefreshGeneration++;
+        demoPasswordVisible = false;
         currentDemoId = event.newValue || "";
+        clearDemoResults();
         currentDemo = undefined;
         demoSelectorsSessionId = "";
         void refreshDemoSession();
@@ -1136,7 +1264,7 @@ const CONTROL_PLANE_HTML = `<!doctype html>
     } else {
       void refreshDemoList();
     }
-    setInterval(function () { void refreshHealth(); }, 3000);
+    setInterval(function () { if (!document.hidden) void refreshHealth(); }, 7000);
   </script>
 </body>
 </html>`;
