@@ -10,6 +10,7 @@ export interface AdapterRunContext extends RunContext {
   readonly signal?: AbortSignal;
   readonly demoSessionId?: string;
   readonly demoCredential?: DemoCredentialContext;
+  readonly shareSeededDemoAccounts?: boolean;
 }
 
 export interface PreparedTarget {
@@ -93,6 +94,27 @@ export interface TargetCapabilities {
   readonly features: Readonly<Record<string, boolean>>;
 }
 
+export interface DemoWorkspaceAccount {
+  readonly id: string;
+  readonly userId: string;
+  readonly email: string;
+  readonly role: "admin" | "sales" | "read_only";
+  readonly kind: "seeded" | "protected_admin" | "managed" | "external";
+  readonly removable: boolean;
+}
+
+export interface DemoWorkspaceAccounts {
+  readonly targetRunId: string;
+  readonly shareSeededDemoAccounts: boolean;
+  readonly hibernated: boolean;
+  readonly accounts: readonly DemoWorkspaceAccount[];
+}
+
+export interface GeneratedDemoWorkspaceAccount {
+  readonly account: DemoWorkspaceAccount;
+  readonly credentials: { readonly email: string; readonly password: string };
+}
+
 export interface TargetAdapter {
   capabilities?(): Promise<TargetCapabilities>;
   prepareRun(context: AdapterRunContext): Promise<PreparedTarget>;
@@ -121,4 +143,7 @@ export interface TargetAdapter {
   cleanupTarget(targetRunId: string): Promise<void>;
   hibernateTarget?(targetRunId: string): Promise<void>;
   resumeTarget?(targetRunId: string): Promise<void>;
+  listDemoUsers?(targetRunId: string): Promise<DemoWorkspaceAccounts>;
+  createDemoUser?(targetRunId: string, role: "admin" | "sales" | "read_only"): Promise<GeneratedDemoWorkspaceAccount>;
+  revokeDemoUser?(targetRunId: string, accountId: string): Promise<void>;
 }
