@@ -24,6 +24,6 @@ jobs:
       - name: Compile all packages for Docker
         run: pnpm build
       - name: Demo service tests
-        run: pnpm --filter @testy/control-plane test -- demo
+        run: pnpm --filter @testy/control-plane exec vitest run test/demo-service.test.ts test/demo-routes.test.ts
       - name: Typecheck
         run: pnpm typecheck
