@@ -314,7 +314,8 @@ describe("interactive demo service", () => {
     expect(recoveredEnrichment.enrichedCompanyCount).toBe(1);
     expect(recoveredEnrichment.contactCount).toBe(1);
     expect(enrichmentTriggers).toBe(3);
-    expect((await sessions.get(created.id))?.errorMessage).toBeNull();
+    // Clearing a nullable session field removes it in the repository mapper.
+    expect((await sessions.get(created.id))?.errorMessage).toBeUndefined();
 
     expect(
       await service.localWebsiteOriginForHost(created.websiteHostname),
