@@ -9,6 +9,9 @@ import {
 interface DemoParams {
   readonly id: string;
 }
+interface DemoAccountParams extends DemoParams {
+  readonly accountId: string;
+}
 
 export function registerInteractiveDemoRoutes(
   app: FastifyInstance,
@@ -43,6 +46,7 @@ export function registerInteractiveDemoRoutes(
       workspaceName: demos.workspaceName(session),
       credentialEmail: session.credentialEmail,
       keepWorkspace: session.keepWorkspace,
+      shareSeededDemoAccounts: session.shareSeededDemoAccounts ?? true,
       startedAt: session.startedAt,
       updatedAt: session.updatedAt,
       hibernatedAt: session.hibernatedAt,
@@ -69,6 +73,43 @@ export function registerInteractiveDemoRoutes(
       return session
         ? presentSession(demos, session)
         : reply.status(404).send({ error: "demo-session-not-found" });
+    },
+  );
+
+  app.get<{ Params: DemoParams }>(
+    "/v1/demo-sessions/:id/accounts",
+    async (request, reply) => {
+      try {
+        return await demos.demoAccounts(request.params.id);
+      } catch (error) {
+        return sendDemoError(reply, error);
+      }
+    },
+  );
+
+  app.post<{ Params: DemoParams; Body: { role?: string } }>(
+    "/v1/demo-sessions/:id/accounts",
+    async (request, reply) => {
+      try {
+        const role = (request.body as { role?: unknown } | null)?.role;
+        if (role !== "admin" && role !== "sales" && role !== "read_only") {
+          return reply.status(400).send({ error: "invalid-demo-role" });
+        }
+        return reply.status(201).send(await demos.createDemoAccount(request.params.id, role));
+      } catch (error) {
+        return sendDemoError(reply, error);
+      }
+    },
+  );
+
+  app.delete<{ Params: DemoAccountParams }>(
+    "/v1/demo-sessions/:id/accounts/:accountId",
+    async (request, reply) => {
+      try {
+        return await demos.revokeDemoAccount(request.params.id, request.params.accountId);
+      } catch (error) {
+        return sendDemoError(reply, error);
+      }
     },
   );
 
@@ -253,12 +294,17 @@ function readCreateDemoInput(value: unknown): CreateDemoSessionInput {
   ) {
     throw new Error("Demo credential mode must be shared or generated.");
   }
+  const share = record.shareSeededDemoAccounts;
+  if (share !== undefined && typeof share !== "boolean") {
+    throw new Error("shareSeededDemoAccounts must be a boolean.");
+  }
   const keepWorkspace = record.keepWorkspace;
   if (keepWorkspace !== undefined && typeof keepWorkspace !== "boolean") {
     throw new Error("keepWorkspace must be a boolean.");
   }
   return {
     ...(credentialMode ? { credentialMode } : {}),
+    ...(typeof share === "boolean" ? { shareSeededDemoAccounts: share } : {}),
     ...(typeof keepWorkspace === "boolean" ? { keepWorkspace } : {}),
   };
 }
@@ -293,6 +339,7 @@ function sendDemoError(reply: FastifyReply, error: unknown) {
     message.includes("cannot select") ||
     message.includes("must be an object") ||
     message.includes("credential mode") ||
+    message.includes("shareSeededDemoAccounts must") ||
     message.includes("keepWorkspace must") ||
     message.includes("incomplete")
   ) {
@@ -303,6 +350,7 @@ function sendDemoError(reply: FastifyReply, error: unknown) {
   }
   if (
     message.includes("not active") ||
+    message.includes("no manageable workspace") ||
     message.includes("cannot hibernate") ||
     message.includes("cannot resume") ||
     message.includes("no workspace") ||
