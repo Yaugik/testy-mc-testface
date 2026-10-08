@@ -715,7 +715,11 @@ const CONTROL_PLANE_HTML = `<!doctype html>
         notify("Demo workspace created");
         scheduleDemoPoll();
       } catch (error) {
-        showDemoError("Unable to start demo: " + error.message, true);
+        // The target may return a safe, actionable 422 response (for example
+        // seeded demo accounts not configured). Prefer that detail to the
+        // machine-readable error code.
+        showDemoError("Unable to start demo: " +
+          (typeof error.body?.message === "string" ? error.body.message : error.message), true);
       } finally {
         document.getElementById("startDemo").disabled = false;
         document.getElementById("startDemo").textContent = "Create session";

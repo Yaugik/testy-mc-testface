@@ -1,4 +1,5 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
+import { GlEyeTestSupportError } from "@testy/gl-eye-adapter";
 
 import {
   InteractiveDemoService,
@@ -329,6 +330,13 @@ function readVisitorInput(value: unknown): ApplyDemoVisitorInput {
 }
 
 function sendDemoError(reply: FastifyReply, error: unknown) {
+  if (error instanceof GlEyeTestSupportError
+    && [409, 422].includes(error.targetStatus)) {
+    return reply.status(error.targetStatus).send({
+      error: error.targetStatus === 422 ? "demo-target-validation-failed" : "demo-target-conflict",
+      message: error.message,
+    });
+  }
   const message = error instanceof Error ? error.message : String(error);
   if (message.includes("not found")) {
     return reply.status(404).send({ error: "demo-session-not-found" });

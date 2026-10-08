@@ -1,5 +1,6 @@
 export {
   GlEyeTargetAdapter,
+  GlEyeTestSupportError,
   defaultGlEyeTestSupportEndpoints,
 } from "./adapter.js";
 export type {
