@@ -35,6 +35,8 @@ export type DemoCredentialMode = "shared" | "generated";
 
 export interface CreateDemoSessionInput {
   readonly credentialMode?: DemoCredentialMode;
+  /** Keep the GL-EYE workspace when automatic session expiry occurs. */
+  readonly keepWorkspace?: boolean;
 }
 
 export interface ApplyDemoVisitorInput {
@@ -57,6 +59,7 @@ export interface DemoActivity {
 
 export class InteractiveDemoService {
   private readonly runtimes = new Map<string, DemoRuntime>();
+  private readonly transitions = new Map<string, Promise<void>>();
   private catalogPromise?: Promise<DemoProfileCatalog>;
 
   public constructor(
@@ -108,6 +111,7 @@ export class InteractiveDemoService {
       credential.mode,
       credential.email,
       credential.password,
+      input.keepWorkspace ?? false,
     );
     const runtime: DemoRuntime = {
       controller: new AbortController(),
@@ -241,15 +245,22 @@ export class InteractiveDemoService {
     }
   }
 
+  public async listControllable(): Promise<readonly DemoSessionRecord[]> {
+    return this.sessions.listControllable();
+  }
+
   public async get(id: string): Promise<DemoSessionRecord | undefined> {
     const session = await this.sessions.get(id);
     if (!session) return undefined;
     if (
-      session.status !== "STOPPED" &&
-      session.status !== "FAILED" &&
+      ["READY", "ACTIVE"].includes(session.status) &&
       Date.parse(session.expiresAt) <= Date.now()
     ) {
-      await this.stop(id, "expired");
+      if (session.keepWorkspace) {
+        await this.hibernate(id, "expired");
+      } else {
+        await this.stop(id, "expired");
+      }
       return this.sessions.get(id);
     }
     return session;
@@ -531,40 +542,158 @@ export class InteractiveDemoService {
     };
   }
 
+  /**
+   * Session operations are serialized on this Control Plane instance. All
+   * browsers/tabs may control a session; the most recent successful action wins.
+   */
+  private async withTransition<T>(
+    id: string,
+    operation: () => Promise<T>,
+  ): Promise<T> {
+    const previous = this.transitions.get(id) ?? Promise.resolve();
+    let release!: () => void;
+    const pending = new Promise<void>((resolve) => { release = resolve; });
+    const tail = previous.catch(() => undefined).then(() => pending);
+    this.transitions.set(id, tail);
+    await previous.catch(() => undefined);
+    try {
+      return await operation();
+    } finally {
+      release();
+      if (this.transitions.get(id) === tail) this.transitions.delete(id);
+    }
+  }
+
+  public async hibernate(
+    id: string,
+    reason = "operator",
+  ): Promise<DemoSessionRecord | undefined> {
+    return this.withTransition(id, () => this.hibernateUnlocked(id, reason));
+  }
+
+  private async hibernateUnlocked(
+    id: string,
+    reason: string,
+  ): Promise<DemoSessionRecord | undefined> {
+    let session = await this.sessions.get(id);
+    if (!session) return undefined;
+    if (session.status === "HIBERNATED") return session;
+    if (!["READY", "ACTIVE", "HIBERNATING", "RESUMING"].includes(session.status)) {
+      throw new Error(`Demo session cannot hibernate while ${session.status}.`);
+    }
+    if (!session.targetRunId) {
+      throw new Error("Demo session has no workspace to hibernate.");
+    }
+    session = await this.sessions.update(id, {
+      status: "HIBERNATING",
+      keepWorkspace: true,
+      errorMessage: null,
+    });
+    try {
+      const action = this.actions["target.hibernate-run"];
+      if (!action) {
+        throw new Error("Target demo hibernation is unavailable.");
+      }
+      const runtime = this.runtimes.get(id) ?? this.emptyRuntime();
+      await action({ targetRunId: session.targetRunId }, this.context(session, runtime));
+      await this.suspendRuntime(session, true);
+      session = await this.sessions.update(id, {
+        status: "HIBERNATED",
+        keepWorkspace: true,
+        hibernatedAt: new Date().toISOString(),
+        activeGatewayRouteId: null,
+        errorMessage: null,
+      });
+      await this.timeline(session, "demo-session-hibernated", { reason });
+      return session;
+    } catch (error) {
+      await this.sessions.update(id, {
+        status: "HIBERNATING",
+        keepWorkspace: true,
+        errorMessage: error instanceof Error ? error.message : String(error),
+      });
+      throw error;
+    }
+  }
+
+  public async resume(id: string): Promise<DemoSessionRecord | undefined> {
+    return this.withTransition(id, async () => {
+      const session = await this.sessions.get(id);
+      if (!session) return undefined;
+      if (session.status === "READY" || session.status === "ACTIVE") return session;
+      if (session.status !== "HIBERNATED") {
+        throw new Error(`Demo session cannot resume while ${session.status}.`);
+      }
+      if (!session.targetRunId || !session.credentialPassword) {
+        throw new Error("Hibernated session is missing its workspace or credentials.");
+      }
+      await this.sessions.update(id, { status: "RESUMING", errorMessage: null });
+      try {
+        return await this.resumeSession(session, true);
+      } catch (error) {
+        // A partially resumed target must be hibernated again; never delete
+        // persistent workspace data on a resume failure.
+        await this.hibernateUnlocked(id, "resume-failed");
+        throw error;
+      }
+    });
+  }
+
+  /**
+   * Delete is intentionally the only terminal/destructive action.
+   * A hibernated run may have no resource leases, so cleanupTarget must
+   * still be invoked with its persisted target run ID.
+   */
   public async stop(
     id: string,
     reason = "operator",
   ): Promise<DemoSessionRecord | undefined> {
-    let session = await this.sessions.get(id);
-    if (!session) return undefined;
-    if (session.status === "STOPPED" || session.status === "FAILED") {
+    return this.withTransition(id, async () => {
+      let session = await this.sessions.get(id);
+      if (!session) return undefined;
+      if (session.status === "STOPPED") return session;
+      session = await this.sessions.update(id, { status: "DELETING" });
+      await this.timeline(session, "demo-session-deleting", { reason });
+      const errors = await this.cleanupSession(session);
+      session = await this.sessions.update(id, {
+        status: errors.length === 0 ? "STOPPED" : "FAILED",
+        stoppedAt: new Date().toISOString(),
+        ...(errors.length === 0 ? { credentialPassword: null } : {}),
+        ...(errors.length > 0 ? { errorMessage: errors.join("; ") } : {}),
+      });
+      await this.sessions.finishRun(
+        session.runId,
+        errors.length === 0 ? "PASSED" : "FAILED",
+      );
+      await this.timeline(session, "demo-session-deleted", {
+        reason,
+        cleanupErrorCount: errors.length,
+      });
       return session;
-    }
-    session = await this.sessions.update(id, { status: "STOPPING" });
-    await this.timeline(session, "demo-session-stopping", { reason });
-    const errors = await this.cleanupSession(session);
-    const stoppedAt = new Date().toISOString();
-    session = await this.sessions.update(id, {
-      status: errors.length === 0 ? "STOPPED" : "FAILED",
-      stoppedAt,
-      ...(errors.length === 0 ? { credentialPassword: null } : {}),
-      ...(errors.length > 0 ? { errorMessage: errors.join("; ") } : {}),
     });
-    await this.sessions.finishRun(
-      session.runId,
-      errors.length === 0 ? "PASSED" : "FAILED",
-    );
-    await this.timeline(session, "demo-session-stopped", {
-      reason,
-      cleanupErrorCount: errors.length,
-    });
-    return session;
   }
 
   public async recoverInterruptedSessions(): Promise<void> {
     for (const session of await this.sessions.listInterrupted()) {
-      if (Date.parse(session.expiresAt) <= Date.now()) {
-        await this.stop(session.id, "expired-during-recovery");
+      if (session.status === "HIBERNATING" || session.status === "RESUMING") {
+        try {
+          await this.hibernate(session.id, "restart-recovery");
+        } catch {
+          // Keep the workspace and pending status for a later recovery attempt.
+        }
+        continue;
+      }
+      if (session.status === "STOPPING" || session.status === "DELETING") {
+        await this.stop(session.id, "restart-recovery");
+        continue;
+      }
+      if (Date.parse(session.expiresAt) <= Date.now() &&
+          (session.status === "READY" || session.status === "ACTIVE")) {
+        if (session.keepWorkspace) {
+          await this.hibernate(session.id, "expired-during-recovery");
+        } else {
+          await this.stop(session.id, "expired-during-recovery");
+        }
         continue;
       }
 
@@ -573,30 +702,31 @@ export class InteractiveDemoService {
           await this.resumeSession(session);
           continue;
         } catch (error) {
-          await this.failSession(session, error);
+          if (session.keepWorkspace && session.targetRunId) {
+            await this.hibernate(session.id, "recovery-failed");
+          } else {
+            await this.failSession(session, error);
+          }
           continue;
         }
       }
 
-      const errors = await this.cleanupSession(session);
-      const recovered = await this.sessions.update(session.id, {
-        status: errors.length === 0 ? "STOPPED" : "FAILED",
-        stoppedAt: new Date().toISOString(),
-        ...(errors.length === 0 ? { credentialPassword: null } : {}),
-        errorMessage:
-          errors.length === 0
-            ? "Incomplete session terminated during Control Plane restart recovery."
-            : errors.join("; "),
-      });
-      await this.sessions.finishRun(recovered.runId, "FAILED");
+      await this.stop(session.id, "incomplete-recovery");
     }
   }
 
   public async expireSessions(): Promise<void> {
     const now = Date.now();
     for (const session of await this.sessions.listInterrupted()) {
-      if (Date.parse(session.expiresAt) <= now) {
-        await this.stop(session.id, "expired");
+      if (
+        (session.status === "READY" || session.status === "ACTIVE") &&
+        Date.parse(session.expiresAt) <= now
+      ) {
+        if (session.keepWorkspace) {
+          await this.hibernate(session.id, "expired");
+        } else {
+          await this.stop(session.id, "expired");
+        }
       }
     }
   }
@@ -611,8 +741,9 @@ export class InteractiveDemoService {
 
   private async resumeSession(
     session: DemoSessionRecord,
+    fromHibernate = false,
   ): Promise<DemoSessionRecord> {
-    const originalStatus = session.status === "ACTIVE" ? "ACTIVE" : "READY";
+    const originalStatus = !fromHibernate && session.status === "ACTIVE" ? "ACTIVE" : "READY";
     const catalog = await this.profiles();
     const networkId =
       session.networkIdentityId ?? catalog.defaults.networkId;
@@ -671,6 +802,12 @@ export class InteractiveDemoService {
     const targetRunId = readString(prepared, "targetRunId");
     const tenantId = readString(prepared, "tenantId");
     const siteId = readString(prepared, "siteId");
+    if (fromHibernate) {
+      if (targetRunId !== session.targetRunId) {
+        throw new Error("Resumed demo target does not match its saved workspace.");
+      }
+      await this.invoke(session, runtime, "target.resume-run", { targetRunId });
+    }
 
     for (const vendorId of ["ipinfo", "apollo", "hunter"] as const) {
       const compiled = await this.invoke(
@@ -770,6 +907,12 @@ export class InteractiveDemoService {
       siteId,
       errorMessage: null,
       stoppedAt: null,
+      ...(fromHibernate
+        ? {
+            hibernatedAt: null,
+            expiresAt: new Date(Date.now() + this.config.demoSessionTtlMs).toISOString(),
+          }
+        : {}),
     });
     await this.timeline(resumed, "demo-session-resumed", {
       networkIdentityId: selected.network.id,
@@ -798,21 +941,40 @@ export class InteractiveDemoService {
     }
   }
 
+  private emptyRuntime(): DemoRuntime {
+    return {
+      controller: new AbortController(),
+      outputs: {},
+      cleanups: [],
+      leaseCleanups: new Map(),
+      providerBaseUrls: {},
+    };
+  }
+
   private async suspendRuntime(
     session: DemoSessionRecord,
+    releaseTargetLease = false,
   ): Promise<void> {
     const runtime = this.runtimes.get(session.id);
-    if (!runtime) return;
-
     const leases = await this.evidence.listActiveResourceLeases(session.runId);
     for (const lease of [...leases].reverse()) {
-      if (lease.resourceType === "target-run") continue;
-      const local = runtime.leaseCleanups.get(lease.leaseId);
+      if (lease.resourceType === "target-run") {
+        // Hibernate must release the deletion lease without deleting its target.
+        if (releaseTargetLease) {
+          await this.evidence.releaseResourceLease(
+            lease.leaseId,
+            new Date().toISOString(),
+          );
+        }
+        continue;
+      }
+      const local = runtime?.leaseCleanups.get(lease.leaseId);
       if (local) {
         await local();
       } else {
         const cleaner = this.resourceCleaners[lease.resourceType];
-        if (cleaner) await cleaner(lease);
+        if (!cleaner) throw new Error(`No resource cleaner for '${lease.resourceType}'.`);
+        await cleaner(lease);
       }
       await this.evidence.releaseResourceLease(
         lease.leaseId,
@@ -820,14 +982,14 @@ export class InteractiveDemoService {
       );
     }
 
-    for (const cleanup of [...runtime.cleanups].reverse()) {
-      await cleanup();
+    if (runtime) {
+      for (const cleanup of [...runtime.cleanups].reverse()) {
+        await cleanup();
+      }
+      runtime.controller.abort(new Error("Interactive Demo runtime suspended."));
+      this.runtimes.delete(session.id);
     }
-    runtime.controller.abort(new Error("Control Plane shutdown."));
-    this.runtimes.delete(session.id);
-    await this.sessions.update(session.id, {
-      activeGatewayRouteId: null,
-    });
+    await this.sessions.update(session.id, { activeGatewayRouteId: null });
   }
 
   private scheduleEnrichmentWatch(session: DemoSessionRecord): void {
@@ -940,30 +1102,49 @@ export class InteractiveDemoService {
   ): Promise<readonly string[]> {
     const errors: string[] = [];
     const runtime = this.runtimes.get(session.id);
-    if (runtime) {
-      const cleanupAction = this.actions["target.cleanup-run"];
-      if (cleanupAction) {
+    let targetDeleted = false;
+    if (session.targetRunId) {
+      const deleteAction = this.actions["target.cleanup-target"];
+      if (deleteAction) {
         try {
-          await cleanupAction(undefined, this.context(session, runtime));
+          await deleteAction(
+            { targetRunId: session.targetRunId },
+            this.context(session, runtime ?? this.emptyRuntime()),
+          );
+          targetDeleted = true;
         } catch (error) {
           errors.push(error instanceof Error ? error.message : String(error));
+        }
+      } else if (runtime) {
+        const cleanup = this.actions["target.cleanup-run"];
+        if (cleanup) {
+          try {
+            await cleanup(undefined, this.context(session, runtime));
+            targetDeleted = true;
+          } catch (error) {
+            errors.push(error instanceof Error ? error.message : String(error));
+          }
         }
       }
     }
     const leases = await this.evidence.listActiveResourceLeases(session.runId);
     for (const lease of [...leases].reverse()) {
       try {
-        const local = runtime?.leaseCleanups.get(lease.leaseId);
-        if (local) {
-          await local();
-        } else {
-          const cleaner = this.resourceCleaners[lease.resourceType];
-          if (!cleaner) {
-            throw new Error(
-              `No resource cleaner is registered for '${lease.resourceType}'.`,
-            );
+        if (!(targetDeleted && lease.resourceType === "target-run")) {
+          const local = runtime?.leaseCleanups.get(lease.leaseId);
+          if (local) {
+            await local();
+            if (lease.resourceType === "target-run") targetDeleted = true;
+          } else {
+            const cleaner = this.resourceCleaners[lease.resourceType];
+            if (!cleaner) {
+              throw new Error(
+                `No resource cleaner is registered for '${lease.resourceType}'.`,
+              );
+            }
+            await cleaner(lease);
+            if (lease.resourceType === "target-run") targetDeleted = true;
           }
-          await cleaner(lease);
         }
         await this.evidence.releaseResourceLease(
           lease.leaseId,
@@ -973,7 +1154,9 @@ export class InteractiveDemoService {
         errors.push(error instanceof Error ? error.message : String(error));
       }
     }
-
+    if (session.targetRunId && !targetDeleted) {
+      errors.push("GL-EYE workspace deletion was not confirmed.");
+    }
     if (runtime) {
       for (const cleanup of [...runtime.cleanups].reverse()) {
         try {
