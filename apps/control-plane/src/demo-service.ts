@@ -300,99 +300,103 @@ export class InteractiveDemoService {
     id: string,
     input: ApplyDemoVisitorInput,
   ): Promise<DemoSessionRecord> {
-    const session = await this.requireLiveSession(id);
-    const runtime = this.requireRuntime(id);
-    const selected = selectDemoVisitor(
-      await this.profiles(),
-      input.networkId,
-      input.personId,
-      input.browserId,
-    );
-    if (!runtime.targetOrigin) {
-      throw new Error("Interactive Demo target origin is unavailable.");
-    }
+    return this.withTransition(id, async () => {
+      const session = await this.requireLiveSession(id);
+      const runtime = this.requireRuntime(id);
+      const selected = selectDemoVisitor(
+        await this.profiles(),
+        input.networkId,
+        input.personId,
+        input.browserId,
+      );
+      if (!runtime.targetOrigin) {
+        throw new Error("Interactive Demo target origin is unavailable.");
+      }
 
-    const route = await this.invoke(
-      session,
-      runtime,
-      "gateway.replace-route",
-      {
-        targetOrigin: runtime.targetOrigin,
-        syntheticIp: selected.network.syntheticIp,
-        ttlMs: this.config.demoSessionTtlMs,
-      },
-      `gateway-route-${Date.now()}`,
-    );
-    await this.configureProviders(
-      session,
-      runtime,
-      selected.person?.providerProfile,
-    );
+      const route = await this.invoke(
+        session,
+        runtime,
+        "gateway.replace-route",
+        {
+          targetOrigin: runtime.targetOrigin,
+          syntheticIp: selected.network.syntheticIp,
+          ttlMs: this.config.demoSessionTtlMs,
+        },
+        `gateway-route-${Date.now()}`,
+      );
+      await this.configureProviders(
+        session,
+        runtime,
+        selected.person?.providerProfile,
+      );
 
-    const resetVersion = selected.browser.reset
-      ? session.resetVersion + 1
-      : session.resetVersion;
-    await this.invoke(
-      session,
-      runtime,
-      "site.configure-manual-tracking",
-      {
-        publicOrigin: this.publicSecureOrigin(session),
+      const resetVersion = selected.browser.reset
+        ? session.resetVersion + 1
+        : session.resetVersion;
+      await this.invoke(
+        session,
+        runtime,
+        "site.configure-manual-tracking",
+        {
+          publicOrigin: this.publicSecureOrigin(session),
+          resetVersion,
+        },
+        `manual-tracking-${Date.now()}`,
+      );
+
+      const visitorStartedAt = new Date().toISOString();
+      const updated = await this.sessions.update(id, {
+        status: "ACTIVE",
+        networkIdentityId: selected.network.id,
+        personIdentityId: selected.person?.id ?? null,
+        browserIdentityId: selected.browser.id,
         resetVersion,
-      },
-      `manual-tracking-${Date.now()}`,
-    );
-
-    const visitorStartedAt = new Date().toISOString();
-    const updated = await this.sessions.update(id, {
-      status: "ACTIVE",
-      networkIdentityId: selected.network.id,
-      personIdentityId: selected.person?.id ?? null,
-      browserIdentityId: selected.browser.id,
-      resetVersion,
-      activeGatewayRouteId: readString(route, "routeId"),
-      enrichmentTriggeredAt: null,
-      visitorStartedAt,
-      errorMessage: null,
+        activeGatewayRouteId: readString(route, "routeId"),
+        enrichmentTriggeredAt: null,
+        visitorStartedAt,
+        errorMessage: null,
+      });
+      await this.timeline(updated, "visitor-profile-applied", {
+        networkIdentityId: selected.network.id,
+        personIdentityId: selected.person?.id ?? "none",
+        browserIdentityId: selected.browser.id,
+        resetVersion,
+      });
+      this.scheduleEnrichmentWatch(updated);
+      return updated;
     });
-    await this.timeline(updated, "visitor-profile-applied", {
-      networkIdentityId: selected.network.id,
-      personIdentityId: selected.person?.id ?? "none",
-      browserIdentityId: selected.browser.id,
-      resetVersion,
-    });
-    this.scheduleEnrichmentWatch(updated);
-    return updated;
   }
 
   public async resetVisitor(id: string): Promise<DemoSessionRecord> {
-    const session = await this.requireLiveSession(id);
-    const runtime = this.requireRuntime(id);
-    const resetVersion = session.resetVersion + 1;
-    await this.invoke(
-      session,
-      runtime,
-      "site.configure-manual-tracking",
-      {
-        publicOrigin: this.publicSecureOrigin(session),
+    return this.withTransition(id, async () => {
+      const session = await this.requireLiveSession(id);
+      const runtime = this.requireRuntime(id);
+      const resetVersion = session.resetVersion + 1;
+      await this.invoke(
+        session,
+        runtime,
+        "site.configure-manual-tracking",
+        {
+          publicOrigin: this.publicSecureOrigin(session),
+          resetVersion,
+        },
+        `manual-reset-${resetVersion}`,
+      );
+      const visitorStartedAt = new Date().toISOString();
+      const updated = await this.sessions.update(id, {
+        status: "ACTIVE",
         resetVersion,
-      },
-      `manual-reset-${resetVersion}`,
-    );
-    const visitorStartedAt = new Date().toISOString();
-    const updated = await this.sessions.update(id, {
-      status: "ACTIVE",
-      resetVersion,
-      browserIdentityId: "clean",
-      enrichmentTriggeredAt: null,
-      visitorStartedAt,
-      errorMessage: null,
+        browserIdentityId: "clean",
+        enrichmentTriggeredAt: null,
+        visitorStartedAt,
+        errorMessage: null,
+      });
+      await this.timeline(updated, "visitor-browser-reset-requested", {
+        resetVersion,
+      });
+      this.scheduleEnrichmentWatch(updated);
+      return updated;
     });
-    await this.timeline(updated, "visitor-browser-reset-requested", {
-      resetVersion,
-    });
-    this.scheduleEnrichmentWatch(updated);
-    return updated;
   }
 
   public async outcome(id: string): Promise<ScenarioValue | undefined> {
@@ -1187,8 +1191,13 @@ export class InteractiveDemoService {
   }
 
   private async requireLiveSession(id: string): Promise<DemoSessionRecord> {
-    const session = await this.get(id);
+    // Do not recursively enter hibernate/delete while holding the session
+    // transition lock; expiry is handled by the scheduler/get endpoint.
+    const session = await this.sessions.get(id);
     if (!session) throw new Error("Interactive Demo session was not found.");
+    if (Date.parse(session.expiresAt) <= Date.now()) {
+      throw new Error("Interactive Demo session is not active (expired).");
+    }
     if (session.status !== "READY" && session.status !== "ACTIVE") {
       throw new Error(
         `Interactive Demo session is not active (status ${session.status}).`,
